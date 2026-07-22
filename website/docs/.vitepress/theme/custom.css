@@ -1,0 +1,82 @@
+/**
+ * Nyala Framework Custom Theme
+ * Brand colors: Teal Green (#1a4d3e) and Golden Yellow (#f5b847)
+ */
+
+:root {
+    /* Brand Colors */
+    --vp-c-brand: #1a4d3e;
+    --vp-c-brand-light: #2a6d5e;
+    --vp-c-brand-lighter: #3a8d7e;
+    --vp-c-brand-dark: #0a3d2e;
+    --vp-c-brand-darker: #002d1e;
+
+    /* Accent Colors */
+    --vp-c-accent: #f5b847;
+    --vp-c-accent-light: #f7c567;
+    --vp-c-accent-dark: #e5a837;
+
+    /* Button Colors */
+    --vp-button-brand-bg: #1a4d3e;
+    --vp-button-brand-hover-bg: #2a6d5e;
+    --vp-button-brand-active-bg: #0a3d2e;
+
+    --vp-button-alt-bg: #f5b847;
+    --vp-button-alt-hover-bg: #f7c567;
+    --vp-button-alt-active-bg: #e5a837;
+
+    /* Home Page */
+    --vp-home-hero-name-color: transparent;
+    --vp-home-hero-name-background: linear-gradient(135deg, #1a4d3e 0%, #2a6d5e 50%, #f5b847 100%);
+}
+
+/* Logo styling */
+.VPNavBarTitle .logo {
+    max-height: 32px;
+    width: auto;
+}
+
+/* Hero section enhancements */
+.VPHero .image-container {
+    transform: scale(1.1);
+}
+
+.VPHero .name {
+    background: var(--vp-home-hero-name-background);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-ext;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Code block enhancements */
+.vp-code-group {
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Link colors */
+a {
+    color: var(--vp-c-brand);
+}
+
+a:hover {
+    color: var(--vp-c-brand-light);
+}
+
+/* Custom alert boxes */
+.custom-block.tip {
+    border-color: var(--vp-c-accent);
+}
+
+.custom-block.warning {
+    border-color: #f5b847;
+}
+
+/* Footer styling */
+.VPFooter {
+    border-top: 1px solid var(--vp-c-divider);
+    padding-top: 2rem;
+}

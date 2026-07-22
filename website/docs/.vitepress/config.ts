@@ -5,13 +5,18 @@ export default defineConfig({
     description: 'Enterprise TypeScript Framework for Production Applications',
 
     themeConfig: {
-        logo: '/logo.svg',
+        logo: '/logo.png',
 
         nav: [
             { text: 'Docs', link: '/introduction' },
             { text: 'Guide', link: '/getting-started' },
             { text: 'API', link: '/api/overview' },
             { text: 'Examples', link: '/examples' },
+            {
+                text: 'NPM',
+                link: 'https://www.npmjs.com/org/nyalajs',
+                target: '_blank'
+            },
         ],
 
         sidebar: [
@@ -127,14 +132,13 @@ export default defineConfig({
         ],
 
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/nyalajs/nyala' },
-            { icon: 'discord', link: 'https://discord.gg/nyalajs' },
-            { icon: 'twitter', link: 'https://twitter.com/nyalajs' }
+            { icon: 'github', link: 'https://github.com/nyalajs/nyalajs' },
+            { icon: 'npm', link: 'https://www.npmjs.com/org/nyalajs' }
         ],
 
         footer: {
             message: 'Released under the MIT License.',
-            copyright: 'Copyright © 2024 Nyala Framework'
+            copyright: 'Copyright © 2024-present Nyala Framework'
         },
 
         search: {
@@ -142,15 +146,23 @@ export default defineConfig({
         },
 
         editLink: {
-            pattern: 'https://github.com/nyalajs/nyala/edit/main/website/docs/:path',
+            pattern: 'https://github.com/nyalajs/nyalajs/edit/main/website/docs/:path',
             text: 'Edit this page on GitHub'
         }
     },
 
     head: [
-        ['link', { rel: 'icon', href: '/favicon.ico' }],
-        ['meta', { name: 'theme-color', content: '#3eaf7c' }],
+        ['link', { rel: 'icon', href: '/logo.png', type: 'image/png' }],
+        ['meta', { name: 'theme-color', content: '#1a4d3e' }],
         ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
-        ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black' }]
+        ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black' }],
+        ['meta', { property: 'og:title', content: 'Nyala - Enterprise TypeScript Framework' }],
+        ['meta', { property: 'og:description', content: 'Production-ready TypeScript framework with MVC architecture, multi-tenancy, and batteries included' }],
+        ['meta', { property: 'og:image', content: '/logo.png' }],
+        ['meta', { property: 'og:type', content: 'website' }],
+        ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+        ['meta', { name: 'twitter:title', content: 'Nyala - Enterprise TypeScript Framework' }],
+        ['meta', { name: 'twitter:description', content: 'Production-ready TypeScript framework with MVC architecture, multi-tenancy, and batteries included' }],
+        ['meta', { name: 'twitter:image', content: '/logo.png' }]
     ]
 })

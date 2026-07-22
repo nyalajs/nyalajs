@@ -6,15 +6,18 @@ hero:
   text: Enterprise TypeScript Framework
   tagline: Build production-ready applications with confidence
   image:
-    src: /logo.svg
-    alt: Nyala
+    src: /logo.png
+    alt: Nyala Framework Logo
   actions:
     - theme: brand
       text: Get Started
       link: /getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/nyalajs/nyala
+      link: https://github.com/nyalajs/nyalajs
+    - theme: alt
+      text: NPM Packages
+      link: https://www.npmjs.com/org/nyalajs
 
 features:
   - icon: 🏗️
@@ -34,8 +37,8 @@ features:
     details: Full type safety end-to-end. IntelliSense everywhere. Catch errors at compile time.
 
   - icon: 📦
-    title: Zero Configuration
-    details: Sensible defaults that just work. Start building features immediately.
+    title: Modular Packages
+    details: Install only what you need. 15+ focused packages on npm under @nyalajs organization.
 
   - icon: 🎨
     title: Developer Experience
@@ -76,6 +79,9 @@ When you create a Nyala application, you get a complete, production-ready setup:
 ::: code-group
 
 ```typescript [Controller]
+import { Controller, Get, Post, Body, Query } from "@nyalajs/core";
+import { ValidateBody } from "@nyalajs/validation";
+
 @Controller('/users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
@@ -86,9 +92,43 @@ export class UsersController {
   }
 
   @Post('/')
-  @UseValidation(CreateUserValidator)
+  @ValidateBody(CreateUserValidator)
   async store(@Body() dto: CreateUserDto) {
-    re
+    return this.usersService.create(dto);
+  }
+}
+```
+
+```typescript [Service]
+import { Injectable } from "@nyalajs/core";
+
+@Injectable()
+export class UsersService {
+  constructor(private userRepo: UserRepository) {}
+
+  async findAll(query: PaginationDto) {
+    return this.userRepo.findAll({
+      limit: query.limit,
+      offset: query.offset
+    });
+  }
+
+  async create(dto: CreateUserDto) {
+    return this.userRepo.create(dto);
+  }
+}
+```
+
+```typescript [Repository]
+import { Injectable } from "@nyalajs/core";
+import { BaseRepository } from "@nyalajs/database";
+
+@Injectable()
+export class UserRepository extends BaseRepository<User> {
+  constructor() {
+    super(users);
+  }
+
   async findByEmail(email: string) {
     return this.findOne(eq(users.email, email));
   }
@@ -119,12 +159,12 @@ Type-safe. Scalable. Auditable. Production-ready security.
 
 <div class="stats">
   <div class="stat">
-    <div class="stat-value">20+</div>
-    <div class="stat-label">Packages</div>
+    <div class="stat-value">18</div>
+    <div class="stat-label">NPM Packages</div>
   </div>
   <div class="stat">
-    <div class="stat-value">3</div>
-    <div class="stat-label">Templates</div>
+    <div class="stat-value">2</div>
+    <div class="stat-label">Production Templates</div>
   </div>
   <div class="stat">
     <div class="stat-value">100%</div>
@@ -132,7 +172,7 @@ Type-safe. Scalable. Auditable. Production-ready security.
   </div>
   <div class="stat">
     <div class="stat-value">MIT</div>
-    <div class="stat-label">License</div>
+    <div class="stat-label">Open Source</div>
   </div>
 </div>
 

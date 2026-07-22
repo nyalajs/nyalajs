@@ -1,0 +1,7 @@
+# Public assets directory for VitePress
+
+Place the following files here:
+- logo.png - Main logo (for navbar and homepage)
+- logo.svg - SVG version (optional, preferred for scalability)
+- favicon.ico - Site favicon
+- og-image.png - Open Graph image for social sharing (1200x630px recommended)
