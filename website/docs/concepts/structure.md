@@ -301,7 +301,7 @@ app/
 
 ```typescript
 // main.ts
-import { NyalaFactory } from '@nyala/core';
+import { NyalaFactory } from '@nyalajs/core';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {

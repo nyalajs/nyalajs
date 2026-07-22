@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/security",
+    "name": "@nyalajs/security",
     "version": "1.0.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -9,8 +9,8 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/http": "*",
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
         "jsonwebtoken": "^9.0.2",
         "bcrypt": "^5.1.1"
     },

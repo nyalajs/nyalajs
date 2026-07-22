@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/validation",
+    "name": "@nyalajs/validation",
     "version": "1.0.0",
     "description": "Zod-based validation engine for NyalaJS",
     "main": "dist/index.js",
@@ -9,8 +9,8 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/http": "*",
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
         "zod": "^3.22.4"
     },
     "devDependencies": {

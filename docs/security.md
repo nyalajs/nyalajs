@@ -5,7 +5,7 @@
 ### JWT Configuration
 
 ```typescript
-import { JwtStrategy } from "@nyala/security";
+import { JwtStrategy } from "@nyalajs/security";
 
 const jwtStrategy = new JwtStrategy({
   secret: process.env.JWT_SECRET, // Use strong random secret
@@ -36,7 +36,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 ### Role-Based Access Control
 
 ```typescript
-import { Roles } from "@nyala/security";
+import { Roles } from "@nyalajs/security";
 
 @Controller("/admin")
 export class AdminController {
@@ -51,7 +51,7 @@ export class AdminController {
 ### Guards
 
 ```typescript
-import { AuthGuard, RolesGuard } from "@nyala/security";
+import { AuthGuard, RolesGuard } from "@nyalajs/security";
 
 @Controller("/protected")
 @UseGuards(AuthGuard, RolesGuard)
@@ -85,7 +85,7 @@ Nyala enables security headers by default:
 ## Audit Logging
 
 ```typescript
-import { AuditInterceptor } from "@nyala/audit";
+import { AuditInterceptor } from "@nyalajs/audit";
 
 @Controller("/users")
 @UseInterceptors(AuditInterceptor)

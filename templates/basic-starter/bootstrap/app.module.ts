@@ -1,6 +1,6 @@
-import { Module } from "@nyala/core";
-import { ConfigService } from "@nyala/config";
-import { Logger } from "@nyala/observability";
+import { Module } from "@nyalajs/core";
+import { ConfigService } from "@nyalajs/config";
+import { Logger } from "@nyalajs/observability";
 import { namespaces } from "../config";
 
 // Controllers

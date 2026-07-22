@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/config",
+    "name": "@nyalajs/config",
     "version": "1.0.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -9,7 +9,7 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "dotenv": "^16.3.1",
         "joi": "^17.11.0",
         "reflect-metadata": "^0.2.1"

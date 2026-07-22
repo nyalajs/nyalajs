@@ -7,7 +7,7 @@ Repositories handle data access and database operations. They provide a clean ab
 Extend the `BaseRepository` class:
 
 ```typescript
-import { Injectable } from '@nyala/core';
+import { Injectable } from '@nyalajs/core';
 import { BaseRepository } from './base.repository';
 import { users, User } from '../../database/schema/users.schema';
 
@@ -435,7 +435,7 @@ export class UsersRepository extends BaseRepository<User> {
 Tenant-aware repository:
 
 ```typescript
-import { TenantContext } from '@nyala/tenancy';
+import { TenantContext } from '@nyalajs/tenancy';
 
 @Injectable()
 export class TenantRepository<T> extends BaseRepository<T> {

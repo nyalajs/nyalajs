@@ -1,4 +1,4 @@
-import { Module } from "@nyala/core";
+import { Module } from "@nyalajs/core";
 import { Logger } from "./logging/logger";
 import { MetricsCollector } from "./metrics/metrics-collector";
 import { HealthCheckService } from "./health/health-check";

@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 // @ts-ignore
 import { Pool } from "pg";

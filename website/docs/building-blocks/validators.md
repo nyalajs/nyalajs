@@ -21,7 +21,7 @@ export const CreateUserValidator = z.object({
 Apply validation to controller endpoints:
 
 ```typescript
-import { UseValidation } from '@nyala/validation';
+import { UseValidation } from '@nyalajs/validation';
 import { CreateUserValidator } from '../validators/users';
 
 @Controller('/users')

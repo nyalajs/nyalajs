@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { eq } from "drizzle-orm";
 import { BaseRepository } from "./base.repository";
 import { tenants, Tenant } from "../models/tenant.model";

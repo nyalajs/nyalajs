@@ -6,7 +6,7 @@ Get Nyala running in 2 minutes.
 
 ```bash
 # Install globally
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 
 # Verify
 nyala --version

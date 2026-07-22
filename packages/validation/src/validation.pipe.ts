@@ -1,4 +1,4 @@
-import { UnprocessableEntityException } from "@nyala/http";
+import { UnprocessableEntityException } from "@nyalajs/http";
 import { ZodError, ZodSchema } from "zod";
 
 export class ValidationPipe {

@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nyala/core";
+import { Controller, Get } from "@nyalajs/core";
 import { UsersService } from "./users.service";
 
 @Controller("/users")

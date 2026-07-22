@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import * as dotenv from "dotenv";
 import * as Joi from "joi";
 import * as fs from "fs";

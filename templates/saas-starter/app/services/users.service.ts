@@ -1,6 +1,6 @@
-import { Injectable } from "@nyala/core";
-import { NotFoundException, ConflictException } from "@nyala/http";
-import { Logger } from "@nyala/observability";
+import { Injectable } from "@nyalajs/core";
+import { NotFoundException, ConflictException } from "@nyalajs/http";
+import { Logger } from "@nyalajs/observability";
 import * as bcrypt from "bcrypt";
 
 interface CreateUserDto {

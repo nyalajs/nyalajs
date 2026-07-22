@@ -275,7 +275,7 @@ async store(@Body() dto: CreatePostDto) {
 ### Add Authentication
 
 ```typescript
-import { AuthGuard } from '@nyala/security';
+import { AuthGuard } from '@nyalajs/security';
 
 @Controller('/posts')
 @UseGuards(AuthGuard)

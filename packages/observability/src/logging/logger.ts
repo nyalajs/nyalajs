@@ -1,5 +1,5 @@
 import pino from "pino";
-import { Injectable, Inject } from "@nyala/core";
+import { Injectable, Inject } from "@nyalajs/core";
 
 export interface LogEntry {
     level: "debug" | "info" | "warn" | "error";

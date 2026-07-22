@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Get, UseGuards } from "@nyala/core";
+import { Controller, Post, Body, Get, UseGuards } from "@nyalajs/core";
 import { AuthService } from "../services/auth.service";
-import { AuthGuard } from "@nyala/security";
+import { AuthGuard } from "@nyalajs/security";
 
 interface LoginDto {
     email: string;

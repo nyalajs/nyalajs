@@ -1,5 +1,5 @@
-import { Injectable, Inject } from "@nyala/core";
-import { Guard, ExecutionContext, UnauthorizedException } from "@nyala/http";
+import { Injectable, Inject } from "@nyalajs/core";
+import { Guard, ExecutionContext, UnauthorizedException } from "@nyalajs/http";
 import { JwtStrategy } from "./jwt-strategy";
 
 @Injectable()

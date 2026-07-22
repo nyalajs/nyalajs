@@ -4,7 +4,7 @@
 
 **Enterprise TypeScript Framework for Production-Ready Applications**
 
-[![npm version](https://img.shields.io/npm/v/@nyala/cli.svg)](https://www.npmjs.com/package/@nyala/cli)
+[![npm version](https://img.shields.io/npm/v/@nyalajs/cli.svg)](https://www.npmjs.com/package/@nyalajs/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 
@@ -29,7 +29,7 @@ Nyala is a production-ready TypeScript framework for building modern application
 
 ```bash
 # Install CLI
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 
 # Create new application
 nyala new my-app

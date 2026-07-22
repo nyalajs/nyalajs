@@ -58,7 +58,7 @@ features:
 
 ```bash
 # Install CLI
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 
 # Create application
 nyala new my-app

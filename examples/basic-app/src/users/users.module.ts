@@ -1,4 +1,4 @@
-import { Module } from "@nyala/core";
+import { Module } from "@nyalajs/core";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
 

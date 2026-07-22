@@ -1,5 +1,5 @@
-import { Injectable } from "@nyala/core";
-import { MailService } from "@nyala/mail";
+import { Injectable } from "@nyalajs/core";
+import { MailService } from "@nyalajs/mail";
 import { Notification } from "./notification";
 
 /** Interface for entities that can receive notifications */

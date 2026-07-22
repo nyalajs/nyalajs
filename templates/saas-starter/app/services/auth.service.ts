@@ -1,7 +1,7 @@
-import { Injectable } from "@nyala/core";
-import { UnauthorizedException, ConflictException } from "@nyala/http";
-import { ConfigService } from "@nyala/config";
-import { Logger } from "@nyala/observability";
+import { Injectable } from "@nyalajs/core";
+import { UnauthorizedException, ConflictException } from "@nyalajs/http";
+import { ConfigService } from "@nyalajs/config";
+import { Logger } from "@nyalajs/observability";
 import * as bcrypt from "bcrypt";
 import * as jwt from "jsonwebtoken";
 

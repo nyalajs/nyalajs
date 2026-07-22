@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/http",
+    "name": "@nyalajs/http",
     "version": "1.0.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -19,7 +19,7 @@
         "@fastify/secure-session": "^7.5.1",
         "@fastify/swagger": "^8.13.0",
         "@fastify/swagger-ui": "^2.1.0",
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "fastify": "^4.25.2"
     },
     "devDependencies": {

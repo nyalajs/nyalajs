@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/documentation",
+    "name": "@nyalajs/documentation",
     "version": "1.0.0",
     "description": "Nyala Framework Documentation",
     "type": "module",

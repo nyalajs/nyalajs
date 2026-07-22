@@ -1,4 +1,4 @@
-import { Mailable } from "@nyala/mail";
+import { Mailable } from "@nyalajs/mail";
 
 /**
  * Base class for a Notification.

@@ -1,6 +1,6 @@
-import { Injectable } from "@nyala/core";
-import { Middleware, NextFunction } from "@nyala/http";
-import { Logger } from "@nyala/observability";
+import { Injectable } from "@nyalajs/core";
+import { Middleware, NextFunction } from "@nyalajs/http";
+import { Logger } from "@nyalajs/observability";
 
 @Injectable()
 export class LoggingMiddleware implements Middleware {

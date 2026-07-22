@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/events",
+    "name": "@nyalajs/events",
     "version": "1.0.0",
     "description": "Event bus and emitter for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "ioredis": "^5.3.0"
     },
     "devDependencies": {

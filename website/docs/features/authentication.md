@@ -35,7 +35,7 @@ POST /auth/logout
 ## Auth Controller
 
 ```typescript
-import { Controller, Post, Body, UseValidation } from '@nyala/core';
+import { Controller, Post, Body, UseValidation } from '@nyalajs/core';
 import { AuthService } from '../services/auth.service';
 import { RegisterDto, LoginDto } from '../dto/auth';
 import { RegisterValidator, LoginValidator } from '../validators/auth';
@@ -72,8 +72,8 @@ export class AuthController {
 ## Auth Service
 
 ```typescript
-import { Injectable, UnauthorizedException, ConflictException } from '@nyala/core';
-import { JwtService } from '@nyala/jwt';
+import { Injectable, UnauthorizedException, ConflictException } from '@nyalajs/core';
+import { JwtService } from '@nyalajs/jwt';
 import { UsersRepository } from '../repositories/users.repository';
 import { hashPassword, comparePassword } from '../helpers/password.helper';
 
@@ -195,8 +195,8 @@ export class AuthService {
 Protect routes with the auth guard:
 
 ```typescript
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nyala/core';
-import { JwtService } from '@nyala/jwt';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nyalajs/core';
+import { JwtService } from '@nyalajs/jwt';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -274,7 +274,7 @@ export class PostsController {
 Get the current user in controllers:
 
 ```typescript
-import { createParamDecorator, ExecutionContext } from '@nyala/core';
+import { createParamDecorator, ExecutionContext } from '@nyalajs/core';
 
 export const CurrentUser = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {

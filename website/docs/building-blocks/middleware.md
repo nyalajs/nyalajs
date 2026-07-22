@@ -7,7 +7,7 @@ Middleware functions process HTTP requests before they reach your route handlers
 Create a middleware with the `@Injectable()` decorator:
 
 ```typescript
-import { Injectable, Middleware } from '@nyala/core';
+import { Injectable, Middleware } from '@nyalajs/core';
 import { Request, Response, NextFunction } from 'express';
 
 @Injectable()
@@ -27,7 +27,7 @@ Apply to all routes:
 
 ```typescript
 // main.ts
-import { NyalaFactory } from '@nyala/core';
+import { NyalaFactory } from '@nyalajs/core';
 import { AppModule } from './app/app.module';
 import { LoggingMiddleware } from './app/middleware/logging.middleware';
 

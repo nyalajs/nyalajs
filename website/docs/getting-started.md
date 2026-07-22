@@ -81,7 +81,7 @@ npm run db:migrate
 
 ```typescript
 // app/repositories/posts.repository.ts
-import { Injectable } from '@nyala/core';
+import { Injectable } from '@nyalajs/core';
 import { eq } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { posts, Post } from '../../database/schema/posts.schema';
@@ -150,7 +150,7 @@ export const UpdatePostValidator = z.object({
 
 ```typescript
 // app/services/posts.service.ts
-import { Injectable } from '@nyala/core';
+import { Injectable } from '@nyalajs/core';
 import { PostsRepository } from '../repositories/posts.repository';
 import { CreatePostDto, UpdatePostDto } from '../dto/posts';
 
@@ -216,8 +216,8 @@ export class PostsService {
 
 ```typescript
 // app/controllers/posts.controller.ts
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nyala/core';
-import { UseValidation } from '@nyala/validation';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nyalajs/core';
+import { UseValidation } from '@nyalajs/validation';
 import { PostsService } from '../services/posts.service';
 import { CreatePostDto, UpdatePostDto } from '../dto/posts';
 import { CreatePostValidator, UpdatePostValidator } from '../validators/posts';
@@ -273,7 +273,7 @@ export class PostsController {
 
 ```typescript
 // app/app.module.ts
-import { Module } from '@nyala/core';
+import { Module } from '@nyalajs/core';
 import { PostsController } from './controllers/posts.controller';
 import { PostsService } from './services/posts.service';
 import { PostsRepository } from './repositories/posts.repository';

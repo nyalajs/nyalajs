@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/testing",
+    "name": "@nyalajs/testing",
     "version": "1.0.0",
     "description": "Testing utilities for NyalaJS",
     "main": "dist/index.js",
@@ -9,8 +9,8 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/http": "*",
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
         "fastify": "^4.25.2"
     },
     "devDependencies": {

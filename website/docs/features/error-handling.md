@@ -14,7 +14,7 @@ import {
   ForbiddenException,
   ConflictException,
   InternalServerErrorException,
-} from '@nyala/core';
+} from '@nyalajs/core';
 
 @Injectable()
 export class UsersService {
@@ -115,7 +115,7 @@ Validation error response:
 Create a global error handler:
 
 ```typescript
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nyala/core';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nyalajs/core';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

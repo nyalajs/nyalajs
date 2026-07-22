@@ -1,5 +1,5 @@
-import { Injectable } from "@nyala/core";
-import { Guard, ExecutionContext, ForbiddenException } from "@nyala/http";
+import { Injectable } from "@nyalajs/core";
+import { Guard, ExecutionContext, ForbiddenException } from "@nyalajs/http";
 import { getRolesMetadata } from "./roles.decorator";
 
 @Injectable()

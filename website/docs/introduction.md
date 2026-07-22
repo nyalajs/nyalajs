@@ -117,12 +117,12 @@ Type-safe, scalable, auditable. Security defaults and compliance-ready features 
 
 Nyala includes everything you need:
 
-- **@nyala/core** - Framework core with DI, decorators, lifecycle
-- **@nyala/cli** - Project generation and code scaffolding
-- **@nyala/auth** - Authentication and authorization
-- **@nyala/tenancy** - Multi-tenancy support
-- **@nyala/validation** - Request validation
-- **@nyala/database** - Database utilities and migrations
+- **@nyalajs/core** - Framework core with DI, decorators, lifecycle
+- **@nyalajs/cli** - Project generation and code scaffolding
+- **@nyalajs/auth** - Authentication and authorization
+- **@nyalajs/tenancy** - Multi-tenancy support
+- **@nyalajs/validation** - Request validation
+- **@nyalajs/database** - Database utilities and migrations
 
 ## Quick Example
 

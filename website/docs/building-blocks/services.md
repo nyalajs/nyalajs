@@ -7,7 +7,7 @@ Services contain your application's business logic. They orchestrate between con
 Create a service with the `@Injectable()` decorator:
 
 ```typescript
-import { Injectable } from '@nyala/core';
+import { Injectable } from '@nyalajs/core';
 import { UsersRepository } from '../repositories/users.repository';
 
 @Injectable()

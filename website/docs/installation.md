@@ -14,13 +14,13 @@ Before installing Nyala, ensure your system meets these requirements:
 Install the Nyala CLI globally using npm:
 
 ```bash
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 ```
 
 Or with yarn:
 
 ```bash
-yarn global add @nyala/cli
+yarn global add @nyalajs/cli
 ```
 
 Verify the installation:
@@ -326,7 +326,7 @@ npm install
 Use sudo (Linux/macOS):
 
 ```bash
-sudo npm install -g @nyala/cli
+sudo npm install -g @nyalajs/cli
 ```
 
 Or configure npm to install globally without sudo:

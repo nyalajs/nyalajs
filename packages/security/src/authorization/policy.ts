@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { Type } from "@nyala/core";
+import { Type } from "@nyalajs/core";
 
 const POLICY_METADATA = "nyala:policy";
 

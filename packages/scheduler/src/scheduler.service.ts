@@ -1,5 +1,5 @@
 import * as cron from "node-cron";
-import { Injectable, Container, OnApplicationBootstrap, OnApplicationShutdown } from "@nyala/core";
+import { Injectable, Container, OnApplicationBootstrap, OnApplicationShutdown } from "@nyalajs/core";
 import { SCHEDULED_METADATA, ScheduledOptions } from "./decorators/scheduled";
 
 interface ScheduledTaskDef extends ScheduledOptions {

@@ -1,10 +1,10 @@
-import { Module } from "@nyala/core";
-import { ConfigService } from "@nyala/config";
-import { Logger } from "@nyala/observability";
-import { HealthCheckService } from "@nyala/observability";
-import { MetricsCollector } from "@nyala/observability";
-import { AuditLogger } from "@nyala/audit";
-import { JwtStrategy } from "@nyala/security";
+import { Module } from "@nyalajs/core";
+import { ConfigService } from "@nyalajs/config";
+import { Logger } from "@nyalajs/observability";
+import { HealthCheckService } from "@nyalajs/observability";
+import { MetricsCollector } from "@nyalajs/observability";
+import { AuditLogger } from "@nyalajs/audit";
+import { JwtStrategy } from "@nyalajs/security";
 import { HealthController } from "../app/controllers/health.controller";
 import { AuthController } from "../app/controllers/auth.controller";
 import { UsersController } from "../app/controllers/users.controller";

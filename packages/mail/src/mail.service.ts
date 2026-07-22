@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import nodemailer, { Transporter, SendMailOptions } from "nodemailer";
 import { Mailable } from "./mailable";
 

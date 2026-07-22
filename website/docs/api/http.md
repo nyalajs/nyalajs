@@ -5,7 +5,7 @@ HTTP-related utilities and helpers.
 ## Status Codes
 
 ```typescript
-import { HttpStatus } from '@nyala/core';
+import { HttpStatus } from '@nyalajs/core';
 
 HttpStatus.OK                    // 200
 HttpStatus.CREATED               // 201
@@ -21,7 +21,7 @@ HttpStatus.INTERNAL_SERVER_ERROR // 500
 ## Response Helpers
 
 ```typescript
-import { Response } from '@nyala/core';
+import { Response } from '@nyalajs/core';
 
 // JSON response
 response.json({ data: 'value' });
@@ -42,7 +42,7 @@ response.download('/path/to/file');
 ## Request Helpers
 
 ```typescript
-import { Request } from '@nyala/core';
+import { Request } from '@nyalajs/core';
 
 // Query parameters
 request.query.page;
@@ -87,7 +87,7 @@ async findAll(@Req() request: Request, @Res() response: Response) {
 ## File Upload
 
 ```typescript
-import { UploadedFile } from '@nyala/core';
+import { UploadedFile } from '@nyalajs/core';
 
 @Post('/upload')
 async upload(@UploadedFile() file: Express.Multer.File) {
@@ -138,7 +138,7 @@ response.clearCookie('token');
 ## CORS
 
 ```typescript
-import { cors } from '@nyala/core';
+import { cors } from '@nyalajs/core';
 
 // Enable CORS
 app.use(cors({
@@ -152,7 +152,7 @@ app.use(cors({
 ## Rate Limiting
 
 ```typescript
-import { rateLimit } from '@nyala/core';
+import { rateLimit } from '@nyalajs/core';
 
 // Apply rate limiting
 app.use(rateLimit({

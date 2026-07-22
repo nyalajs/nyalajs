@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { StorageDisk } from "./storage.interface";
 import { LocalDisk } from "./disks/local";
 

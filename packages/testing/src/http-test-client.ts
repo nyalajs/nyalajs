@@ -1,4 +1,4 @@
-import { NyalaApplication } from "@nyala/core";
+import { NyalaApplication } from "@nyalajs/core";
 import { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 
 /**

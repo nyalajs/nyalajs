@@ -1,5 +1,5 @@
-import { Injectable } from "@nyala/core";
-import { Interceptor, ExecutionContext } from "@nyala/http";
+import { Injectable } from "@nyalajs/core";
+import { Interceptor, ExecutionContext } from "@nyalajs/http";
 import { AuditLogger } from "./audit-logger";
 import { AuditAction } from "./audit-event";
 

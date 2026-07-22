@@ -1,5 +1,5 @@
-import { Container, Module, ModuleMetadata, Type, NyalaApplication, NyalaFactory } from "@nyala/core";
-import { FastifyAdapter } from "@nyala/http";
+import { Container, Module, ModuleMetadata, Type, NyalaApplication, NyalaFactory } from "@nyalajs/core";
+import { FastifyAdapter } from "@nyalajs/http";
 
 export class TestingModuleBuilder {
     private readonly metadata: ModuleMetadata;

@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/notifications",
+    "name": "@nyalajs/notifications",
     "version": "1.0.0",
     "description": "Multi-channel notification system for NyalaJS",
     "main": "dist/index.js",
@@ -9,8 +9,8 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/mail": "*"
+        "@nyalajs/core": "*",
+        "@nyalajs/mail": "*"
     },
     "devDependencies": {
         "typescript": "^5.3.3"

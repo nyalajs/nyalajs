@@ -37,7 +37,7 @@ Application Terminated
 Executed when the module is initialized:
 
 ```typescript
-import { Injectable, OnModuleInit } from '@nyala/core';
+import { Injectable, OnModuleInit } from '@nyalajs/core';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit {
@@ -57,7 +57,7 @@ export class DatabaseService implements OnModuleInit {
 Executed when the application is fully bootstrapped:
 
 ```typescript
-import { Injectable, OnApplicationBootstrap } from '@nyala/core';
+import { Injectable, OnApplicationBootstrap } from '@nyalajs/core';
 
 @Injectable()
 export class CacheService implements OnApplicationBootstrap {
@@ -77,7 +77,7 @@ export class CacheService implements OnApplicationBootstrap {
 Executed before the module is destroyed:
 
 ```typescript
-import { Injectable, OnModuleDestroy } from '@nyala/core';
+import { Injectable, OnModuleDestroy } from '@nyalajs/core';
 
 @Injectable()
 export class SubscriptionService implements OnModuleDestroy {
@@ -97,7 +97,7 @@ export class SubscriptionService implements OnModuleDestroy {
 Executed before application shutdown starts:
 
 ```typescript
-import { Injectable, BeforeApplicationShutdown } from '@nyala/core';
+import { Injectable, BeforeApplicationShutdown } from '@nyalajs/core';
 
 @Injectable()
 export class QueueService implements BeforeApplicationShutdown {
@@ -118,7 +118,7 @@ export class QueueService implements BeforeApplicationShutdown {
 Executed during application shutdown:
 
 ```typescript
-import { Injectable, OnApplicationShutdown } from '@nyala/core';
+import { Injectable, OnApplicationShutdown } from '@nyalajs/core';
 
 @Injectable()
 export class DatabaseService implements OnApplicationShutdown {
@@ -143,7 +143,7 @@ import {
   OnModuleDestroy,
   BeforeApplicationShutdown,
   OnApplicationShutdown,
-} from '@nyala/core';
+} from '@nyalajs/core';
 
 @Injectable()
 export class AppService
@@ -182,7 +182,7 @@ Handle shutdown signals properly:
 
 ```typescript
 // main.ts
-import { NyalaFactory } from '@nyala/core';
+import { NyalaFactory } from '@nyalajs/core';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {

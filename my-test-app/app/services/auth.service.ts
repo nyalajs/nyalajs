@@ -1,6 +1,6 @@
-import { Injectable } from "@nyala/core";
-import { Logger } from "@nyala/observability";
-import { ConfigService } from "@nyala/config";
+import { Injectable } from "@nyalajs/core";
+import { Logger } from "@nyalajs/observability";
+import { ConfigService } from "@nyalajs/config";
 import * as jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/user.repository";
 import { LoginDto } from "../dto/login.dto";

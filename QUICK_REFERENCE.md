@@ -197,7 +197,7 @@ export class UserRepository extends BaseRepository<User> {
 
 ### Accessing Tenant Context
 ```typescript
-import { RequestContext } from "@nyala/core";
+import { RequestContext } from "@nyalajs/core";
 
 const context = RequestContext.get();
 const tenant = context.tenant;  // Current tenant

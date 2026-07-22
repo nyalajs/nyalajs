@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/scheduler",
+    "name": "@nyalajs/scheduler",
     "version": "1.0.0",
     "description": "Cron-based scheduler for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "node-cron": "^3.0.3"
     },
     "devDependencies": {

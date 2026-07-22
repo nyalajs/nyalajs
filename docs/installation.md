@@ -11,7 +11,7 @@
 Install the Nyala CLI globally:
 
 ```bash
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 ```
 
 Verify installation:

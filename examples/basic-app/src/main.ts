@@ -1,4 +1,4 @@
-import { NyalaFactory } from "@nyala/core";
+import { NyalaFactory } from "@nyalajs/core";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {

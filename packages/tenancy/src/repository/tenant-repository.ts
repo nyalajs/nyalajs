@@ -1,4 +1,4 @@
-import { Inject } from "@nyala/core";
+import { Inject } from "@nyalajs/core";
 
 export abstract class TenantRepository<T> {
     constructor(

@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { eq, and, SQL } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import { db } from "../../database/connection";

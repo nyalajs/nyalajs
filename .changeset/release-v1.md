@@ -1,9 +1,9 @@
 ---
-"@nyala/cli": minor
-"@nyala/core": patch
-"@nyala/http": patch
-"@nyala/config": patch
-"@nyala/database": patch
+"@nyalajs/cli": minor
+"@nyalajs/core": patch
+"@nyalajs/http": patch
+"@nyalajs/config": patch
+"@nyalajs/database": patch
 ---
 
 # Production Release with Starter Templates

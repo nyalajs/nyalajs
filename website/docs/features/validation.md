@@ -7,8 +7,8 @@ Automatic request validation using Zod schemas ensures data integrity before it 
 Apply validation with the `@UseValidation()` decorator:
 
 ```typescript
-import { Controller, Post, Body } from '@nyala/core';
-import { UseValidation } from '@nyala/validation';
+import { Controller, Post, Body } from '@nyalajs/core';
+import { UseValidation } from '@nyalajs/validation';
 import { CreateUserValidator } from '../validators/users';
 
 @Controller('/users')
@@ -341,7 +341,7 @@ Apply validation globally:
 
 ```typescript
 // main.ts
-import { ValidationPipe } from '@nyala/validation';
+import { ValidationPipe } from '@nyalajs/validation';
 
 async function bootstrap() {
   const app = await NyalaFactory.create(AppModule);

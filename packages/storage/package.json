@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/storage",
+    "name": "@nyalajs/storage",
     "version": "1.0.0",
     "description": "Storage abstraction for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "fs-extra": "^11.2.0"
     },
     "peerDependencies": {

@@ -4,13 +4,13 @@ Complete API reference for the Nyala Framework.
 
 ## Core Modules
 
-- [@nyala/core](#nyalacore) - Core framework functionality
-- [@nyala/cli](#nyalacli) - Command-line interface
-- [@nyala/validation](#nyalavalidation) - Validation utilities
-- [@nyala/auth](#nyalaauth) - Authentication module
-- [@nyala/tenancy](#nyalatenancy) - Multi-tenancy support
+- [@nyalajs/core](#nyalacore) - Core framework functionality
+- [@nyalajs/cli](#nyalacli) - Command-line interface
+- [@nyalajs/validation](#nyalavalidation) - Validation utilities
+- [@nyalajs/auth](#nyalaauth) - Authentication module
+- [@nyalajs/tenancy](#nyalatenancy) - Multi-tenancy support
 
-## @nyala/core
+## @nyalajs/core
 
 ### Decorators
 
@@ -59,7 +59,7 @@ async show(@Param('id') id: string) {}
 - `ConflictException` - 409
 - `InternalServerErrorException` - 500
 
-## @nyala/validation
+## @nyalajs/validation
 
 ### UseValidation(schema, target?)
 

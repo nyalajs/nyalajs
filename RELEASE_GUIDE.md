@@ -141,7 +141,7 @@ First production-ready release with complete starter templates!
 ## 📦 Installation
 
 ```bash
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 nyala new my-app
 ```
 
@@ -186,7 +186,7 @@ Production-ready TypeScript framework with:
 ✅ Complete auth system
 ✅ 2,800+ lines of docs
 
-Get started: npm i -g @nyala/cli
+Get started: npm i -g @nyalajs/cli
 
 #nodejs #typescript #webdev
 ```
@@ -203,7 +203,7 @@ After months of development, we're launching production-ready starter templates:
 
 Perfect for building modern TypeScript applications.
 
-Try it: npm install -g @nyala/cli
+Try it: npm install -g @nyalajs/cli
 
 #typescript #nodejs #webdevelopment #opensource
 ```
@@ -231,7 +231,7 @@ Nyala is a production-ready TypeScript framework inspired by Laravel...
 
 ```bash
 # Install globally
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 
 # Check version
 nyala --version
@@ -354,7 +354,7 @@ For beta testing:
 npm publish --tag beta
 
 # Users install with
-npm install -g @nyala/cli@beta
+npm install -g @nyalajs/cli@beta
 ```
 
 ## Rollback Procedure
@@ -363,7 +363,7 @@ If release has critical issues:
 
 ```bash
 # 1. Deprecate bad version
-npm deprecate @nyala/cli@1.0.0 "Critical bug, use 1.0.1 instead"
+npm deprecate @nyalajs/cli@1.0.0 "Critical bug, use 1.0.1 instead"
 
 # 2. Publish hotfix ASAP
 # Follow hotfix procedure above
@@ -410,7 +410,7 @@ npm whoami  # Verify
 Not a collaborator on npm package:
 ```bash
 # Package owner must add you
-npm owner add <username> @nyala/cli
+npm owner add <username> @nyalajs/cli
 ```
 
 ### Build fails

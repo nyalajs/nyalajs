@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Headers } from "@nyala/core";
-import { UseValidation } from "@nyala/validation";
+import { Controller, Get, Post, Body, Headers } from "@nyalajs/core";
+import { UseValidation } from "@nyalajs/validation";
 import { AuthService } from "../services/auth.service";
 import { LoginDto } from "../dto/login.dto";
 import { CreateUserDto } from "../dto/create-user.dto";

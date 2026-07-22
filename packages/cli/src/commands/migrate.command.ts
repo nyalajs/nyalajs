@@ -38,7 +38,7 @@ export class MigrateCommand {
 
             // Dynamically import drizzle-orm/node-postgres and pg so this
             // file stays require()-able even without those deps installed
-            // (they are a peer dep of @nyala/database).
+            // (they are a peer dep of @nyalajs/database).
             let Pool: any;
             let drizzle: any;
             let migrate: any;

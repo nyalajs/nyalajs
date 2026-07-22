@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/queue",
+    "name": "@nyalajs/queue",
     "version": "1.0.0",
     "description": "BullMQ-backed job queue for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*"
+        "@nyalajs/core": "*"
     },
     "peerDependencies": {
         "bullmq": "^5.1.0",

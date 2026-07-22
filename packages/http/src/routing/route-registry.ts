@@ -1,4 +1,4 @@
-import { Type } from "@nyala/core";
+import { Type } from "@nyalajs/core";
 
 export interface RouteDefinition {
     method: string;

@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/database",
+    "name": "@nyalajs/database",
     "version": "1.0.0",
     "description": "Drizzle-backed ORM for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "drizzle-orm": "^0.29.3"
     },
     "peerDependencies": {

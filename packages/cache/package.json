@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/cache",
+    "name": "@nyalajs/cache",
     "version": "1.0.0",
     "description": "Redis-backed caching module for NyalaJS",
     "main": "dist/index.js",
@@ -9,7 +9,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@nyala/core": "*"
+        "@nyalajs/core": "*"
     },
     "peerDependencies": {
         "ioredis": "^5.3.2",

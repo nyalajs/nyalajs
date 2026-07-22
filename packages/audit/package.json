@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/audit",
+    "name": "@nyalajs/audit",
     "version": "1.0.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -9,8 +9,8 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/http": "*"
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*"
     },
     "devDependencies": {
         "typescript": "^5.3.3",

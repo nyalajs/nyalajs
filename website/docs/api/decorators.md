@@ -257,7 +257,7 @@ export class UsersService {
 Create custom parameter decorators:
 
 ```typescript
-import { createParamDecorator, ExecutionContext } from '@nyala/core';
+import { createParamDecorator, ExecutionContext } from '@nyalajs/core';
 
 export const GetUser = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
@@ -274,7 +274,7 @@ async getProfile(@GetUser() user: User) {}
 Create custom method decorators:
 
 ```typescript
-import { SetMetadata } from '@nyala/core';
+import { SetMetadata } from '@nyalajs/core';
 
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
 

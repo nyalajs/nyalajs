@@ -351,9 +351,9 @@ export default [];
         test: "vitest run",
       },
       dependencies: {
-        "@nyala/core": "^0.1.0",
-        "@nyala/http": "^0.1.0",
-        "@nyala/config": "^0.1.0",
+        "@nyalajs/core": "^0.1.0",
+        "@nyalajs/http": "^0.1.0",
+        "@nyalajs/config": "^0.1.0",
         "reflect-metadata": "^0.2.1",
       },
       devDependencies: {
@@ -458,8 +458,8 @@ export {};
   }
 
   private getAppModuleTemplate(): string {
-    return `import { Module } from "@nyala/core";
-import { ConfigService } from "@nyala/config";
+    return `import { Module } from "@nyalajs/core";
+import { ConfigService } from "@nyalajs/config";
 import { namespaces } from "../config";
 
 // \`nyala generate controller|service\` appends entries here automatically.
@@ -485,9 +485,9 @@ export class AppModule {}
 
   private getMainTemplate(): string {
     return `import "reflect-metadata";
-import { NyalaFactory } from "@nyala/core";
-import { FastifyAdapter } from "@nyala/http";
-import { ConfigService } from "@nyala/config";
+import { NyalaFactory } from "@nyalajs/core";
+import { FastifyAdapter } from "@nyalajs/http";
+import { ConfigService } from "@nyalajs/config";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {

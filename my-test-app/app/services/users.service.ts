@@ -1,5 +1,5 @@
-import { Injectable } from "@nyala/core";
-import { Logger } from "@nyala/observability";
+import { Injectable } from "@nyalajs/core";
+import { Logger } from "@nyalajs/observability";
 import { UserRepository } from "../repositories/user.repository";
 import { CreateUserDto } from "../dto/create-user.dto";
 import { UpdateUserDto } from "../dto/update-user.dto";

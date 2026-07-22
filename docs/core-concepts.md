@@ -30,7 +30,7 @@ Modules organize your application into cohesive units. Each module declares its 
 ### Defining a Module
 
 ```typescript
-import { Module } from "@nyala/core";
+import { Module } from "@nyalajs/core";
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { UsersRepository } from "./users.repository";
@@ -49,7 +49,7 @@ export class UsersModule {}
 Your application has one root module (`AppModule`) that bootstraps the entire application:
 
 ```typescript
-import { Module } from "@nyala/core";
+import { Module } from "@nyalajs/core";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -67,7 +67,7 @@ Nyala has a powerful DI container that manages object lifecycles and dependencie
 Mark classes as injectable with the `@Injectable()` decorator:
 
 ```typescript
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 
 @Injectable()
 export class UsersService {
@@ -82,7 +82,7 @@ export class UsersService {
 Dependencies are injected through the constructor:
 
 ```typescript
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 
 @Injectable()
 export class UsersService {
@@ -103,7 +103,7 @@ export class UsersService {
 Nyala supports three injection scopes:
 
 ```typescript
-import { Injectable, Scope } from "@nyala/core";
+import { Injectable, Scope } from "@nyalajs/core";
 
 // SINGLETON (default) - One instance for entire app lifecycle
 @Injectable({ scope: Scope.SINGLETON })
@@ -144,7 +144,7 @@ Controllers handle HTTP requests and delegate business logic to services.
 ### Basic Controller
 
 ```typescript
-import { Controller, Get, Post, Body, Param } from "@nyala/core";
+import { Controller, Get, Post, Body, Param } from "@nyalajs/core";
 
 @Controller("/users")
 export class UsersController {
@@ -172,7 +172,7 @@ export class UsersController {
 Extract data from requests using decorators:
 
 ```typescript
-import { Controller, Get, Post, Query, Param, Body, Headers } from "@nyala/core";
+import { Controller, Get, Post, Query, Param, Body, Headers } from "@nyalajs/core";
 
 @Controller("/users")
 export class UsersController {
@@ -200,7 +200,7 @@ Services contain business logic and are injected into controllers.
 ### Service Pattern
 
 ```typescript
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 
 @Injectable()
 export class UsersService {
@@ -235,7 +235,7 @@ Middleware executes before route handlers and can modify requests/responses.
 ### Creating Middleware
 
 ```typescript
-import { Injectable, NyalaMiddleware, ExecutionContext } from "@nyala/core";
+import { Injectable, NyalaMiddleware, ExecutionContext } from "@nyalajs/core";
 
 @Injectable()
 export class LoggingMiddleware implements NyalaMiddleware {
@@ -278,7 +278,7 @@ Guards determine if a request should be handled by a route handler.
 ### Authentication Guard
 
 ```typescript
-import { Injectable, Guard, ExecutionContext } from "@nyala/core";
+import { Injectable, Guard, ExecutionContext } from "@nyalajs/core";
 
 @Injectable()
 export class AuthGuard implements Guard {
@@ -310,7 +310,7 @@ Interceptors can transform requests/responses or add cross-cutting concerns.
 ### Logging Interceptor
 
 ```typescript
-import { Injectable, Interceptor, ExecutionContext } from "@nyala/core";
+import { Injectable, Interceptor, ExecutionContext } from "@nyalajs/core";
 
 @Injectable()
 export class LoggingInterceptor implements Interceptor {
@@ -352,7 +352,7 @@ import {
     NotFoundException,
     ConflictException,
     InternalServerErrorException,
-} from "@nyala/core";
+} from "@nyalajs/core";
 
 @Injectable()
 export class UsersService {
@@ -385,7 +385,7 @@ Nyala provides request-scoped context using AsyncLocalStorage.
 ### Accessing Context
 
 ```typescript
-import { Injectable, RequestContext } from "@nyala/core";
+import { Injectable, RequestContext } from "@nyalajs/core";
 
 @Injectable()
 export class UsersService {
@@ -421,7 +421,7 @@ export class TenantMiddleware implements NyalaMiddleware {
 Providers can implement lifecycle hooks:
 
 ```typescript
-import { Injectable, OnModuleInit, OnApplicationBootstrap, OnApplicationShutdown } from "@nyala/core";
+import { Injectable, OnModuleInit, OnApplicationBootstrap, OnApplicationShutdown } from "@nyalajs/core";
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnApplicationShutdown {
@@ -444,7 +444,7 @@ Available hooks:
 
 ## Configuration
 
-Use `@nyala/config` for type-safe configuration management.
+Use `@nyalajs/config` for type-safe configuration management.
 
 ### Defining Config
 
@@ -460,8 +460,8 @@ export default {
 ### Using Config
 
 ```typescript
-import { Injectable } from "@nyala/core";
-import { ConfigService } from "@nyala/config";
+import { Injectable } from "@nyalajs/core";
+import { ConfigService } from "@nyalajs/config";
 
 @Injectable()
 export class DatabaseService {

@@ -1,4 +1,4 @@
-import { Injectable, Container } from "@nyala/core";
+import { Injectable, Container } from "@nyalajs/core";
 import { EventEmitter } from "./event-emitter";
 import { EVENT_HANDLER_METADATA } from "./decorators/event-handler";
 

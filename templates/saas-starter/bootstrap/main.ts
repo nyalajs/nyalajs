@@ -1,8 +1,8 @@
 import "reflect-metadata";
-import { NyalaFactory } from "@nyala/core";
-import { FastifyAdapter } from "@nyala/http";
-import { ConfigService } from "@nyala/config";
-import { Logger } from "@nyala/observability";
+import { NyalaFactory } from "@nyalajs/core";
+import { FastifyAdapter } from "@nyalajs/http";
+import { ConfigService } from "@nyalajs/config";
+import { Logger } from "@nyalajs/observability";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {

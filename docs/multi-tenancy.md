@@ -7,7 +7,7 @@ Nyala provides native multi-tenancy support with automatic tenant isolation.
 ### Subdomain Resolution
 
 ```typescript
-import { SubdomainTenantResolver } from "@nyala/tenancy";
+import { SubdomainTenantResolver } from "@nyalajs/tenancy";
 
 // tenant1.myapp.com -> tenant1
 // tenant2.myapp.com -> tenant2
@@ -16,7 +16,7 @@ import { SubdomainTenantResolver } from "@nyala/tenancy";
 ### Header Resolution
 
 ```typescript
-import { HeaderTenantResolver } from "@nyala/tenancy";
+import { HeaderTenantResolver } from "@nyalajs/tenancy";
 
 // X-Tenant-ID: tenant1
 ```
@@ -24,7 +24,7 @@ import { HeaderTenantResolver } from "@nyala/tenancy";
 ### JWT Resolution
 
 ```typescript
-import { JwtTenantResolver } from "@nyala/tenancy";
+import { JwtTenantResolver } from "@nyalajs/tenancy";
 
 // Extracts tenantId from JWT payload
 ```
@@ -32,8 +32,8 @@ import { JwtTenantResolver } from "@nyala/tenancy";
 ## Tenant-Safe Repositories
 
 ```typescript
-import { TenantRepository } from "@nyala/tenancy";
-import { Injectable } from "@nyala/core";
+import { TenantRepository } from "@nyalajs/tenancy";
+import { Injectable } from "@nyalajs/core";
 
 @Injectable()
 export class UserRepository extends TenantRepository<User> {
@@ -52,8 +52,8 @@ export class UserRepository extends TenantRepository<User> {
 ## Configuration
 
 ```typescript
-import { Module } from "@nyala/core";
-import { TenantMiddleware, SubdomainTenantResolver } from "@nyala/tenancy";
+import { Module } from "@nyalajs/core";
+import { TenantMiddleware, SubdomainTenantResolver } from "@nyalajs/tenancy";
 
 @Module({
   providers: [

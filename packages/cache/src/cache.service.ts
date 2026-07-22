@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 
 export interface CacheConfig {
     /** Redis connection string. If omitted, an in-memory store is used. */

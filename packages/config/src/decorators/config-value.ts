@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { Inject } from "@nyala/core";
+import { Inject } from "@nyalajs/core";
 
 export function ConfigValue(key: string, defaultValue?: any): PropertyDecorator {
     return (target: any, propertyKey: string | symbol) => {

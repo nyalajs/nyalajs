@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 
 export interface QueueConfig {
     /** Redis connection string (e.g. redis://localhost:6379). Required for BullMQ. */

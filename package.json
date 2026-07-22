@@ -15,11 +15,11 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/Hailemariyam/nyala.git"
+        "url": "https://github.com/nyalajs/nyala.git"
     },
-    "homepage": "https://github.com/Hailemariyam/nyala#readme",
+    "homepage": "https://github.com/nyalajs/nyala#readme",
     "bugs": {
-        "url": "https://github.com/Hailemariyam/nyala/issues"
+        "url": "https://github.com/nyalajs/nyala/issues"
     },
     "license": "MIT",
     "author": "Hailemariyam",

@@ -7,7 +7,7 @@ Get up and running with Nyala in under 5 minutes.
 Install the Nyala CLI:
 
 ```bash
-npm install -g @nyala/cli
+npm install -g @nyalajs/cli
 ```
 
 ## Create Your App

@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/cli",
+    "name": "@nyalajs/cli",
     "version": "1.0.0",
     "bin": {
         "nyala": "./dist/bin/nyala.js"
@@ -9,7 +9,7 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@nyala/core": "*",
+        "@nyalajs/core": "*",
         "@clack/prompts": "^0.7.0",
         "commander": "^11.1.0",
         "inquirer": "^9.2.12",

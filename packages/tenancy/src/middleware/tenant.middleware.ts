@@ -1,5 +1,5 @@
-import { Injectable, Inject } from "@nyala/core";
-import { ExecutionContext, BadRequestException } from "@nyala/http";
+import { Injectable, Inject } from "@nyalajs/core";
+import { ExecutionContext, BadRequestException } from "@nyalajs/http";
 import { TenantResolver } from "../resolvers/tenant-resolver.interface";
 
 @Injectable()

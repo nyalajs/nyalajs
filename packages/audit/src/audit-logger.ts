@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { AuditEvent } from "./audit-event";
 import { randomUUID } from "crypto";
 

@@ -115,7 +115,7 @@ export function printBanner(): void {
     SILVER("  SaaS-ready")
   );
   console.log(rule());
-  console.log("  " + DIM("v0.1.0") + SILVER("  ·  ") + DIM("@nyala/cli"));
+  console.log("  " + DIM("v0.1.0") + SILVER("  ·  ") + DIM("@nyalajs/cli"));
   console.log();
 }
 

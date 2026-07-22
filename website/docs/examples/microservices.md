@@ -23,7 +23,7 @@ Building microservices architecture with Nyala.
 
 ```typescript
 // gateway/main.ts
-import { NyalaFactory } from '@nyala/core';
+import { NyalaFactory } from '@nyalajs/core';
 import { GatewayModule } from './gateway.module';
 
 async function bootstrap() {

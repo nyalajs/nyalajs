@@ -1,4 +1,4 @@
-import { Injectable } from "@nyala/core";
+import { Injectable } from "@nyalajs/core";
 import { JwtStrategy } from "./jwt-strategy";
 import { HashingService } from "./hashing.service";
 

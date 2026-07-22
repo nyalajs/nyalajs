@@ -7,7 +7,7 @@ Controllers handle incoming HTTP requests and return responses. They're the entr
 Create a controller using the `@Controller()` decorator:
 
 ```typescript
-import { Controller, Get } from '@nyala/core';
+import { Controller, Get } from '@nyalajs/core';
 
 @Controller('/users')
 export class UsersController {
@@ -177,7 +177,7 @@ export class UsersController {
 Validate requests with the `@UseValidation()` decorator:
 
 ```typescript
-import { UseValidation } from '@nyala/validation';
+import { UseValidation } from '@nyalajs/validation';
 import { CreateUserValidator } from '../validators/users';
 
 @Controller('/users')
@@ -247,7 +247,7 @@ export class ExamplesController {
 Set custom status codes:
 
 ```typescript
-import { HttpStatus } from '@nyala/core';
+import { HttpStatus } from '@nyalajs/core';
 
 @Controller('/users')
 export class UsersController {
@@ -270,7 +270,7 @@ export class UsersController {
 Add custom response headers:
 
 ```typescript
-import { Header } from '@nyala/core';
+import { Header } from '@nyalajs/core';
 
 @Controller('/users')
 export class UsersController {
@@ -293,7 +293,7 @@ export class UsersController {
 Redirect to another URL:
 
 ```typescript
-import { Redirect } from '@nyala/core';
+import { Redirect } from '@nyalajs/core';
 
 @Controller('/old')
 export class RedirectController {
@@ -319,7 +319,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ConflictException,
-} from '@nyala/core';
+} from '@nyalajs/core';
 
 @Controller('/users')
 export class UsersController {
@@ -367,8 +367,8 @@ export class UsersController {
 ### Require Authentication
 
 ```typescript
-import { UseGuards } from '@nyala/core';
-import { AuthGuard } from '@nyala/auth';
+import { UseGuards } from '@nyalajs/core';
+import { AuthGuard } from '@nyalajs/auth';
 
 @Controller('/users')
 @UseGuards(AuthGuard)  // Protect entire controller
@@ -389,7 +389,7 @@ export class UsersController {
 ### Role-Based Access
 
 ```typescript
-import { Roles } from '@nyala/auth';
+import { Roles } from '@nyalajs/auth';
 
 @Controller('/admin')
 @UseGuards(AuthGuard, RolesGuard)

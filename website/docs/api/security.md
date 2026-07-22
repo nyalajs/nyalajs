@@ -7,7 +7,7 @@ Security utilities and best practices.
 ### JWT Service
 
 ```typescript
-import { JwtService } from '@nyala/jwt';
+import { JwtService } from '@nyalajs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -31,7 +31,7 @@ export class AuthService {
 ### Password Hashing
 
 ```typescript
-import { hash, compare } from '@nyala/crypto';
+import { hash, compare } from '@nyalajs/crypto';
 
 // Hash password
 const hashedPassword = await hash('plain-password', 10);
@@ -45,7 +45,7 @@ const isValid = await compare('plain-password', hashedPassword);
 ### Role-Based Access Control
 
 ```typescript
-import { Roles, RolesGuard } from '@nyala/auth';
+import { Roles, RolesGuard } from '@nyalajs/auth';
 
 @Controller('/admin')
 @UseGuards(AuthGuard, RolesGuard)
@@ -63,7 +63,7 @@ export class AdminController {
 ### Custom Guards
 
 ```typescript
-import { CanActivate, ExecutionContext } from '@nyala/core';
+import { CanActivate, ExecutionContext } from '@nyalajs/core';
 
 @Injectable()
 export class OwnershipGuard implements CanActivate {
@@ -81,7 +81,7 @@ export class OwnershipGuard implements CanActivate {
 ## CSRF Protection
 
 ```typescript
-import { csrf } from '@nyala/security';
+import { csrf } from '@nyalajs/security';
 
 // Enable CSRF
 app.use(csrf({
@@ -95,7 +95,7 @@ app.use(csrf({
 ## XSS Protection
 
 ```typescript
-import { helmet } from '@nyala/security';
+import { helmet } from '@nyalajs/security';
 
 // Enable security headers
 app.use(helmet({
@@ -128,7 +128,7 @@ const user = await db.execute(
 ## Secrets Management
 
 ```typescript
-import { SecretService } from '@nyala/secrets';
+import { SecretService } from '@nyalajs/secrets';
 
 @Injectable()
 export class ConfigService {
@@ -143,7 +143,7 @@ export class ConfigService {
 ## Rate Limiting
 
 ```typescript
-import { ThrottlerGuard } from '@nyala/throttler';
+import { ThrottlerGuard } from '@nyalajs/throttler';
 
 @Controller('/api')
 @UseGuards(ThrottlerGuard)
@@ -176,7 +176,7 @@ async create(@Body() dto: CreateUserDto) {}
 ## Encryption
 
 ```typescript
-import { encrypt, decrypt } from '@nyala/crypto';
+import { encrypt, decrypt } from '@nyalajs/crypto';
 
 // Encrypt sensitive data
 const encrypted = encrypt('sensitive-data', process.env.ENCRYPTION_KEY);

@@ -7,7 +7,7 @@ Multi-tenancy API reference.
 Access current tenant information.
 
 ```typescript
-import { TenantContext } from '@nyala/tenancy';
+import { TenantContext } from '@nyalajs/tenancy';
 
 @Injectable()
 export class UsersService {
@@ -28,7 +28,7 @@ export class UsersService {
 Base repository with automatic tenant filtering.
 
 ```typescript
-import { TenantRepository } from '@nyala/tenancy';
+import { TenantRepository } from '@nyalajs/tenancy';
 
 @Injectable()
 export class UsersRepository extends TenantRepository<User> {
@@ -48,7 +48,7 @@ export class UsersRepository extends TenantRepository<User> {
 Extract tenant from requests.
 
 ```typescript
-import { TenantMiddleware } from '@nyala/tenancy';
+import { TenantMiddleware } from '@nyalajs/tenancy';
 
 @Module({})
 export class AppModule {
@@ -65,7 +65,7 @@ export class AppModule {
 Protect routes requiring tenant context.
 
 ```typescript
-import { TenantGuard } from '@nyala/tenancy';
+import { TenantGuard } from '@nyalajs/tenancy';
 
 @Controller('/api')
 @UseGuards(TenantGuard)
@@ -79,7 +79,7 @@ export class ApiController {
 Get current tenant in controllers.
 
 ```typescript
-import { CurrentTenant } from '@nyala/tenancy';
+import { CurrentTenant } from '@nyalajs/tenancy';
 
 @Get('/settings')
 async getSettings(@CurrentTenant() tenant: Tenant) {
@@ -92,7 +92,7 @@ async getSettings(@CurrentTenant() tenant: Tenant) {
 Configure how tenants are resolved.
 
 ```typescript
-import { TenantResolver } from '@nyala/tenancy';
+import { TenantResolver } from '@nyalajs/tenancy';
 
 @Injectable()
 export class CustomTenantResolver implements TenantResolver {
@@ -119,7 +119,7 @@ export class CustomTenantResolver implements TenantResolver {
 Resources accessible across all tenants.
 
 ```typescript
-import { BaseRepository } from '@nyala/core';
+import { BaseRepository } from '@nyalajs/core';
 
 @Injectable()
 export class PlansRepository extends BaseRepository<Plan> {
@@ -193,7 +193,7 @@ export class OrdersService {
 Listen to tenant-related events.
 
 ```typescript
-import { OnTenantCreate, OnTenantDelete } from '@nyala/tenancy';
+import { OnTenantCreate, OnTenantDelete } from '@nyalajs/tenancy';
 
 @Injectable()
 export class TenantListener {

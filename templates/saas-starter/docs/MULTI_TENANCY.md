@@ -202,7 +202,7 @@ const tenant = await tenantRepository.create({
 Access tenant information in your code:
 
 ```typescript
-import { RequestContext } from "@nyala/core";
+import { RequestContext } from "@nyalajs/core";
 
 // Get current tenant
 const context = RequestContext.get();
@@ -333,7 +333,7 @@ CREATE TABLE orders (
 Mock the request context:
 
 ```typescript
-import { RequestContext } from "@nyala/core";
+import { RequestContext } from "@nyalajs/core";
 
 describe("UserRepository", () => {
     beforeEach(() => {

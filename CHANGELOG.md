@@ -12,24 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial production release of Nyala Framework
 - Complete TypeScript framework for enterprise SaaS applications
 - 18 core packages:
-  - `@nyala/core` - Kernel, DI container, module system, decorators
-  - `@nyala/http` - Fastify adapter with routing, guards, interceptors
-  - `@nyala/security` - JWT authentication, RBAC, authorization
-  - `@nyala/tenancy` - Multi-tenancy with automatic tenant isolation
-  - `@nyala/audit` - Comprehensive audit logging
-  - `@nyala/observability` - Structured logging, Prometheus metrics, health checks
-  - `@nyala/config` - Environment-based configuration with validation
-  - `@nyala/database` - Drizzle ORM integration
-  - `@nyala/cache` - Redis-backed caching
-  - `@nyala/queue` - BullMQ job queue integration
-  - `@nyala/scheduler` - Cron-based task scheduling
-  - `@nyala/events` - Event bus and emitters
-  - `@nyala/mail` - Email service with Nodemailer
-  - `@nyala/notifications` - Multi-channel notification system
-  - `@nyala/storage` - Storage abstraction (local, S3)
-  - `@nyala/validation` - Zod-based validation
-  - `@nyala/testing` - Testing utilities
-  - `@nyala/cli` - Powerful CLI with code generators
+  - `@nyalajs/core` - Kernel, DI container, module system, decorators
+  - `@nyalajs/http` - Fastify adapter with routing, guards, interceptors
+  - `@nyalajs/security` - JWT authentication, RBAC, authorization
+  - `@nyalajs/tenancy` - Multi-tenancy with automatic tenant isolation
+  - `@nyalajs/audit` - Comprehensive audit logging
+  - `@nyalajs/observability` - Structured logging, Prometheus metrics, health checks
+  - `@nyalajs/config` - Environment-based configuration with validation
+  - `@nyalajs/database` - Drizzle ORM integration
+  - `@nyalajs/cache` - Redis-backed caching
+  - `@nyalajs/queue` - BullMQ job queue integration
+  - `@nyalajs/scheduler` - Cron-based task scheduling
+  - `@nyalajs/events` - Event bus and emitters
+  - `@nyalajs/mail` - Email service with Nodemailer
+  - `@nyalajs/notifications` - Multi-channel notification system
+  - `@nyalajs/storage` - Storage abstraction (local, S3)
+  - `@nyalajs/validation` - Zod-based validation
+  - `@nyalajs/testing` - Testing utilities
+  - `@nyalajs/cli` - Powerful CLI with code generators
 - Production-ready SaaS starter template with multi-tenancy
 - Comprehensive documentation and examples
 

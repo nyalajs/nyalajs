@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nyala/core";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nyalajs/core";
 import { UsersService } from "../services/users.service";
-import { AuthGuard, RolesGuard, Roles } from "@nyala/security";
+import { AuthGuard, RolesGuard, Roles } from "@nyalajs/security";
 
 interface CreateUserDto {
     email: string;

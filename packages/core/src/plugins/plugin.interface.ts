@@ -3,7 +3,7 @@
  *
  * @example
  * // plugins/analytics/index.ts
- * import { NyalaPlugin, NyalaApplication } from "@nyala/core";
+ * import { NyalaPlugin, NyalaApplication } from "@nyalajs/core";
  *
  * export default class AnalyticsPlugin implements NyalaPlugin {
  *   name = "analytics";

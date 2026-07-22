@@ -1,5 +1,5 @@
-import { Controller, Get, Injectable, Version } from "@nyala/core";
-import { HealthCheckService, MetricsCollector } from "@nyala/observability";
+import { Controller, Get, Injectable, Version } from "@nyalajs/core";
+import { HealthCheckService, MetricsCollector } from "@nyalajs/observability";
 
 @Injectable()
 @Controller("/health")

@@ -322,7 +322,7 @@ export class GenerateCommand {
     // --- templates -------------------------------------------------------
 
     private getControllerTemplate(className: string, fileName: string): string {
-        return `import { Controller, Get, Post } from "@nyala/core";
+        return `import { Controller, Get, Post } from "@nyalajs/core";
 
 @Controller("/${fileName}")
 export class ${className} {
@@ -340,7 +340,7 @@ export class ${className} {
     }
 
     private getServiceTemplate(className: string): string {
-        return `import { Injectable } from "@nyala/core";
+        return `import { Injectable } from "@nyalajs/core";
 
 @Injectable()
 export class ${className} {
@@ -350,7 +350,7 @@ export class ${className} {
     }
 
     private getModelTemplate(className: string): string {
-        return `import { Model, Table, Primary, StringColumn, TimestampColumn } from "@nyala/database";
+        return `import { Model, Table, Primary, StringColumn, TimestampColumn } from "@nyalajs/database";
 
 @Table("${toKebabCase(className)}s")
 export class ${className} extends Model {
@@ -382,8 +382,8 @@ export async function down(db: any): Promise<void> {
     }
 
     private getRepositoryTemplate(className: string): string {
-        return `import { Injectable } from "@nyala/core";
-import { DatabaseService } from "@nyala/database";
+        return `import { Injectable } from "@nyalajs/core";
+import { DatabaseService } from "@nyalajs/database";
 
 @Injectable()
 export class ${className} {
@@ -403,7 +403,7 @@ export class ${className} {
 
     private getRequestTemplate(className: string): string {
         return `import { z } from "zod";
-import { ApiProperty } from "@nyala/http";
+import { ApiProperty } from "@nyalajs/http";
 
 export const ${className}Schema = z.object({
   // TODO: Define validation rules
@@ -418,8 +418,8 @@ export class ${className} {
     }
 
     private getPolicyTemplate(className: string, name: string): string {
-        return `import { Injectable } from "@nyala/core";
-import { Guard, ExecutionContext, ForbiddenException } from "@nyala/http";
+        return `import { Injectable } from "@nyalajs/core";
+import { Guard, ExecutionContext, ForbiddenException } from "@nyalajs/http";
 
 @Injectable()
 export class ${className} implements Guard {
@@ -438,8 +438,8 @@ export class ${className} implements Guard {
     }
 
     private getMiddlewareTemplate(className: string, name: string): string {
-        return `import { Injectable } from "@nyala/core";
-import { ExecutionContext } from "@nyala/http";
+        return `import { Injectable } from "@nyalajs/core";
+import { ExecutionContext } from "@nyalajs/http";
 
 @Injectable()
 export class ${className} {
@@ -459,8 +459,8 @@ export class ${className} {
     }
 
     private getListenerTemplate(className: string): string {
-        return `import { Injectable } from "@nyala/core";
-import { EventHandler } from "@nyala/events";
+        return `import { Injectable } from "@nyalajs/core";
+import { EventHandler } from "@nyalajs/events";
 
 @Injectable()
 export class ${className} {
@@ -473,7 +473,7 @@ export class ${className} {
     }
 
     private getJobTemplate(className: string, name: string): string {
-        return `import { Process } from "@nyala/queue";
+        return `import { Process } from "@nyalajs/queue";
 import type { Job } from "bullmq";
 
 export class ${className} {
@@ -512,7 +512,7 @@ export class ${className} {
 
     private getPluginTemplate(name: string): string {
         const className = toPascalCase(name) + "Plugin";
-        return `import { NyalaPlugin, NyalaApplication } from "@nyala/core";
+        return `import { NyalaPlugin, NyalaApplication } from "@nyalajs/core";
 
 export default class ${className} implements NyalaPlugin {
   name = "${name}";
@@ -539,7 +539,7 @@ export default class ${className} implements NyalaPlugin {
     }
 
     private getSeederTemplate(className: string): string {
-        return `import { Seeder } from "@nyala/database";
+        return `import { Seeder } from "@nyalajs/database";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 export default class ${className} extends Seeder {
@@ -556,7 +556,7 @@ export default class ${className} extends Seeder {
 
     private getFactoryTemplate(className: string, name: string): string {
         const modelName = toPascalCase(name);
-        return `import { Factory } from "@nyala/database";
+        return `import { Factory } from "@nyalajs/database";
 // import { ${modelName} } from "../../app/models/${toKebabCase(name)}";
 
 export class ${className} extends Factory<any /* ${modelName} */> {

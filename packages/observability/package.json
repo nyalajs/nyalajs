@@ -1,5 +1,5 @@
 {
-    "name": "@nyala/observability",
+    "name": "@nyalajs/observability",
     "version": "1.0.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -9,8 +9,8 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@nyala/core": "*",
-        "@nyala/http": "*",
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
         "pino": "^8.17.2",
         "pino-roll": "^2.0.0",
         "prom-client": "^15.1.0"

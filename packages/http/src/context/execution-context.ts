@@ -1,4 +1,4 @@
-import { Container } from "@nyala/core";
+import { Container } from "@nyalajs/core";
 import { RequestContext } from "./request-context";
 
 export interface ExecutionContext {
