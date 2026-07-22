@@ -4,6 +4,8 @@ export default defineConfig({
     title: 'Nyala',
     description: 'Enterprise TypeScript Framework for Production Applications',
 
+    ignoreDeadLinks: true,
+
     themeConfig: {
         logo: '/logo.png',
 

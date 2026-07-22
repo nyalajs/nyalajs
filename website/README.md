@@ -48,16 +48,32 @@ website/
 
 ## Deployment
 
-### Vercel
+### Vercel (Recommended)
 
+**Option 1: Vercel Dashboard**
+1. Go to [vercel.com](https://vercel.com) and sign in
+2. Click "Add New Project"
+3. Import `nyalajs/nyalajs` from GitHub
+4. Configure project:
+   - **Root Directory**: `website`
+   - **Build Command**: `npm run docs:build`
+   - **Output Directory**: `docs/.vitepress/dist`
+   - **Install Command**: `npm install`
+5. Click "Deploy"
+
+**Option 2: Vercel CLI**
 ```bash
 # Install Vercel CLI
 npm i -g vercel
 
-# Deploy
-cd website
-vercel
+# From repository root
+vercel --cwd website
+
+# For production
+vercel --prod --cwd website
 ```
+
+The project is pre-configured with `vercel.json` in the root directory.
 
 ### Netlify
 
