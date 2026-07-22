@@ -60,6 +60,7 @@ export class AuthService {
         const refreshToken = this.generateRefreshToken(user);
 
         // Remove password from response
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
 
         return {
@@ -107,6 +108,7 @@ export class AuthService {
         const refreshToken = this.generateRefreshToken(user);
 
         // Remove password from response
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
 
         return {
@@ -158,6 +160,7 @@ export class AuthService {
             return null;
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }

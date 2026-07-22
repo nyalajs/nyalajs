@@ -41,6 +41,7 @@ export class UsersController {
         }
 
         // Remove password from response
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
 
         return {
@@ -60,6 +61,7 @@ export class UsersController {
             const user = await this.usersService.create(dto);
 
             // Remove password from response
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { password, ...userWithoutPassword } = user;
 
             return {
@@ -93,6 +95,7 @@ export class UsersController {
             }
 
             // Remove password from response
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { password, ...userWithoutPassword } = user;
 
             return {

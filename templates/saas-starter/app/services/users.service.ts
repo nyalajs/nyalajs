@@ -1,5 +1,4 @@
 import { Injectable } from "@nyalajs/core";
-import { NotFoundException, ConflictException } from "@nyalajs/http";
 import { Logger } from "@nyalajs/observability";
 import * as bcrypt from "bcrypt";
 
@@ -72,7 +71,7 @@ export class UsersService {
         this.logger.info("Creating user", { email: dto.email });
 
         // TODO: Check if email exists and create in database
-        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        await bcrypt.hash(dto.password, 10);
 
         return {
             id: `user-${Date.now()}`,

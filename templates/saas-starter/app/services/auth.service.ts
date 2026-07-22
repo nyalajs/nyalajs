@@ -1,5 +1,5 @@
 import { Injectable } from "@nyalajs/core";
-import { UnauthorizedException, ConflictException } from "@nyalajs/http";
+import { UnauthorizedException } from "@nyalajs/http";
 import { ConfigService } from "@nyalajs/config";
 import { Logger } from "@nyalajs/observability";
 import * as bcrypt from "bcrypt";
@@ -27,7 +27,7 @@ export class AuthService {
         this.logger.info("Registering new user", { email: dto.email });
 
         // TODO: Check if user exists and create in database
-        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        await bcrypt.hash(dto.password, 10);
 
         const user = {
             id: "user-123",
@@ -129,6 +129,7 @@ export class AuthService {
     }
 
     private sanitizeUser(user: any) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...sanitized } = user;
         return sanitized;
     }

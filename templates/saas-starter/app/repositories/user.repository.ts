@@ -1,5 +1,5 @@
 import { Injectable } from "@nyalajs/core";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { BaseRepository } from "./base.repository";
 import { users, User } from "../models/user.model";
 
