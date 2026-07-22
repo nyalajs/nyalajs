@@ -1,6 +1,6 @@
 {
     "name": "nyala-mvc-starter",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Production-ready MVC application built with Nyala Framework",
     "private": true,
     "scripts": {

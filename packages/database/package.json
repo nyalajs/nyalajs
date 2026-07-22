@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/database",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Drizzle-backed ORM for NyalaJS",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
