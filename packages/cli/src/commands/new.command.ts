@@ -61,7 +61,7 @@ export class NewCommand {
         type: "input",
         name: "projectName",
         message: "What is the name of your new Nyala project?",
-        validate: (input) => (input ? true : "Project name is required"),
+        validate: (input: string) => (input ? true : "Project name is required"),
       });
     }
 
