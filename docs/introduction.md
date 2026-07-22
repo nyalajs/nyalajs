@@ -75,9 +75,10 @@ const users = await userRepository.findAll();
 
 Choose what fits your needs:
 
-- **MVC Starter** - Standard web application
-- **SaaS Starter** - Multi-tenant application
-- **Basic** - Minimal for custom projects
+- **Basic Starter** - Authentication and user management
+- **SaaS Starter** - Multi-tenant application with tenant isolation
+
+Both templates are production-ready with authentication, validation, migrations, and Docker setup.
 
 ## Core Features
 
@@ -112,9 +113,10 @@ Nyala follows these principles:
 | Structure | Minimal | Complete MVC |
 | TypeScript | Optional | First-class |
 | Authentication | DIY | Built-in |
-| Validation | Manual | Automatic |
+| Validation | Manual | Decorators |
 | Multi-Tenancy | Manual | Built-in |
-| CLI | None | Comprehensive |
+| Dependency Injection | None | Built-in |
+| CLI Tools | None | Comprehensive |
 
 ### vs NestJS
 
@@ -123,7 +125,7 @@ Nyala follows these principles:
 | Learning Curve | Steep | Gentle |
 | Multi-Tenancy | Manual | Built-in |
 | Templates | Basic | Complete apps |
-| Setup Time | Long | Instant |
+| Boilerplate | Heavy | Minimal |
 | Documentation | Complex | Clear |
 
 ## Who Uses Nyala?
@@ -138,12 +140,11 @@ Nyala is perfect for:
 
 ## Community
 
-- [GitHub](https://github.com/nyalajs/nyala) - Source code & issues
-- [Discord](https://discord.gg/nyalajs) - Community chat
-- [Twitter](https://twitter.com/nyalajs) - Updates & news
+- **[GitHub](https://github.com/nyalajs/nyalajs)** - Source code, issues, and discussions
+- **[NPM](https://www.npmjs.com/org/nyalajs)** - Published packages
 
 ## Next Steps
 
 Ready to start? Head to [Installation](./installation.md) to get Nyala running.
 
-Want to dive deeper? Check out our [Architecture Guide](./architecture.md).
+Want to dive deeper? Check out our [Core Concepts Guide](./core-concepts.md).

@@ -5,7 +5,7 @@ Get your first Nyala application running in 5 minutes.
 ## Step 1: Create Project
 
 ```bash
-nyala new my-blog --template=mvc
+nyala new my-blog --template=basic-starter
 cd my-blog
 ```
 
@@ -49,7 +49,7 @@ Visit [http://localhost:3000/health](http://localhost:3000/health)
 
 ## Your First API Endpoint
 
-The MVC template includes authentication out of the box. Try these:
+The basic-starter template includes authentication out of the box. Try these:
 
 ### Register a User
 
@@ -244,19 +244,19 @@ curl http://localhost:3000/posts
 
 ## Next Steps
 
-- [Architecture Guide](./architecture.md) - Understand MVC structure
-- [Controllers](./controllers.md) - HTTP request handling
-- [Services](./services.md) - Business logic
-- [Repositories](./repositories.md) - Data access
-- [Validation](./validation.md) - Request validation
-- [Authentication](./authentication.md) - Securing endpoints
+- [Core Concepts](./core-concepts.md) - Understand the architecture
+- [API Reference](./api-reference.md) - Complete API docs
 - [Multi-Tenancy](./multi-tenancy.md) - Building SaaS
+- [Security](./security.md) - Authentication & authorization
 
 ## Common Tasks
 
 ### Add Validation
 
 ```typescript
+import { z } from "zod";
+import { ValidateBody } from "@nyalajs/validation";
+
 // validators/post.validator.ts
 export const CreatePostValidator = z.object({
   title: z.string().min(3).max(255),
@@ -266,7 +266,7 @@ export const CreatePostValidator = z.object({
 
 // In controller
 @Post('/')
-@UseValidation(CreatePostValidator)
+@ValidateBody(CreatePostValidator)
 async store(@Body() dto: CreatePostDto) {
   return this.postsService.create(dto);
 }
@@ -275,7 +275,7 @@ async store(@Body() dto: CreatePostDto) {
 ### Add Authentication
 
 ```typescript
-import { AuthGuard } from '@nyalajs/security';
+import { AuthGuard, UseGuards } from '@nyalajs/security';
 
 @Controller('/posts')
 @UseGuards(AuthGuard)
@@ -324,6 +324,6 @@ PORT=3001
 ## Learn More
 
 - [Full Documentation](./index.md)
-- [CLI Commands](./cli-commands.md)
 - [API Reference](./api-reference.md)
 - [Examples](../examples)
+- [GitHub Repository](https://github.com/nyalajs/nyalajs)

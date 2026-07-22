@@ -19,7 +19,7 @@ nyala --version
 nyala new my-app
 
 # Or specify template
-nyala new my-app --template=mvc
+nyala new my-app --template=basic-starter
 ```
 
 ## Setup
@@ -39,6 +39,7 @@ DB_HOST=localhost
 DB_NAME=myapp
 DB_USER=postgres
 DB_PASSWORD=
+JWT_SECRET=your-secret-key-here
 ```
 
 ## Run Migrations
@@ -73,35 +74,30 @@ curl -X POST http://localhost:3000/auth/login \
 ## Next Steps
 
 - [Full Quick Start Tutorial](./docs/quick-start.md) - Build your first feature
-- [Architecture Guide](./docs/architecture.md) - Understand the structure
+- [Core Concepts](./docs/core-concepts.md) - Understand the architecture
 - [Documentation](./docs/index.md) - Complete guides
 
 ## Templates
 
-### MVC Starter (Recommended)
+### Basic Starter (Recommended)
 ```bash
-nyala new my-app --template=mvc
+nyala new my-app --template=basic-starter
 ```
 - Authentication included
 - User management
 - Database setup
 - Docker ready
+- Request validation
 
 ### SaaS Starter
 ```bash
-nyala new my-saas --template=saas
+nyala new my-saas --template=saas-starter
 ```
-- Everything from MVC
-- Multi-tenancy
-- Tenant isolation
+- Everything from Basic Starter
+- Multi-tenancy with data isolation
+- Tenant management
+- Cross-tenant protection
 - Enterprise features
-
-### Basic
-```bash
-nyala new my-app --template=basic
-```
-- Minimal setup
-- Custom projects
 
 ## Common Commands
 
@@ -122,8 +118,24 @@ npm run build
 npm test
 ```
 
+## Available Packages
+
+All packages are published on npm under [@nyalajs](https://www.npmjs.com/org/nyalajs):
+
+- `@nyalajs/cli` - Command-line interface
+- `@nyalajs/core` - Framework core
+- `@nyalajs/http` - HTTP server
+- `@nyalajs/database` - ORM and migrations
+- `@nyalajs/validation` - Request validation
+- `@nyalajs/security` - Authentication
+- `@nyalajs/tenancy` - Multi-tenant support
+- And more...
+
+[View all packages →](https://www.npmjs.com/org/nyalajs)
+
 ## Get Help
 
 - [Documentation](./docs/index.md)
-- [GitHub Issues](https://github.com/nyalajs/nyala/issues)
-- [Discord](https://discord.gg/nyalajs)
+- [GitHub Repository](https://github.com/nyalajs/nyalajs)
+- [GitHub Issues](https://github.com/nyalajs/nyalajs/issues)
+- [NPM Packages](https://www.npmjs.com/org/nyalajs)

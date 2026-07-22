@@ -29,13 +29,12 @@ Use the CLI to create a new project:
 nyala new my-app
 
 # Or specify template
-nyala new my-app --template=mvc
+nyala new my-app --template=basic-starter
 ```
 
 Available templates:
-- `mvc` - Full MVC application with authentication (recommended)
-- `saas` - Multi-tenant SaaS application
-- `basic` - Minimal setup for custom projects
+- `basic-starter` - Full application with authentication (recommended)
+- `saas-starter` - Multi-tenant SaaS application
 
 ## Project Setup
 
@@ -101,8 +100,8 @@ curl http://localhost:3000/health
 ## Next Steps
 
 - [Quick Start](./quick-start.md) - Build your first feature
-- [Architecture](./architecture.md) - Understand the structure
-- [CLI Commands](./cli-commands.md) - Available commands
+- [Core Concepts](./core-concepts.md) - Understand the architecture
+- [API Reference](./api-reference.md) - Complete API documentation
 
 ## Troubleshooting
 
