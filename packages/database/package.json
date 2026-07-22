@@ -1,0 +1,46 @@
+{
+    "name": "@nyala/database",
+    "version": "1.0.0",
+    "description": "Drizzle-backed ORM for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "drizzle-orm": "^0.29.3"
+    },
+    "peerDependencies": {
+        "pg": "^8.11.3",
+        "postgres": "^3.4.3",
+        "mysql2": "^3.9.1",
+        "better-sqlite3": "^9.4.0",
+        "reflect-metadata": ">=0.1.13"
+    },
+    "peerDependenciesMeta": {
+        "pg": {
+            "optional": true
+        },
+        "postgres": {
+            "optional": true
+        },
+        "mysql2": {
+            "optional": true
+        },
+        "better-sqlite3": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

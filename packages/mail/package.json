@@ -1,0 +1,29 @@
+{
+    "name": "@nyala/mail",
+    "version": "1.0.0",
+    "description": "Nodemailer-backed mail system for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "nodemailer": "^6.9.9"
+    },
+    "devDependencies": {
+        "@types/nodemailer": "^6.4.14",
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}

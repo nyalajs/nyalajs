@@ -1,0 +1,16 @@
+{
+    "name": "basic-app",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "ts-node src/main.ts",
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@nyala/core": "*"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "ts-node": "^10.9.2"
+    }
+}

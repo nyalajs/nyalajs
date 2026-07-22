@@ -1,0 +1,61 @@
+{
+    "name": "nyala",
+    "version": "0.1.0",
+    "description": "Enterprise TypeScript Framework for building production-ready web applications with batteries included",
+    "keywords": [
+        "framework",
+        "typescript",
+        "mvc",
+        "web",
+        "api",
+        "backend",
+        "enterprise",
+        "saas",
+        "multi-tenant"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Hailemariyam/nyala.git"
+    },
+    "homepage": "https://github.com/Hailemariyam/nyala#readme",
+    "bugs": {
+        "url": "https://github.com/Hailemariyam/nyala/issues"
+    },
+    "license": "MIT",
+    "author": "Hailemariyam",
+    "workspaces": [
+        "packages/*",
+        "templates/*"
+    ],
+    "scripts": {
+        "build": "turbo run build",
+        "build:manual": "./scripts/build-all.sh",
+        "test": "turbo run test",
+        "lint": "turbo run lint",
+        "dev": "turbo run dev",
+        "clean": "turbo run clean && rm -rf node_modules",
+        "install:all": "npm install && npm run build",
+        "prepublishOnly": "npm run build && npm test",
+        "release": "changeset publish"
+    },
+    "devDependencies": {
+        "@changesets/cli": "^2.31.1",
+        "@typescript-eslint/eslint-plugin": "^6.17.0",
+        "@typescript-eslint/parser": "^6.17.0",
+        "eslint": "^8.56.0",
+        "prettier": "^3.1.1",
+        "turbo": "^1.11.2",
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4"
+    },
+    "dependencies": {
+        "@types/nodemailer": "^8.0.1",
+        "drizzle-orm": "^0.45.2",
+        "nodemailer": "^9.0.3",
+        "postgres": "^3.4.9"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}

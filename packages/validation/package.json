@@ -1,0 +1,29 @@
+{
+    "name": "@nyala/validation",
+    "version": "1.0.0",
+    "description": "Zod-based validation engine for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "@nyala/http": "*",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}

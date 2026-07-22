@@ -1,0 +1,26 @@
+{
+    "name": "@nyala/core",
+    "version": "1.0.0",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "test": "vitest run",
+        "dev": "tsc --watch"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}

@@ -1,0 +1,28 @@
+{
+    "name": "@nyala/events",
+    "version": "1.0.0",
+    "description": "Event bus and emitter for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "ioredis": "^5.3.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}

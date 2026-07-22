@@ -1,0 +1,28 @@
+{
+    "name": "@nyala/notifications",
+    "version": "1.0.0",
+    "description": "Multi-channel notification system for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "@nyala/mail": "*"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}

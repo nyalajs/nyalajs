@@ -1,0 +1,33 @@
+{
+    "name": "@nyala/queue",
+    "version": "1.0.0",
+    "description": "BullMQ-backed job queue for NyalaJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@nyala/core": "*"
+    },
+    "peerDependencies": {
+        "bullmq": "^5.1.0",
+        "reflect-metadata": ">=0.1.13"
+    },
+    "peerDependenciesMeta": {
+        "bullmq": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

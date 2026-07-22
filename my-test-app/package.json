@@ -1,0 +1,60 @@
+{
+    "name": "nyala-mvc-starter",
+    "version": "1.0.0",
+    "description": "Production-ready MVC application built with Nyala Framework",
+    "private": true,
+    "scripts": {
+        "dev": "tsx watch bootstrap/main.ts",
+        "build": "tsc",
+        "start": "node dist/bootstrap/main.js",
+        "test": "vitest run",
+        "test:unit": "vitest run tests/unit",
+        "test:integration": "vitest run tests/integration",
+        "test:e2e": "vitest run tests/e2e",
+        "test:coverage": "vitest run --coverage",
+        "test:watch": "vitest",
+        "db:migrate": "tsx database/migrate.ts",
+        "db:rollback": "tsx database/rollback.ts",
+        "db:fresh": "tsx database/fresh.ts",
+        "db:seed": "tsx database/seed.ts",
+        "lint": "eslint \"{app,bootstrap,config,database,routes,tests}/**/*.ts\" --fix",
+        "format": "prettier --write \"**/*.{ts,json,md}\"",
+        "docker:build": "docker build -t nyala-mvc .",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down"
+    },
+    "dependencies": {
+        "@nyala/core": "^1.0.0",
+        "@nyala/http": "^1.0.0",
+        "@nyala/config": "^1.0.0",
+        "@nyala/security": "^1.0.0",
+        "@nyala/database": "^1.0.0",
+        "@nyala/validation": "^1.0.0",
+        "@nyala/observability": "^1.0.0",
+        "reflect-metadata": "^0.2.1",
+        "drizzle-orm": "^0.29.0",
+        "postgres": "^3.4.3",
+        "zod": "^3.22.4",
+        "bcrypt": "^5.1.1",
+        "jsonwebtoken": "^9.0.2",
+        "dotenv": "^16.4.1"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "tsx": "^4.7.0",
+        "@types/node": "^20.10.6",
+        "@types/bcrypt": "^5.0.2",
+        "@types/jsonwebtoken": "^9.0.5",
+        "vitest": "^1.0.4",
+        "@vitest/coverage-v8": "^1.0.4",
+        "eslint": "^8.56.0",
+        "@typescript-eslint/eslint-plugin": "^6.18.0",
+        "@typescript-eslint/parser": "^6.18.0",
+        "prettier": "^3.1.1",
+        "drizzle-kit": "^0.20.9"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}

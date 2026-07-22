@@ -1,0 +1,34 @@
+{
+    "name": "@nyala/security",
+    "version": "1.0.0",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "test": "vitest run --passWithNoTests",
+        "dev": "tsc --watch"
+    },
+    "dependencies": {
+        "@nyala/core": "*",
+        "@nyala/http": "*",
+        "jsonwebtoken": "^9.0.2",
+        "bcrypt": "^5.1.1"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4",
+        "@types/node": "^20.10.6",
+        "@types/jsonwebtoken": "^9.0.5",
+        "@types/bcrypt": "^5.0.2"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}
