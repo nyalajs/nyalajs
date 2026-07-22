@@ -1,6 +1,8 @@
-# Nyala
-
 <div align="center">
+
+<img src="./assets/logo.png" alt="Nyala Framework" width="200" />
+
+# Nyala
 
 **Enterprise TypeScript Framework for Production-Ready Applications**
 
