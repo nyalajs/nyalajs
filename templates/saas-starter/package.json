@@ -23,8 +23,7 @@
         "format:check": "prettier --check \"{app,bootstrap,config,database,routes}/**/*.ts\"",
         "docker:build": "docker build -t nyala-saas .",
         "docker:up": "docker-compose up -d",
-        "docker:down": "docker-compose down",
-        "prepare": "husky install"
+        "docker:down": "docker-compose down"
     },
     "dependencies": {
         "@nyalajs/core": "*",
