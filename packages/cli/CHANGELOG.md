@@ -1,5 +1,11 @@
 # @nyalajs/cli
 
+## 1.1.1
+
+### Patch Changes
+
+- Fix `nyala --version` and the startup banner printing a hardcoded `0.1.0` instead of the actual installed CLI version. Both now read the version from the package's own `package.json` at runtime, so they can't drift out of sync with future releases again.
+
 ## 1.1.0
 
 ### Minor Changes

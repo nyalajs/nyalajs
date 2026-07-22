@@ -101,7 +101,7 @@ function rule(n = 62): string {
 // ── public API ────────────────────────────────────────────────────────────────
 
 /** Main banner — shown on every `nyala` invocation. */
-export function printBanner(): void {
+export function printBanner(version: string): void {
   const rows = buildWordmark();
   console.log();
   rows.forEach((r) => console.log("  " + r));
@@ -115,7 +115,7 @@ export function printBanner(): void {
     SILVER("  SaaS-ready")
   );
   console.log(rule());
-  console.log("  " + DIM("v0.1.0") + SILVER("  ·  ") + DIM("@nyalajs/cli"));
+  console.log("  " + DIM(`v${version}`) + SILVER("  ·  ") + DIM("@nyalajs/cli"));
   console.log();
 }
 

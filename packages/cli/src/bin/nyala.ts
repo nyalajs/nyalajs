@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import * as fs from "fs";
+import * as path from "path";
 import { Command } from "commander";
 import { spawnSync } from "child_process";
 import { NewCommand } from "../commands/new.command";
@@ -9,15 +11,19 @@ import { MigrateCommand } from "../commands/migrate.command";
 import { SeedCommand } from "../commands/seed.command";
 import { printBanner } from "../utils/banner";
 
+const { version } = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "../../package.json"), "utf-8")
+);
+
 // Print the Nyala 3D logo banner on every CLI invocation
-printBanner();
+printBanner(version);
 
 const program = new Command();
 
 program
     .name("nyala")
     .description("Nyala Framework CLI")
-    .version("0.1.0");
+    .version(version);
 
 // New command
 program
