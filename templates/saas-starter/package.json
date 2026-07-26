@@ -13,10 +13,10 @@
         "test:e2e": "vitest run tests/e2e",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "db:migrate": "tsx database/migrate.ts",
-        "db:rollback": "tsx database/rollback.ts",
-        "db:fresh": "tsx database/fresh.ts",
-        "db:seed": "tsx database/seed.ts",
+        "db:migrate": "nyala db:migrate",
+        "db:rollback": "nyala db:rollback",
+        "db:fresh": "nyala db:fresh",
+        "db:seed": "nyala db:seed",
         "lint": "eslint app bootstrap --ext .ts",
         "lint:fix": "eslint app bootstrap --ext .ts --fix",
         "format": "prettier --write \"{app,bootstrap,config,database,routes}/**/*.ts\"",
@@ -51,6 +51,7 @@
         "dotenv": "^16.4.1"
     },
     "devDependencies": {
+        "@nyalajs/cli": "*",
         "typescript": "^5.3.3",
         "tsx": "^4.7.0",
         "ts-node": "^10.9.2",

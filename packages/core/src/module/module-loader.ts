@@ -70,6 +70,18 @@ export class ModuleLoader {
 
       node.providers.set(token, provider);
     }
+
+    // Controllers must also be resolvable through the container — the
+    // route resolver instantiates them via container.resolve(). They're not
+    // "providers" in the DI sense, but need the same registration to be
+    // constructible (with their own dependencies injected).
+    for (const controller of node.metadata.controllers ?? []) {
+      const token = this.getProviderToken(controller);
+
+      if (!node.providers.has(token)) {
+        node.providers.set(token, controller);
+      }
+    }
   }
 
   private validateExports(node: ModuleNode): void {

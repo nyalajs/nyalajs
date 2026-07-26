@@ -38,8 +38,9 @@ export class TestingModuleBuilder {
         class RootTestModule {}
 
         const app = await NyalaFactory.create(RootTestModule);
-        app.setHttpAdapter(new FastifyAdapter(app.getKernel().getContainer()));
-        
+        app.setHttpAdapter(new FastifyAdapter(app.getKernel().getContainer(), { session: false }));
+        app.bindRoutes();
+
         return new TestingModule(app);
     }
 }

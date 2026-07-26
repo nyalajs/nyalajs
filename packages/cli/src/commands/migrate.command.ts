@@ -3,86 +3,80 @@ import * as fs from "fs-extra";
 import ora from "ora";
 import chalk from "chalk";
 import * as dotenv from "dotenv";
+import { spawnSync } from "child_process";
 
 /**
- * Real migration runner using Drizzle ORM's migrate() function.
- * Reads DB credentials from the environment (loaded from .env) and
- * runs all pending migrations from database/migrations/.
+ * Migration runner. `nyala generate migration <name>` scaffolds a
+ * `up(db)/down(db)` TS stub; this command executes those stubs directly
+ * (tracked in a `_nyala_migrations` table) rather than relying on
+ * drizzle-kit's SQL-file migrator, which expects a different artifact
+ * format entirely. The actual file loading happens in a small script
+ * (runtime/migration-runner.ts) run via `npx tsx` in the project's own
+ * directory, so it can load the project's `.ts` migration files using the
+ * project's own tsconfig/node_modules.
  */
 export class MigrateCommand {
     async handle(options: { fresh?: boolean; seed?: boolean } = {}): Promise<void> {
-        // Load .env so DB credentials are available
         dotenv.config({ path: path.join(process.cwd(), ".env") });
 
         const spinner = ora("Running database migrations").start();
-
         const migrationsDir = path.join(process.cwd(), "database/migrations");
-        const migrationsFolder = migrationsDir;
 
-        try {
-            if (!(await fs.pathExists(migrationsDir))) {
-                spinner.info("No migrations directory found. Run `nyala generate migration <name>` first.");
-                return;
-            }
-
-            const connectionString = this.buildConnectionString();
-            if (!connectionString) {
-                spinner.fail(
-                    "No database connection string found.\n" +
-                    "  Set DB_URL or (DB_HOST + DB_PORT + DB_NAME + DB_USER + DB_PASSWORD) in your .env file."
-                );
-                return;
-            }
-
-            spinner.text = "Connecting to database...";
-
-            // Dynamically import drizzle-orm/node-postgres and pg so this
-            // file stays require()-able even without those deps installed
-            // (they are a peer dep of @nyalajs/database).
-            let Pool: any;
-            let drizzle: any;
-            let migrate: any;
-
-            try {
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                ({ Pool } = require("pg"));
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                ({ drizzle } = require("drizzle-orm/node-postgres"));
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                ({ migrate } = require("drizzle-orm/node-postgres/migrator"));
-            } catch {
-                spinner.fail(
-                    "Could not load database driver.\n" +
-                    "  Run: npm install pg drizzle-orm"
-                );
-                return;
-            }
-
-            const pool = new Pool({ connectionString });
-
-            try {
-                const db = drizzle(pool);
-                spinner.text = "Running migrations...";
-
-                await migrate(db, { migrationsFolder });
-
-                await pool.end();
-                spinner.succeed(chalk.green("All migrations applied successfully."));
-
-                console.log(chalk.dim(`  Migrations folder: ${migrationsDir}`));
-
-                if (options.seed) {
-                    await this.runSeeders();
-                }
-            } catch (dbError: any) {
-                await pool.end().catch(() => {});
-                throw dbError;
-            }
-        } catch (error: any) {
-            spinner.fail("Migration failed");
-            console.error(chalk.red(error?.message ?? error));
-            process.exit(1);
+        if (!(await fs.pathExists(migrationsDir))) {
+            spinner.info("No migrations directory found. Run `nyala generate migration <name>` first.");
+            return;
         }
+
+        const connectionString = this.buildConnectionString();
+        if (!connectionString) {
+            spinner.fail(
+                "No database connection string found.\n" +
+                "  Set DB_URL or (DB_HOST + DB_PORT + DB_NAME + DB_USER + DB_PASSWORD) in your .env file."
+            );
+            return;
+        }
+
+        spinner.text = "Applying pending migrations...";
+
+        const result = this.runMigrationScript("up", migrationsDir, connectionString);
+
+        if (result.status !== 0) {
+            spinner.fail("Migration failed");
+            process.exit(result.status ?? 1);
+        }
+
+        spinner.succeed(chalk.green("Migrations up to date."));
+
+        if (options.seed) {
+            await this.runSeeders();
+        }
+    }
+
+    async rollback(): Promise<void> {
+        dotenv.config({ path: path.join(process.cwd(), ".env") });
+
+        const spinner = ora("Rolling back the last migration").start();
+        const migrationsDir = path.join(process.cwd(), "database/migrations");
+
+        if (!(await fs.pathExists(migrationsDir))) {
+            spinner.info("No migrations directory found.");
+            return;
+        }
+
+        const connectionString = this.buildConnectionString();
+        if (!connectionString) {
+            spinner.fail("No database connection string found.");
+            return;
+        }
+
+        const result = this.runMigrationScript("down", migrationsDir, connectionString);
+
+        if (result.status !== 0) {
+            spinner.fail("Rollback failed");
+            process.exit(result.status ?? 1);
+        }
+
+        spinner.succeed(chalk.green("Rollback complete."));
     }
 
     async fresh(): Promise<void> {
@@ -109,13 +103,36 @@ export class MigrateCommand {
             await pool.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
             await pool.end();
             spinner.succeed("Schema dropped and recreated.");
-            // Re-run all migrations from scratch
             await this.handle();
         } catch (e: any) {
             await pool.end().catch(() => {});
             spinner.fail("Fresh migration failed: " + (e?.message ?? e));
             process.exit(1);
         }
+    }
+
+    /**
+     * Runs runtime/migration-runner.ts via `npx tsx` from the project's own
+     * directory, so it resolves the project's tsconfig/node_modules (pg,
+     * drizzle-orm) rather than the CLI's own.
+     */
+    private runMigrationScript(
+        action: "up" | "down",
+        migrationsDir: string,
+        connectionString: string
+    ): { status: number | null } {
+        const runnerPath = path.join(__dirname, "../../runtime/migration-runner.ts");
+
+        return spawnSync("npx", ["tsx", runnerPath], {
+            stdio: "inherit",
+            cwd: process.cwd(),
+            env: {
+                ...process.env,
+                NYALA_MIGRATE_ACTION: action,
+                NYALA_MIGRATIONS_DIR: migrationsDir,
+                NYALA_DB_CONNECTION_STRING: connectionString,
+            },
+        });
     }
 
     private async runSeeders(): Promise<void> {

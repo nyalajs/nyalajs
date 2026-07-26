@@ -183,6 +183,14 @@ program
     });
 
 program
+    .command("db:rollback")
+    .description("Roll back the most recently applied migration")
+    .action(async () => {
+        const command = new MigrateCommand();
+        await command.rollback();
+    });
+
+program
     .command("db:fresh")
     .description("Drop the entire schema, re-run all migrations, and optionally seed")
     .option("--seed", "Run seeders after migrating")

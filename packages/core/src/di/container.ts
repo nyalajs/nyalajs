@@ -65,30 +65,52 @@ export class Container {
             );
         }
 
-        const record = this.providers.get(token) ?? this.parent?.getProvider(token);
+        const owner = this.findOwner(token);
 
-        if (!record) {
+        if (!owner) {
             throw new Error(`Provider not found: ${String(token)}`);
         }
 
-        if (record.scope !== Scope.TRANSIENT) {
+        const { container: ownerContainer, record } = owner;
+
+        // SINGLETON: one instance per app, cached on the container that
+        // actually registered the provider — so every request-scope child
+        // resolving the same token shares it instead of rebuilding it.
+        if (record.scope === Scope.SINGLETON) {
+            const cached = ownerContainer.scopeCache.get(token);
+            if (cached) {
+                return cached;
+            }
+
+            const instance = this.instantiate(record, [...stack, token]);
+            ownerContainer.scopeCache.set(token, instance);
+            return instance;
+        }
+
+        // REQUEST: one instance per request-scope container (i.e. per HTTP
+        // request), cached on `this` — the container the resolution chain
+        // for this request entered on.
+        if (record.scope === Scope.REQUEST) {
             const cached = this.scopeCache.get(token);
             if (cached) {
                 return cached;
             }
-        }
 
-        const instance = this.instantiate(record, [...stack, token]);
-
-        if (record.scope !== Scope.TRANSIENT) {
+            const instance = this.instantiate(record, [...stack, token]);
             this.scopeCache.set(token, instance);
+            return instance;
         }
 
-        return instance;
+        // TRANSIENT: never cached.
+        return this.instantiate(record, [...stack, token]);
     }
 
-    private getProvider(token: Token): ProviderRecord | undefined {
-        return this.providers.get(token) ?? this.parent?.getProvider(token);
+    private findOwner(token: Token): { container: Container; record: ProviderRecord } | undefined {
+        const record = this.providers.get(token);
+        if (record) {
+            return { container: this, record };
+        }
+        return this.parent?.findOwner(token);
     }
 
     private instantiate(record: ProviderRecord, stack: Token[]): any {

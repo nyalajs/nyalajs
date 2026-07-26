@@ -1,5 +1,5 @@
 import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { Container, getParamMetadata, ParamType } from "@nyalajs/core";
+import { Container, getParamMetadata, ParamType, TenantContext } from "@nyalajs/core";
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
@@ -9,6 +9,14 @@ import { randomUUID } from "crypto";
 
 export interface FastifyAdapterOptions {
     cors?: boolean;
+    /**
+     * Origin(s) allowed for cross-origin requests. Defaults to `false` (no
+     * cross-origin access) — pass an explicit origin/list to opt in, or
+     * `true` to reflect any Origin (only if you understand the tradeoff:
+     * combined with `credentials`, this allows any site to make
+     * cookie-authenticated requests against this API).
+     */
+    corsOrigin?: string | string[] | boolean;
     helmet?: boolean;
     csrf?: boolean;
     rateLimit?: boolean;
@@ -110,10 +118,28 @@ export class FastifyAdapter {
 
         // Register session support if requested (true by default unless explicitly disabled)
         if (options.session !== false) {
-            const secret = process.env.SESSION_SECRET || "a-very-long-and-secure-session-secret-key-that-is-at-least-32-chars";
+            const secret = process.env.SESSION_SECRET;
+            const salt = process.env.SESSION_SALT;
+
+            if (!secret || secret.length < 32) {
+                throw new Error(
+                    "SESSION_SECRET is required (min 32 chars) when sessions are enabled. " +
+                    "Generate one with: openssl rand -base64 32\n" +
+                    "Set session: false in FastifyAdapterOptions to disable sessions instead."
+                );
+            }
+
+            if (!salt || salt.length !== 16) {
+                throw new Error(
+                    "SESSION_SALT is required and must be exactly 16 characters when sessions are enabled. " +
+                    "Generate one with: openssl rand -base64 12 | cut -c1-16\n" +
+                    "Set session: false in FastifyAdapterOptions to disable sessions instead."
+                );
+            }
+
             this.app.register(require("@fastify/secure-session"), {
                 secret,
-                salt: "nyala12345678901",
+                salt,
                 cookie: {
                     path: "/",
                     httpOnly: true,
@@ -138,9 +164,10 @@ export class FastifyAdapter {
         }
 
         if (options.cors !== false) {
+            const corsOrigin = options.corsOrigin ?? false;
             this.app.register(require("@fastify/cors"), {
-                origin: true,
-                credentials: true,
+                origin: corsOrigin,
+                credentials: corsOrigin !== false,
             });
         }
 
@@ -257,6 +284,18 @@ export class FastifyAdapter {
     }
 
     private async handleRequest(
+        request: FastifyRequest,
+        reply: FastifyReply,
+        route: any
+    ): Promise<void> {
+        // Run the whole request — middleware, guards, interceptors, handler —
+        // inside one AsyncLocalStorage scope so TenantContext.set() (called
+        // by tenant-resolving middleware) is visible to everything downstream,
+        // including static Model calls with no access to the request object.
+        return TenantContext.run(() => this.handleRequestInScope(request, reply, route));
+    }
+
+    private async handleRequestInScope(
         request: FastifyRequest,
         reply: FastifyReply,
         route: any

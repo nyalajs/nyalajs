@@ -10,7 +10,8 @@
     },
     "dependencies": {
         "@nyalajs/core": "*",
-        "@nyalajs/http": "*"
+        "@nyalajs/http": "*",
+        "@nyalajs/security": "*"
     },
     "devDependencies": {
         "typescript": "^5.3.3",

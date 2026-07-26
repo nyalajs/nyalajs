@@ -33,6 +33,19 @@ const APP_SUBFOLDERS = [
   "helpers",
 ];
 
+/**
+ * Maps a `--template` value to its folder under the repo's top-level
+ * `templates/` directory. "basic" has no entry on purpose — it means "no
+ * starter template, bare scaffold" (see createProjectStructure()).
+ *
+ * NOTE: `basic-starter/` is internally named `nyala-mvc-starter` and is the
+ * full MVC app (auth, CRUD, tests) — it's what "mvc" maps to.
+ */
+const TEMPLATE_FOLDERS: Record<string, string> = {
+  mvc: "basic-starter",
+  saas: "saas-starter",
+};
+
 const EMPTY_TOP_LEVEL_FOLDERS = [
   "database/migrations",
   "database/seeders",
@@ -72,7 +85,7 @@ export class NewCommand {
         message: "Which starter template would you like to use?",
         choices: [
           {
-            name: "MVC Starter - Standard MVC application with auth & CRUD",
+            name: "MVC Starter - Standard MVC application with auth & CRUD (default)",
             value: "mvc",
           },
           {
@@ -80,7 +93,7 @@ export class NewCommand {
             value: "saas",
           },
           {
-            name: "Basic - Minimal setup (current default)",
+            name: "Basic - No starter template, bare folder scaffold only",
             value: "basic",
           },
         ],
@@ -118,11 +131,15 @@ export class NewCommand {
         return;
       }
 
-      // Check if template directory exists
-      const templatePath = path.join(__dirname, "../../../templates", `${template}-starter`);
-      const templateExists = await fs.pathExists(templatePath);
+      // Resolve the chosen template to its folder under the repo's
+      // top-level templates/ dir (four levels up from dist/commands).
+      const templateFolder = TEMPLATE_FOLDERS[template];
+      const templatePath = templateFolder
+        ? path.join(__dirname, "../../../../templates", templateFolder)
+        : null;
+      const templateExists = templatePath ? await fs.pathExists(templatePath) : false;
 
-      if (templateExists && template !== "basic") {
+      if (templatePath && templateExists) {
         spinner.text = `Copying ${template} starter template...`;
         await this.copyTemplate(templatePath, projectPath, projectName!);
       } else {

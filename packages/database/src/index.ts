@@ -1,5 +1,6 @@
 export * from "./database.service";
 export * from "./model";
+export * from "./transaction-context";
 export * from "./schema/decorators";
 export * from "./schema/registry";
 export * from "./traits/soft-deletes";

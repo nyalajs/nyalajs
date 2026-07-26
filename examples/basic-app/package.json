@@ -7,7 +7,9 @@
         "build": "tsc"
     },
     "dependencies": {
-        "@nyalajs/core": "*"
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
+        "reflect-metadata": "^0.2.1"
     },
     "devDependencies": {
         "typescript": "^5.3.3",

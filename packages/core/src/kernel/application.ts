@@ -63,11 +63,18 @@ export class NyalaApplication {
         return this;
     }
 
-    async listen(port: number, host: string = "0.0.0.0"): Promise<void> {
+    /**
+     * Resolves all decorated routes and binds them onto the HTTP adapter,
+     * and auto-registers global middleware from ConfigService if present.
+     * `listen()` calls this before starting the server; `TestingModule`
+     * calls it too, so routes are bound before tests run — without it,
+     * `HttpTestClient` requests 404 against an adapter with zero routes.
+     */
+    bindRoutes(): void {
         if (!this.httpAdapter) {
             throw new Error("HTTP adapter not configured");
         }
-        
+
         // Resolve all routes via the DI container and decorators
         // Note: we fetch the private metadataScanner and moduleGraph from kernel
         const metadataScanner = (this.kernel as any).metadataScanner || new MetadataScanner();
@@ -77,7 +84,7 @@ export class NyalaApplication {
             this.kernel.getModuleGraph()
         );
         const resolvedRoutes = routeResolver.resolveRoutes();
-        
+
         if (typeof this.httpAdapter.registerResolvedRoutes === "function") {
             this.httpAdapter.registerResolvedRoutes(resolvedRoutes);
         }
@@ -96,7 +103,15 @@ export class NyalaApplication {
         } catch (e) {
             // ConfigService not bound or middleware namespace missing, skip
         }
-        
+    }
+
+    async listen(port: number, host: string = "0.0.0.0"): Promise<void> {
+        if (!this.httpAdapter) {
+            throw new Error("HTTP adapter not configured");
+        }
+
+        this.bindRoutes();
+
         // Boot plugins just before listening, so all modules are ready
         await this.bootPlugins();
         await this.httpAdapter.listen(port, host);

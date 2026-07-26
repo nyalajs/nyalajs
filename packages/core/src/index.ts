@@ -10,3 +10,4 @@ export * from "./di/container";
 export * from "./plugins/plugin.interface";
 export * from "./plugins/plugin.manager";
 export * from "./routing/route-resolver";
+export * from "./context/tenant-context";

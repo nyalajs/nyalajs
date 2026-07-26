@@ -15,6 +15,7 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
+        "ignoreDeprecations": "5.0",
         "resolveJsonModule": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true
