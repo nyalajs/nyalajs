@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="Nyala Framework" width="200" />
+
 # Nyala MVC Starter Template
+
+</div>
 
 A production-ready MVC application built with Nyala Framework following Laravel-style conventions.
 

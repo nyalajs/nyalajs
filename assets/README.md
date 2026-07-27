@@ -2,28 +2,18 @@
 
 ## Logo
 
-The official Nyala framework logo features a stylized Nyala antelope (an elegant African antelope) combined with modern tech elements:
-
-- **Colors**: Deep teal green (#1a4d3e) and golden yellow (#f5b847)
-- **Elements**: Hexagonal nodes representing modularity, circuit paths symbolizing connectivity
-- **Symbolism**: The Nyala represents elegance and agility, reflecting the framework's design philosophy
+The official Nyala framework logo is a 3D glass-effect "Nyala Js" wordmark on a black background, with a green-to-gold gradient running left to right.
 
 ### Files
 
-- `logo.png` - Main logo (800x800px)
-- `logo-banner.png` - Wide banner format (optional)
-- `icon.png` - Square icon for npm/favicons (optional)
+- `logo.png` - Main logo (1983x793px, optimized PNG)
 
 ### Usage Guidelines
 
 The logo should be used:
-- In documentation headers
+- In documentation headers (root README, `docs/`, and the VitePress site)
+- In each starter template's README (`templates/*/assets/logo.png`)
 - On the npm package page
 - In promotional materials
-- With proper attribution
 
-Please maintain aspect ratio and use on light or transparent backgrounds for best visibility.
-
----
-
-**Save the logo image as `logo.png` in this directory.**
+The logo has a black background, so it reads best on dark or neutral surfaces.

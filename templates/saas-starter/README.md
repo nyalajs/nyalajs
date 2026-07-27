@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="Nyala Framework" width="200" />
+
 # SaaS Starter Template
+
+</div>
 
 Production-ready multi-tenant SaaS application built with Nyala Framework.
 

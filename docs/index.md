@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="Nyala Framework" width="200" />
+
 # Nyala Documentation
+
+</div>
 
 Welcome to Nyala - a production-ready TypeScript framework for building modern, scalable applications.
 
