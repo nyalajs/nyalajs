@@ -37,6 +37,7 @@ Nyala is distributed as focused npm packages. Install only what you need:
 - **[@nyalajs/cli](https://www.npmjs.com/package/@nyalajs/cli)** - Command-line interface
 - **[@nyalajs/core](https://www.npmjs.com/package/@nyalajs/core)** - Framework core with DI
 - **[@nyalajs/http](https://www.npmjs.com/package/@nyalajs/http)** - HTTP server and routing
+- **[@nyalajs/react](https://www.npmjs.com/package/@nyalajs/react)** - Server-rendered views and islands
 - **[@nyalajs/database](https://www.npmjs.com/package/@nyalajs/database)** - ORM and migrations
 - **[@nyalajs/validation](https://www.npmjs.com/package/@nyalajs/validation)** - Request validation
 - **[@nyalajs/security](https://www.npmjs.com/package/@nyalajs/security)** - Auth & authorization
@@ -53,6 +54,12 @@ Nyala is distributed as focused npm packages. Install only what you need:
 [View all packages →](https://www.npmjs.com/org/nyalajs)
 
 ## Features
+
+### [Rendering](./rendering.md)
+Server-rendered HTML views, layouts, and error pages
+
+### [Islands](./islands.md)
+Opt-in client-side interactivity without giving up server rendering by default
 
 ### [Authentication](./authentication.md)
 JWT authentication system

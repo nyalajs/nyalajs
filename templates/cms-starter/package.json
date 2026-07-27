@@ -1,0 +1,55 @@
+{
+    "name": "nyala-cms-starter",
+    "version": "1.0.0",
+    "description": "Full-stack website starter for Nyala Framework — admin dashboard, CMS, and public site in one app",
+    "private": true,
+    "scripts": {
+        "dev": "nyala dev",
+        "build": "nyala build",
+        "start": "node dist/bootstrap/main.js",
+        "test": "vitest run",
+        "db:migrate": "nyala db:migrate",
+        "db:rollback": "nyala db:rollback",
+        "db:fresh": "nyala db:fresh",
+        "db:seed": "nyala db:seed",
+        "lint": "eslint \"{app,bootstrap,config,database}/**/*.{ts,tsx}\" --fix",
+        "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+    },
+    "dependencies": {
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
+        "@nyalajs/react": "*",
+        "@nyalajs/config": "*",
+        "@nyalajs/database": "*",
+        "@nyalajs/security": "*",
+        "@nyalajs/validation": "*",
+        "@nyalajs/observability": "*",
+        "@nyalajs/storage": "*",
+        "reflect-metadata": "^0.2.1",
+        "drizzle-orm": "^0.29.0",
+        "postgres": "^3.4.3",
+        "zod": "^3.22.4",
+        "bcrypt": "^5.1.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "dotenv": "^16.4.1"
+    },
+    "devDependencies": {
+        "@nyalajs/cli": "*",
+        "typescript": "^5.3.3",
+        "tsx": "^4.7.0",
+        "@types/node": "^20.10.6",
+        "@types/bcrypt": "^5.0.2",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "vitest": "^1.0.4",
+        "eslint": "^8.56.0",
+        "@typescript-eslint/eslint-plugin": "^6.18.0",
+        "@typescript-eslint/parser": "^6.18.0",
+        "prettier": "^3.1.1"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}

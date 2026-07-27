@@ -23,9 +23,12 @@ export class PolicyGuard implements Guard {
 
         if (!route) return true;
 
-        // Check method-level policy first, then class-level
+        // Check method-level policy first, then class-level. Method-level
+        // @UsePolicy() stores on the controller *class* (see policy.ts),
+        // not `.prototype` — a different object that would always come back
+        // undefined and silently fall through to "no policy declared".
         const meta =
-            getPolicyMetadata(route.controller.prototype, route.handlerName) ??
+            getPolicyMetadata(route.controller, route.handlerName) ??
             getPolicyMetadata(route.controller);
 
         if (!meta) return true; // No policy declared → allow

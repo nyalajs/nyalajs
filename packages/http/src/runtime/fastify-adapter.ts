@@ -3,8 +3,9 @@ import { Container, getParamMetadata, ParamType, TenantContext } from "@nyalajs/
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
-import { ExceptionHandler, UnprocessableEntityException } from "../errors/exception-handler";
+import { ExceptionHandler, ErrorViewRenderer, UnprocessableEntityException } from "../errors/exception-handler";
 import { Middleware } from "../middleware/middleware.interface";
+import { isRenderable } from "../response/renderable.interface";
 import { randomUUID } from "crypto";
 
 export interface FastifyAdapterOptions {
@@ -29,6 +30,19 @@ export interface FastifyAdapterOptions {
     requestTimeout?: number;
     swagger?: boolean;
     session?: boolean;
+    /**
+     * Absolute path to a directory of static assets (CSS, images, ...) to
+     * serve via @fastify/static. Not registered at all unless set.
+     */
+    staticDir?: string;
+    /** URL prefix static assets are served under. Defaults to "/public". */
+    staticPrefix?: string;
+    /**
+     * Renders a branded HTML error page for requests that prefer HTML
+     * (browser navigation, not JSON API clients). Without one, a small
+     * built-in generic page is used instead of a JSON error blob.
+     */
+    errorView?: ErrorViewRenderer;
 }
 
 type HttpMethod = "get" | "post" | "put" | "delete" | "patch" | "options" | "head";
@@ -50,10 +64,18 @@ export class FastifyAdapter {
         });
 
         this.routeRegistry = new RouteRegistry();
-        this.exceptionHandler = new ExceptionHandler();
+        this.exceptionHandler = new ExceptionHandler(options.errorView);
 
         this.setupSecurityDefaults(options);
-        
+
+        // Parse application/x-www-form-urlencoded bodies into request.body —
+        // Fastify only parses JSON out of the box, so a plain HTML
+        // <form method="POST"> (no JS, no explicit enctype) would otherwise
+        // land with an empty/unparsed body. Registered unconditionally, same
+        // as multipart below — every app should be able to handle a plain
+        // HTML form submission without opting in.
+        this.app.register(require("@fastify/formbody"));
+
         // Register fastify-multipart for File Uploads
         this.app.register(require("@fastify/multipart"), {
             attachFieldsToBody: true, // Buffers files to memory and attaches them to request.body
@@ -64,6 +86,13 @@ export class FastifyAdapter {
 
         if (options.swagger !== false) {
             this.setupSwagger();
+        }
+
+        if (options.staticDir) {
+            this.app.register(require("@fastify/static"), {
+                root: options.staticDir,
+                prefix: options.staticPrefix ?? "/public",
+            });
         }
     }
 
@@ -202,8 +231,19 @@ export class FastifyAdapter {
         }
 
         if (options.csrf !== false) {
-            this.app.register(require("@fastify/cookie")); // Required for CSRF
-            this.app.register(require("@fastify/csrf-protection"));
+            if (options.session !== false) {
+                // @fastify/secure-session bundles its own @fastify/cookie
+                // internally — registering the standalone plugin too (the
+                // old unconditional path) throws FST_ERR_DEC_ALREADY_PRESENT
+                // ("serializeCookie" decorated twice). Point CSRF at the
+                // session plugin directly instead; it supports this natively.
+                this.app.register(require("@fastify/csrf-protection"), {
+                    sessionPlugin: "@fastify/secure-session",
+                });
+            } else {
+                this.app.register(require("@fastify/cookie"));
+                this.app.register(require("@fastify/csrf-protection"));
+            }
         }
     }
 
@@ -355,7 +395,7 @@ export class FastifyAdapter {
                 this.validateRequest(route.controller.prototype, route.handlerName, request);
 
                 // 2. Resolve arguments
-                const args = this.resolveHandlerParams(route, request);
+                const args = this.resolveHandlerParams(route, request, reply);
                 
                 // 3. Execute
                 return await controller[route.handlerName](...args);
@@ -377,7 +417,18 @@ export class FastifyAdapter {
             // ── Response ─────────────────────────────────────────────────────
             const duration = Date.now() - startTime;
 
-            if (result !== undefined && result !== null) {
+            // A handler using @Res() to reply directly (e.g. reply.redirect(),
+            // reply.send()) already sent the response — sending again here
+            // would throw/warn "reply already sent". Nothing left to do.
+            if (reply.sent) {
+                // still fall through to the request-completed log below
+            } else if (isRenderable(result)) {
+                const body = await result.render();
+                reply
+                    .status(result.statusCode ?? 200)
+                    .type(result.contentType ?? "text/html")
+                    .send(body);
+            } else if (result !== undefined && result !== null) {
                 reply.status(200).send(result);
             } else {
                 reply.status(204).send();
@@ -406,8 +457,13 @@ export class FastifyAdapter {
      * metadata.  Falls back to (body, params, query) positionally if no metadata
      * is declared (backwards-compatible with existing handlers).
      */
-    private resolveHandlerParams(route: any, request: FastifyRequest): any[] {
-        const paramMeta = getParamMetadata(route.controller.prototype, route.handlerName);
+    private resolveHandlerParams(route: any, request: FastifyRequest, reply: FastifyReply): any[] {
+        // Param decorators (@Body/@Param/@Query/@Req/@Res/...) store their
+        // metadata on the controller *class* (see param.ts's
+        // createParamDecorator — `target.constructor`), same convention as
+        // route/guard/interceptor metadata — not on `.prototype`, which is
+        // a different object and would always come back empty.
+        const paramMeta = getParamMetadata(route.controller, route.handlerName);
 
         if (!paramMeta || paramMeta.length === 0) {
             // Legacy fallback: positional body, params, query
@@ -441,7 +497,7 @@ export class FastifyAdapter {
                     args[meta.index] = request;
                     break;
                 case ParamType.RESPONSE:
-                    args[meta.index] = (request as any).reply ?? null;
+                    args[meta.index] = reply;
                     break;
                 case ParamType.UPLOADED_FILE:
                     if (meta.data && (request as any).body) {
@@ -493,7 +549,8 @@ export class FastifyAdapter {
         
         // Auto-discover Zod schemas from parameter types (DTOs with static schema)
         const paramTypes = Reflect.getMetadata("design:paramtypes", controllerPrototype, handlerName) || [];
-        const paramMeta = getParamMetadata(controllerPrototype, handlerName) || [];
+        // Param decorator metadata lives on the class, not the prototype — see the comment in resolveHandlerParams().
+        const paramMeta = getParamMetadata(controllerPrototype.constructor, handlerName) || [];
         
         for (const meta of paramMeta) {
             const paramType = paramTypes[meta.index];

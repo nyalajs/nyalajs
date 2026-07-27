@@ -2,7 +2,8 @@ import { Controller, Get, Post, Body, Headers } from "@nyalajs/core";
 import { ValidateBody } from "@nyalajs/validation";
 import { AuthService } from "../services/auth.service";
 import { LoginDto } from "../dto/login.dto";
-import { LoginValidator } from "../validators/user.validator";
+import { CreateUserDto } from "../dto/create-user.dto";
+import { CreateUserValidator, LoginValidator } from "../validators/user.validator";
 
 /**
  * Authentication Controller
@@ -16,7 +17,27 @@ export class AuthController {
     /**
      * POST /auth/register
      * Register a new user
-  /**
+     */
+    @Post("/register")
+    @ValidateBody(CreateUserValidator)
+    async register(@Body() dto: CreateUserDto) {
+        try {
+            const result = await this.authService.register(dto);
+
+            return {
+                statusCode: 201,
+                message: "Registration successful",
+                data: result,
+            };
+        } catch (error: any) {
+            return {
+                statusCode: 409,
+                message: error.message,
+            };
+        }
+    }
+
+    /**
      * POST /auth/login
      * Login user
      */

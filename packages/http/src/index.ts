@@ -6,5 +6,6 @@ export * from "./errors/exception-handler";
 export * from "./guards/guard.interface";
 export * from "./interceptors/interceptor.interface";
 export * from "./response/api-response";
+export * from "./response/renderable.interface";
 export * from "./middleware/middleware.interface";
 export * from "./decorators/api";

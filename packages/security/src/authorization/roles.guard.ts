@@ -12,7 +12,11 @@ export class RolesGuard implements Guard {
             return true;
         }
 
-        const requiredRoles = getRolesMetadata(controller.prototype, handler);
+        // @Roles() (roles.decorator.ts) stores metadata on the controller
+        // *class* (target.constructor), not `.prototype` — a different
+        // object, which would always come back empty and fail this guard
+        // open regardless of any @Roles() actually being declared.
+        const requiredRoles = getRolesMetadata(controller, handler);
 
         if (!requiredRoles || requiredRoles.length === 0) {
             return true; // No roles required

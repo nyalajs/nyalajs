@@ -5,9 +5,14 @@ Get your first Nyala application running in 5 minutes.
 ## Step 1: Create Project
 
 ```bash
-nyala new my-blog --template=basic-starter
+nyala new my-blog --template=mvc
 cd my-blog
 ```
+
+`--template` accepts `mvc` (the default — a full MVC app with auth & CRUD),
+`saas` (multi-tenant starter), `cms` (admin dashboard + CMS + public site,
+server-rendered — see [docs/islands.md](./islands.md)), or `basic` (bare
+scaffold, no starter app).
 
 ## Step 2: Install Dependencies
 

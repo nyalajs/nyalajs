@@ -100,22 +100,44 @@ export class UsersService {
 
 ### Injection Scopes
 
-Nyala supports three injection scopes:
+Nyala supports three injection scopes. `@Injectable()` itself takes no
+options — scope is set where a provider is *registered* in a module, not on
+the class declaration:
 
 ```typescript
-import { Injectable, Scope } from "@nyalajs/core";
+import { Injectable, Scope, Module } from "@nyalajs/core";
 
-// SINGLETON (default) - One instance for entire app lifecycle
-@Injectable({ scope: Scope.SINGLETON })
+@Injectable()
 export class ConfigService {}
 
-// REQUEST - New instance per HTTP request
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class RequestContextService {}
 
-// TRANSIENT - New instance every time it's injected
-@Injectable({ scope: Scope.TRANSIENT })
+@Injectable()
 export class TemporaryService {}
+
+@Module({
+    providers: [
+        // SINGLETON (default) - one instance for the entire app lifecycle.
+        // A bare class reference (no wrapper object) is always SINGLETON.
+        ConfigService,
+
+        // REQUEST - one instance per HTTP request
+        {
+            provide: RequestContextService,
+            useClass: RequestContextService,
+            scope: Scope.REQUEST,
+        },
+
+        // TRANSIENT - new instance every time it's injected
+        {
+            provide: TemporaryService,
+            useClass: TemporaryService,
+            scope: Scope.TRANSIENT,
+        },
+    ],
+})
+export class AppModule {}
 ```
 
 ### Custom Providers
@@ -234,41 +256,47 @@ Middleware executes before route handlers and can modify requests/responses.
 
 ### Creating Middleware
 
+Middleware implements `Middleware` from `@nyalajs/http` — the same
+`(req, res, next)` convention used by Express/Fastify, not `ExecutionContext`:
+
 ```typescript
-import { Injectable, NyalaMiddleware, ExecutionContext } from "@nyalajs/core";
+import { Injectable } from "@nyalajs/core";
+import { Middleware, NextFunction } from "@nyalajs/http";
 
 @Injectable()
-export class LoggingMiddleware implements NyalaMiddleware {
+export class LoggingMiddleware implements Middleware {
     constructor(private logger: Logger) {}
 
-    async use(context: ExecutionContext, next: () => Promise<any>) {
-        const request = context.switchToHttp().getRequest();
+    async use(req: any, res: any, next: NextFunction): Promise<void> {
         const start = Date.now();
 
         this.logger.info("Incoming request", {
-            method: request.method,
-            url: request.url,
+            method: req.method,
+            url: req.url,
         });
 
-        const result = await next();
+        await next();
 
         this.logger.info("Request completed", {
             duration: Date.now() - start,
         });
-
-        return result;
     }
 }
 ```
 
 ### Applying Middleware
 
+There's no per-controller middleware decorator — middleware is registered
+globally on the application, and runs before every route handler in the
+order `use()` is called:
+
 ```typescript
-@Controller("/users")
-@UseMiddleware(LoggingMiddleware)
-export class UsersController {
-    // All routes use LoggingMiddleware
-}
+const app = await NyalaFactory.create(AppModule);
+app.setHttpAdapter(new FastifyAdapter(app.getKernel().getContainer()));
+
+app.use(new LoggingMiddleware(logger));
+
+await app.listen(3000);
 ```
 
 ## Guards
@@ -277,14 +305,18 @@ Guards determine if a request should be handled by a route handler.
 
 ### Authentication Guard
 
+`Guard` and `ExecutionContext` live in `@nyalajs/http`, not `@nyalajs/core`.
+`ExecutionContext` exposes `request`/`response`/`context` directly — there's
+no `switchToHttp()`:
+
 ```typescript
-import { Injectable, Guard, ExecutionContext } from "@nyalajs/core";
+import { Injectable } from "@nyalajs/core";
+import { Guard, ExecutionContext } from "@nyalajs/http";
 
 @Injectable()
 export class AuthGuard implements Guard {
     canActivate(context: ExecutionContext): boolean {
-        const request = context.switchToHttp().getRequest();
-        return request.user !== undefined;
+        return context.request.user !== undefined;
     }
 }
 ```
@@ -292,6 +324,9 @@ export class AuthGuard implements Guard {
 ### Using Guards
 
 ```typescript
+import { Controller, Get, UseGuards } from "@nyalajs/core";
+import { Roles, RolesGuard } from "@nyalajs/security";
+
 @Controller("/admin")
 @UseGuards(AuthGuard, RolesGuard)
 export class AdminController {
@@ -309,8 +344,11 @@ Interceptors can transform requests/responses or add cross-cutting concerns.
 
 ### Logging Interceptor
 
+`Interceptor` and `ExecutionContext` also live in `@nyalajs/http`:
+
 ```typescript
-import { Injectable, Interceptor, ExecutionContext } from "@nyalajs/core";
+import { Injectable } from "@nyalajs/core";
+import { Interceptor, ExecutionContext } from "@nyalajs/http";
 
 @Injectable()
 export class LoggingInterceptor implements Interceptor {
@@ -345,14 +383,17 @@ Nyala provides built-in exception classes for common HTTP errors.
 
 ### Built-in Exceptions
 
+Exception classes live in `@nyalajs/http`, not `@nyalajs/core`:
+
 ```typescript
+import { Injectable } from "@nyalajs/core";
 import {
     BadRequestException,
     UnauthorizedException,
     NotFoundException,
     ConflictException,
     InternalServerErrorException,
-} from "@nyalajs/core";
+} from "@nyalajs/http";
 
 @Injectable()
 export class UsersService {
@@ -380,38 +421,71 @@ export class EmailAlreadyExistsException extends ConflictException {
 
 ## Request Context
 
-Nyala provides request-scoped context using AsyncLocalStorage.
+Each request carries a `RequestContext` object (`@nyalajs/http`) —
+`requestId`, `traceId`, `tenantId`, `userId`, `locale`, `startedAt`, and a
+`metadata` map — attached to `ExecutionContext.context`. It's *not* a
+globally-accessible static class; middleware, guards, and interceptors read
+and write it because they're each handed the `ExecutionContext` (or the
+raw `req`) for the current request.
 
-### Accessing Context
+### Reading and writing it
+
+Guards typically populate it (this is what `AuthGuard` does after verifying
+a JWT):
 
 ```typescript
-import { Injectable, RequestContext } from "@nyalajs/core";
+import { Guard, ExecutionContext } from "@nyalajs/http";
 
-@Injectable()
-export class UsersService {
-    async findAll() {
-        const tenantId = RequestContext.get("tenantId");
-        const userId = RequestContext.get("userId");
+export class AuthGuard implements Guard {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const identity = await this.verify(context.request);
+        if (!identity) return false;
 
-        return this.usersRepository.find({ tenantId });
+        context.context.userId = identity.userId;
+        context.context.tenantId = identity.tenantId;
+        return true;
     }
 }
 ```
 
-### Setting Context
+Interceptors and later guards in the pipeline can read those same fields
+off `context.context`.
 
-Middleware and guards can set context values:
+### Tenant ID: the one ambient exception
+
+For the specific case of the current tenant, `TenantContext`
+(`@nyalajs/core`) *is* backed by `AsyncLocalStorage`, so it's readable from
+anywhere in the call stack for the current request — including
+`@nyalajs/database`'s `Model`, which has no access to `ExecutionContext` at
+all:
 
 ```typescript
+import { TenantContext } from "@nyalajs/core";
+
 @Injectable()
-export class TenantMiddleware implements NyalaMiddleware {
-    async use(context: ExecutionContext, next: () => Promise<any>) {
-        const request = context.switchToHttp().getRequest();
-        const tenantId = request.headers["x-tenant-id"];
+export class UsersService {
+    async findAll() {
+        const tenantId = TenantContext.get();
+        // Model.all()/find()/save()/create()/delete() already read this
+        // automatically for any tenant-scoped table — you don't need to
+        // pass it through manually.
+        return User.all();
+    }
+}
+```
 
-        RequestContext.set("tenantId", tenantId);
+`TenantMiddleware` (`@nyalajs/tenancy`) is what populates it, using the
+standard `Middleware` signature:
 
-        return next();
+```typescript
+import { TenantContext } from "@nyalajs/core";
+import { Middleware, NextFunction } from "@nyalajs/http";
+
+export class TenantMiddleware implements Middleware {
+    async use(req: any, res: any, next: NextFunction): Promise<void> {
+        const tenantId = req.headers["x-tenant-id"];
+        TenantContext.set(tenantId);
+        await next();
     }
 }
 ```

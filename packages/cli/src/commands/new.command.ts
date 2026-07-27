@@ -44,6 +44,7 @@ const APP_SUBFOLDERS = [
 const TEMPLATE_FOLDERS: Record<string, string> = {
   mvc: "basic-starter",
   saas: "saas-starter",
+  cms: "cms-starter",
 };
 
 const EMPTY_TOP_LEVEL_FOLDERS = [
@@ -91,6 +92,10 @@ export class NewCommand {
           {
             name: "SaaS Starter - Multi-tenant SaaS with advanced features",
             value: "saas",
+          },
+          {
+            name: "CMS Starter - Admin dashboard + CMS + public site, server-rendered with islands",
+            value: "cms",
           },
           {
             name: "Basic - No starter template, bare folder scaffold only",

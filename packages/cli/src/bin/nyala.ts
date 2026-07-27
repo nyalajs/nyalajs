@@ -9,6 +9,7 @@ import { GenerateCommand } from "../commands/generate.command";
 import { ValidateCommand } from "../commands/validate.command";
 import { MigrateCommand } from "../commands/migrate.command";
 import { SeedCommand } from "../commands/seed.command";
+import { BuildIslandsCommand } from "../commands/build-islands.command";
 import { printBanner } from "../utils/banner";
 
 const { version } = JSON.parse(
@@ -29,7 +30,7 @@ program
 program
     .command("new [name]")
     .description("Generate a new Nyala application")
-    .option("-t, --template <template>", "Template to use (mvc, saas, basic)", "mvc")
+    .option("-t, --template <template>", "Template to use (mvc, saas, cms, basic)", "mvc")
     .option("-d, --database <driver>", "Database driver (postgres, mysql, sqlite)", "postgres")
     .action(async (name, options) => {
         const cmd = new NewCommand();
@@ -160,7 +161,11 @@ program
 program
     .command("dev")
     .description("Start the application in development mode with hot-reload")
-    .action(() => {
+    .action(async () => {
+        // Watches app/islands/manifest.ts's components and rebuilds on
+        // change (no-op if that file doesn't exist).
+        await new BuildIslandsCommand().handle("public", { watch: true });
+
         console.log("Starting Nyala development server...\n");
         const result = spawnSync("npx", ["nodemon", "--exec", "ts-node", "bootstrap/main.ts"], {
             stdio: "inherit",
@@ -210,9 +215,9 @@ program
 
 program
     .command("build")
-    .description("Build the application for production (tsc → dist/)")
+    .description("Build the application for production (tsc → dist/, plus island bundles if present)")
     .option("--out-dir <dir>", "Output directory", "dist")
-    .action((options) => {
+    .action(async (options) => {
         console.log("Building Nyala application...\n");
         const result = spawnSync("npx", ["tsc", "--outDir", options.outDir, "--skipLibCheck"], {
             stdio: "inherit",
@@ -221,10 +226,16 @@ program
             console.error("Build failed:", result.error.message);
             process.exit(1);
         }
-        if (result.status === 0) {
-            console.log(`\n✔ Build complete → ${options.outDir}/`);
+        if (result.status !== 0) {
+            process.exit(result.status ?? 1);
         }
-        process.exit(result.status ?? 0);
+        console.log(`\n✔ Build complete → ${options.outDir}/`);
+
+        // Islands bundle into public/ (served via FastifyAdapter's staticDir),
+        // independent of --out-dir — no-op if app/islands/manifest.ts doesn't exist.
+        await new BuildIslandsCommand().handle("public");
+
+        process.exit(0);
     });
 
 program.parse(process.argv);

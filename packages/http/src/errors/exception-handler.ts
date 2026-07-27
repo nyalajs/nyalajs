@@ -1,4 +1,18 @@
 import { ExecutionContext } from "../context/execution-context";
+import { RenderableResponse, isRenderable } from "../response/renderable.interface";
+import { defaultErrorPage } from "./default-error-page";
+
+/**
+ * Renders a branded HTML error page. Return a plain string, or a
+ * RenderableResponse (e.g. @nyalajs/react's `view()`). Only invoked for
+ * requests that prefer HTML (`Accept: text/html`, i.e. browser navigation)
+ * — JSON API clients are unaffected either way.
+ */
+export type ErrorViewRenderer = (
+    error: Error,
+    statusCode: number,
+    ctx: ExecutionContext
+) => string | RenderableResponse | Promise<string | RenderableResponse>;
 
 export class HttpException extends Error {
     constructor(
@@ -60,9 +74,10 @@ export class InternalServerErrorException extends HttpException {
 }
 
 export class ExceptionHandler {
+    constructor(private readonly errorView?: ErrorViewRenderer) {}
+
     async handle(error: Error, ctx: ExecutionContext, reply: any): Promise<void> {
         const statusCode = this.getStatusCode(error);
-        const errorResponse = this.buildErrorResponse(error, ctx, statusCode);
 
         // Log error with context
         console.error(
@@ -82,6 +97,22 @@ export class ExceptionHandler {
             })
         );
 
+        // Content negotiation: a browser navigating to a page wants an HTML
+        // error page, not a JSON blob. API clients (no text/html in Accept)
+        // see no change in behavior at all.
+        const acceptsHtml = String(ctx.request.headers?.accept ?? "").includes("text/html");
+
+        if (acceptsHtml) {
+            const showDetails = process.env.NODE_ENV === "development";
+            const rendered = this.errorView
+                ? await this.errorView(error, statusCode, ctx)
+                : defaultErrorPage(statusCode, error.message, showDetails, error.stack);
+            const body = isRenderable(rendered) ? await rendered.render() : rendered;
+            reply.status(statusCode).type("text/html").send(body);
+            return;
+        }
+
+        const errorResponse = this.buildErrorResponse(error, ctx, statusCode);
         reply.status(statusCode).send(errorResponse);
     }
 
@@ -124,8 +155,11 @@ export class ExceptionHandler {
             response.details = error.details;
         }
 
-        // Don't expose stack traces in production
-        if (process.env.NODE_ENV !== "production") {
+        // Fail closed: only include stack traces when explicitly in
+        // development, not "any env name that isn't exactly 'production'"
+        // (a misconfigured/misspelled NODE_ENV, e.g. "staging" or unset,
+        // used to leak stack traces).
+        if (process.env.NODE_ENV === "development") {
             response.stack = error.stack;
         }
 
