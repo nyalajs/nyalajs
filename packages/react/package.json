@@ -1,0 +1,46 @@
+{
+    "name": "@nyalajs/react",
+    "version": "1.0.0",
+    "description": "Server-rendered React views for NyalaJS, with opt-in islands for client interactivity",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./build": {
+            "types": "./dist/islands/build.d.ts",
+            "default": "./dist/islands/build.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "test": "vitest run",
+        "dev": "tsc --watch"
+    },
+    "dependencies": {
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
+        "esbuild": "^0.28.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.6",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13"
+    }
+}
