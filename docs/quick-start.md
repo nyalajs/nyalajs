@@ -12,7 +12,12 @@ cd my-blog
 `--template` accepts `mvc` (the default — a full MVC app with auth & CRUD),
 `saas` (multi-tenant starter), `cms` (admin dashboard + CMS + public site,
 server-rendered — see [docs/islands.md](./islands.md)), or `basic` (bare
-scaffold, no starter app).
+scaffold, no starter app). For example, to scaffold the CMS starter:
+
+```bash
+nyala new my-site --template=cms
+cd my-site
+```
 
 ## Step 2: Install Dependencies
 

@@ -40,7 +40,7 @@ nyala new my-app
 ```
 
 You'll be prompted to choose:
-- **Template**: mvc, saas, or basic
+- **Template**: mvc, saas, cms, or basic
 - **Database**: postgresql, mysql, or sqlite
 - **Package manager**: npm or yarn
 
@@ -56,7 +56,7 @@ Available options:
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--template` | mvc, saas, basic | mvc |
+| `--template` | mvc, saas, cms, basic | mvc |
 | `--database` | postgresql, mysql, sqlite | postgresql |
 | `--package-manager` | npm, yarn | npm |
 | `--skip-install` | - | false |
@@ -98,6 +98,23 @@ nyala new my-saas --template=saas
 - Role-based access control
 
 **Best for:** SaaS applications, B2B platforms, multi-customer systems
+
+### CMS Starter
+
+Full-stack website starter: an admin dashboard, a CMS (pages, blog, media, menus, forms), and the public-facing site — all one app, server-rendered by default:
+
+```bash
+nyala new my-site --template=cms
+```
+
+**Includes:**
+- Admin dashboard (pages, posts, categories, tags, media, menus, forms, users)
+- Server-rendered public site (blog, pages) built on `@nyalajs/react`
+- Session-based authentication
+- Interactive islands for a couple of screens (media upload, menu reordering)
+- Database migrations and seeders
+
+**Best for:** Marketing sites, blogs, and small content-driven sites that need an admin dashboard
 
 ### Basic
 

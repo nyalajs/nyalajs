@@ -80,7 +80,7 @@ Choose the template that fits your needs:
 Complete application with authentication and user management.
 
 ```bash
-nyala new my-app --template=basic-starter
+nyala new my-app --template=mvc
 ```
 
 **Includes:**
@@ -98,7 +98,7 @@ nyala new my-app --template=basic-starter
 Multi-tenant application with automatic data isolation.
 
 ```bash
-nyala new my-saas --template=saas-starter
+nyala new my-saas --template=saas
 ```
 
 **Includes:**
@@ -110,19 +110,37 @@ nyala new my-saas --template=saas-starter
 
 [→ SaaS Template Guide](./templates/saas-starter/README.md)
 
+### CMS Starter
+
+Full-stack website starter: admin dashboard, CMS (pages, blog, media, menus, forms), and public site — all one app, server-rendered by default with a couple of interactive islands.
+
+```bash
+nyala new my-site --template=cms
+```
+
+**Includes:**
+- Admin dashboard (pages, posts, categories, tags, media, menus, forms, users)
+- Server-rendered public site with blog & pages
+- Session-based authentication
+- Interactive islands (media upload, menu reordering)
+- Database migrations & seeders
+
+[→ CMS Template Guide](./templates/cms-starter/README.md)
+
 ## Features
 
-| Feature | Basic | SaaS |
-|---------|-------|------|
-| MVC Architecture | ✅ | ✅ |
-| Authentication | ✅ | ✅ |
-| User Management | ✅ | ✅ |
-| Multi-Tenancy | ❌ | ✅ |
-| Database Migrations | ✅ | ✅ |
-| Docker Setup | ✅ | ✅ |
-| Request Validation | ✅ | ✅ |
-| Type Safety | ✅ | ✅ |
-| Documentation | ✅ | ✅ |
+| Feature | Basic | SaaS | CMS |
+|---------|-------|------|-----|
+| MVC Architecture | ✅ | ✅ | ✅ |
+| Authentication | ✅ | ✅ | ✅ |
+| User Management | ✅ | ✅ | ✅ |
+| Multi-Tenancy | ❌ | ✅ | ❌ |
+| Server-Rendered Views | ❌ | ❌ | ✅ |
+| Database Migrations | ✅ | ✅ | ✅ |
+| Docker Setup | ✅ | ✅ | ❌ |
+| Request Validation | ✅ | ✅ | ✅ |
+| Type Safety | ✅ | ✅ | ✅ |
+| Documentation | ✅ | ✅ | ✅ |
 
 ## Example
 
