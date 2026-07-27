@@ -1,3 +1,4 @@
+import "dotenv/config";
 import "reflect-metadata";
 import { NyalaFactory } from "@nyalajs/core";
 import { FastifyAdapter } from "@nyalajs/http";

@@ -37,7 +37,10 @@ import { UserRepository } from "../app/repositories/user.repository";
             },
         },
         // Logger
-        Logger,
+        {
+            provide: Logger,
+            useFactory: () => new Logger(process.env.APP_NAME ?? "nyala-app"),
+        },
         // Repositories
         UserRepository,
         // Services

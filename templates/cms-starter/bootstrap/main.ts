@@ -1,3 +1,4 @@
+import "dotenv/config";
 import "reflect-metadata";
 import * as path from "path";
 import { NyalaFactory } from "@nyalajs/core";

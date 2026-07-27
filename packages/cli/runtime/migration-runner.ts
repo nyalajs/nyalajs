@@ -10,11 +10,14 @@
  *
  * Tracks applied migrations in a `_nyala_migrations` table so `up` only runs
  * pending files and `down` only rolls back what this runner itself applied.
+ *
+ * Uses the `postgres` package (not `pg`) because that's the driver every
+ * starter template actually installs — see database/connection.ts.
  */
 import * as path from "path";
 import * as fs from "fs";
-import { Pool } from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 
 async function main(): Promise<void> {
     const action = process.env.NYALA_MIGRATE_ACTION;
@@ -25,10 +28,10 @@ async function main(): Promise<void> {
         throw new Error("migration-runner requires NYALA_MIGRATIONS_DIR and NYALA_DB_CONNECTION_STRING");
     }
 
-    const pool = new Pool({ connectionString });
-    const db = drizzle(pool);
+    const client = postgres(connectionString, { max: 1 });
+    const db = drizzle(client);
 
-    await pool.query(`
+    await client.unsafe(`
         CREATE TABLE IF NOT EXISTS _nyala_migrations (
             id serial PRIMARY KEY,
             name text UNIQUE NOT NULL,
@@ -42,7 +45,7 @@ async function main(): Promise<void> {
         .sort();
 
     if (action === "up") {
-        const { rows } = await pool.query("SELECT name FROM _nyala_migrations");
+        const rows = await client.unsafe("SELECT name FROM _nyala_migrations");
         const applied = new Set(rows.map((r: any) => r.name));
         const pending = files.filter((f) => !applied.has(f));
 
@@ -58,10 +61,10 @@ async function main(): Promise<void> {
             }
             console.log(`Applying ${file}...`);
             await up(db);
-            await pool.query("INSERT INTO _nyala_migrations (name) VALUES ($1)", [file]);
+            await client.unsafe("INSERT INTO _nyala_migrations (name) VALUES ($1)", [file]);
         }
     } else if (action === "down") {
-        const { rows } = await pool.query(
+        const rows = await client.unsafe(
             "SELECT name FROM _nyala_migrations ORDER BY id DESC LIMIT 1"
         );
 
@@ -76,13 +79,13 @@ async function main(): Promise<void> {
             }
             console.log(`Rolling back ${name}...`);
             await down(db);
-            await pool.query("DELETE FROM _nyala_migrations WHERE name = $1", [name]);
+            await client.unsafe("DELETE FROM _nyala_migrations WHERE name = $1", [name]);
         }
     } else {
         throw new Error(`Unknown NYALA_MIGRATE_ACTION: ${action}`);
     }
 
-    await pool.end();
+    await client.end();
 }
 
 main().catch((error) => {

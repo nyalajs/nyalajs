@@ -89,23 +89,23 @@ export class MigrateCommand {
             return;
         }
 
-        let Pool: any;
+        let postgres: any;
         try {
             // eslint-disable-next-line @typescript-eslint/no-var-requires
-            ({ Pool } = require("pg"));
+            postgres = require("postgres");
         } catch {
-            spinner.fail("pg not installed. Run: npm install pg");
+            spinner.fail("postgres not installed. Run: npm install postgres");
             return;
         }
 
-        const pool = new Pool({ connectionString });
+        const client = postgres(connectionString, { max: 1 });
         try {
-            await pool.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
-            await pool.end();
+            await client.unsafe("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+            await client.end();
             spinner.succeed("Schema dropped and recreated.");
             await this.handle();
         } catch (e: any) {
-            await pool.end().catch(() => {});
+            await client.end().catch(() => {});
             spinner.fail("Fresh migration failed: " + (e?.message ?? e));
             process.exit(1);
         }
@@ -113,7 +113,7 @@ export class MigrateCommand {
 
     /**
      * Runs runtime/migration-runner.ts via `npx tsx` from the project's own
-     * directory, so it resolves the project's tsconfig/node_modules (pg,
+     * directory, so it resolves the project's tsconfig/node_modules (postgres,
      * drizzle-orm) rather than the CLI's own.
      */
     private runMigrationScript(

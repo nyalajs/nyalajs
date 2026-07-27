@@ -53,7 +53,10 @@ import { FormSubmissionRepository } from "../app/repositories/form-submission.re
                 return configService;
             },
         },
-        Logger,
+        {
+            provide: Logger,
+            useFactory: () => new Logger(process.env.APP_NAME ?? "nyala-app"),
+        },
         {
             provide: StorageService,
             useFactory: () => {

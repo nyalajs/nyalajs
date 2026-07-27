@@ -167,9 +167,17 @@ program
         await new BuildIslandsCommand().handle("public", { watch: true });
 
         console.log("Starting Nyala development server...\n");
-        const result = spawnSync("npx", ["nodemon", "--exec", "ts-node", "bootstrap/main.ts"], {
-            stdio: "inherit",
-        });
+        // Compiles with the real TypeScript compiler (not esbuild/swc) and
+        // restarts on success — required because the DI container resolves
+        // constructor params from `design:paramtypes` metadata, which only
+        // `tsc`'s emitDecoratorMetadata actually emits. esbuild-based
+        // transpilers (tsx, ts-node --transpile-only/--swc) silently omit
+        // it, so every injected dependency would resolve as undefined.
+        const result = spawnSync(
+            "npx",
+            ["tsc-watch", "--preserveWatchOutput", "--onSuccess", "node dist/bootstrap/main.js"],
+            { stdio: "inherit" }
+        );
 
         if (result.error) {
             console.error("Failed to start dev server:", result.error.message);

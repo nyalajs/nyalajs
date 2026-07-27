@@ -4,7 +4,7 @@
     "description": "Production-ready SaaS starter with Nyala Framework",
     "private": true,
     "scripts": {
-        "dev": "tsx watch bootstrap/main.ts",
+        "dev": "tsc-watch --preserveWatchOutput --onSuccess \"node dist/bootstrap/main.js\"",
         "build": "tsc",
         "start": "node dist/bootstrap/main.js",
         "test": "vitest run --passWithNoTests",
@@ -53,6 +53,7 @@
     "devDependencies": {
         "@nyalajs/cli": "*",
         "typescript": "^5.3.3",
+        "tsc-watch": "^6.2.0",
         "tsx": "^4.7.0",
         "ts-node": "^10.9.2",
         "@types/node": "^20.10.6",
