@@ -22,7 +22,12 @@ export class UsersController {
     @Get("/")
     @ValidateQuery(PaginationValidator)
     async index(@Query("page") page: number = 1, @Query("limit") limit: number = 10) {
-        return this.usersService.findAll(page, limit);
+        const { data, pagination } = await this.usersService.findAll(page, limit);
+
+        // Remove password from each user in the response
+        const users = data.map(({ password, ...userWithoutPassword }) => userWithoutPassword);
+
+        return { data: users, pagination };
     }
 
     /**
