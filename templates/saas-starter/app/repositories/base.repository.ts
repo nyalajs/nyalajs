@@ -121,6 +121,11 @@ export abstract class BaseRepository<T> {
      * Create a new record (auto-adds tenant_id)
      */
     async create(data: Partial<T>): Promise<T> {
+        // requireTenantFilter(), not getTenantId(): a tenant-aware repository
+        // must fail closed on writes exactly like it does on reads — silently
+        // writing a row with tenantId=undefined would defeat isolation instead
+        // of enforcing it.
+        this.requireTenantFilter();
         const tenantId = this.getTenantId();
 
         const recordData = this.isTenantAware
