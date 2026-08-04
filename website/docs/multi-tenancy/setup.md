@@ -207,28 +207,32 @@ If a tenant-scoped `Model` method runs and `TenantContext.get()` is still `undef
 // app/repositories/base.repository.ts (SaaS starter template)
 @Injectable()
 export abstract class BaseRepository<T> {
-  private tenantId?: string;
-
   constructor(
     protected readonly table: PgTable,
     protected readonly isTenantAware: boolean = true
   ) {}
 
-  setTenantId(tenantId: string | undefined): void {
-    this.tenantId = tenantId;
-  }
-
-  protected withTenantFilter(where?: SQL): SQL {
-    const tenantId = this.tenantId;
-    if (!tenantId || !this.isTenantAware) {
-      return where || (undefined as any);
+  // Throws if tenant-aware and no tenant is active — fails closed on every
+  // read AND write, including create(). Reads the tenant from TenantContext
+  // directly rather than a field on `this`: this class is a DI singleton,
+  // so storing the tenant on the instance would leak one request's tenant
+  // into concurrent requests.
+  protected requireTenantFilter(): SQL | undefined {
+    if (!this.isTenantAware) return undefined;
+    const tenantId = TenantContext.get();
+    if (!tenantId) {
+      throw new Error("Tenant context required: ...");
     }
-    const tenantFilter = eq((this.table as any).tenantId, tenantId);
-    return where ? (and(tenantFilter, where) as SQL) : tenantFilter;
+    return eq((this.table as any).tenantId, tenantId);
   }
 
   async findAll(options?: { limit?: number; offset?: number; where?: SQL }): Promise<T[]> {
-    // ...applies withTenantFilter() to every query
+    // ...applies requireTenantFilter() to every query
+  }
+
+  async create(data: Partial<T>): Promise<T> {
+    this.requireTenantFilter(); // fails closed here too, not just on reads
+    // ...auto-adds tenantId from TenantContext.get() before inserting
   }
 }
 ```
@@ -251,9 +255,9 @@ export class TenantRepository extends BaseRepository<Tenant> {
 }
 ```
 
-The important thing to understand about this pattern: it is **entirely app-level code**, independent of `@nyalajs/tenancy`. `setTenantId()` has to be called explicitly — nothing wires it to `TenantContext` automatically. If you adopt this pattern instead of `Model`, you're responsible for calling `repository.setTenantId(TenantContext.get())` yourself, typically from a request-scoped provider or a small bridging middleware, since `BaseRepository` here has no built-in connection to `TenantMiddleware` at all.
+Unlike an earlier version of this template, the current `BaseRepository` reads `TenantContext.get()` directly — there's no `setTenantId()` to call yourself, and no manual bridging middleware required. It's wired to `TenantMiddleware` the same way `Model` is: every method, including `create()`, fails closed with no active tenant rather than silently proceeding.
 
-Given that gap, prefer `Model` (from `@nyalajs/database`) for new tenant-scoped tables — it's already wired end-to-end to `TenantContext` with a fail-closed guarantee (see [Data Isolation](./isolation)). Treat this `BaseRepository` pattern as what it is in the template: a working but manually-maintained alternative, not a framework guarantee.
+It's still **entirely app-level code**, independent of `@nyalajs/tenancy` — it reimplements the same fail-closed pattern `Model` gets for free, rather than depending on the package. For new tenant-scoped tables, prefer `Model` (from `@nyalajs/database`) unless you have a specific reason to want raw Drizzle queries in your repository layer — see [Data Isolation](./isolation) for `Model`'s equivalent guarantee.
 
 ## Frequently Asked Setup Questions
 
