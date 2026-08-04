@@ -49,6 +49,7 @@ Nyala is distributed as a monorepo with focused packages. Install only what you 
 | [@nyalajs/config](https://www.npmjs.com/package/@nyalajs/config) | ![npm](https://img.shields.io/npm/v/@nyalajs/config) | Configuration management |
 | [@nyalajs/observability](https://www.npmjs.com/package/@nyalajs/observability) | ![npm](https://img.shields.io/npm/v/@nyalajs/observability) | Logging and monitoring |
 | [@nyalajs/testing](https://www.npmjs.com/package/@nyalajs/testing) | ![npm](https://img.shields.io/npm/v/@nyalajs/testing) | Testing utilities |
+| [@nyalajs/ai](https://www.npmjs.com/package/@nyalajs/ai) | ![npm](https://img.shields.io/npm/v/@nyalajs/ai) | Framework-aware AI assistant (`ask`/`explain`/`review`/`doctor`/`resolve`) |
 
 [View all packages on npm →](https://www.npmjs.com/org/nyalajs)
 
@@ -141,6 +142,31 @@ nyala new my-site --template=cms
 | Request Validation | ✅ | ✅ | ✅ |
 | Type Safety | ✅ | ✅ | ✅ |
 | Documentation | ✅ | ✅ | ✅ |
+
+## AI Assistant
+
+`@nyalajs/ai` adds framework-aware AI commands to the `nyala` CLI — it understands Nyala's actual module graph, routes, and conventions (DI, tenancy, validation) instead of guessing from generic framework patterns.
+
+```bash
+npm install @nyalajs/ai
+```
+
+Set credentials for a provider (Anthropic, Gemini, OpenAI, Groq, DeepSeek, OpenRouter, or a local Ollama) in `.env`, e.g.:
+
+```
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+```bash
+nyala ask "how do I add a new tenant-scoped model?"
+nyala explain src/controllers/users.controller.ts
+nyala review                  # reviews staged changes
+nyala doctor                  # static, framework-aware checks — no AI provider required
+nyala resolve "fix the failing pagination test in users.service.spec.ts"
+```
+
+`nyala resolve` is agentic: it runs entirely inside a new, isolated git worktree/branch, never your real working tree. Changes are committed to that branch for you to review and merge yourself — nothing is ever auto-merged. See [`packages/ai/ARCHITECTURE.md`](./packages/ai/ARCHITECTURE.md) for what's built today versus deliberately deferred.
 
 ## Example
 
