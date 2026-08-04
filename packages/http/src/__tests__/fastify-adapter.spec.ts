@@ -210,6 +210,38 @@ describe("FastifyAdapter", () => {
                 page: "2",
             });
         });
+
+        it("resolves @Body(key) to that single field, not the whole body", async () => {
+            class RefreshController {
+                refresh(@Body("refreshToken") refreshToken: string) {
+                    return { refreshToken };
+                }
+            }
+
+            const controllerInstance = new RefreshController();
+            const requestContainer = {
+                register: vi.fn(),
+                resolve: (token: any) => (token === RefreshController ? controllerInstance : undefined),
+            };
+            const container = {
+                createRequestScope: () => requestContainer,
+                resolve: vi.fn(),
+            } as any;
+
+            const adapter = new FastifyAdapter(container, { session: false, csrf: false });
+            adapter.registerResolvedRoutes([
+                { method: "POST", path: "/refresh", controller: RefreshController, handlerName: "refresh", guards: [], interceptors: [] },
+            ]);
+
+            const res = await adapter.getInstance().inject({
+                method: "POST",
+                url: "/refresh",
+                payload: { refreshToken: "the-token-value", otherField: "ignored" },
+            });
+
+            expect(res.statusCode).toBe(200);
+            expect(JSON.parse(res.body)).toEqual({ refreshToken: "the-token-value" });
+        });
     });
 
     describe("RenderableResponse", () => {

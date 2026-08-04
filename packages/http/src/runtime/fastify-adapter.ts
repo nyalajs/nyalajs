@@ -476,7 +476,9 @@ export class FastifyAdapter {
         for (const meta of sorted) {
             switch (meta.type) {
                 case ParamType.BODY:
-                    args[meta.index] = (request as any).body;
+                    args[meta.index] = meta.data
+                        ? (request as any).body?.[meta.data]
+                        : (request as any).body;
                     break;
                 case ParamType.PARAM:
                     args[meta.index] = meta.data
