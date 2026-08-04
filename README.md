@@ -92,7 +92,7 @@ nyala new my-app --template=mvc
 - Docker setup
 - Complete documentation
 
-[→ Basic Template Guide](./templates/basic-starter/README.md)
+[→ Basic Template Guide](./templates/basic-starter/README.md) · [→ Demo: Todo API](./examples/todo-api)
 
 ### SaaS Starter
 
@@ -109,7 +109,7 @@ nyala new my-saas --template=saas
 - Cross-tenant protection
 - Role-based access control
 
-[→ SaaS Template Guide](./templates/saas-starter/README.md)
+[→ SaaS Template Guide](./templates/saas-starter/README.md) · [→ Demo: Helpdesk SaaS](./examples/helpdesk-saas)
 
 ### CMS Starter
 
@@ -126,7 +126,7 @@ nyala new my-site --template=cms
 - Interactive islands (media upload, menu reordering)
 - Database migrations & seeders
 
-[→ CMS Template Guide](./templates/cms-starter/README.md)
+[→ CMS Template Guide](./templates/cms-starter/README.md) · [→ Demo: Dev Blog](./examples/devblog-cms)
 
 ## Features
 
