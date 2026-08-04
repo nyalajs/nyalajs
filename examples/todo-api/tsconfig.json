@@ -1,0 +1,58 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "commonjs",
+        "lib": [
+            "ES2022"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "removeComments": false,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@/app/*": [
+                "./app/*"
+            ],
+            "@/config/*": [
+                "./config/*"
+            ],
+            "@/database/*": [
+                "./database/*"
+            ]
+        }
+    },
+    "include": [
+        "app/**/*",
+        "bootstrap/**/*",
+        "config/**/*",
+        "routes/**/*",
+        "database/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "tests",
+        "**/*.spec.ts",
+        "**/*.test.ts"
+    ]
+}

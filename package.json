@@ -25,7 +25,8 @@
     "author": "Hailemariyam",
     "workspaces": [
         "packages/*",
-        "templates/*"
+        "templates/*",
+        "examples/*"
     ],
     "scripts": {
         "build": "turbo run build",

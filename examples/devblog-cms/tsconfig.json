@@ -1,0 +1,58 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "commonjs",
+        "jsx": "react-jsx",
+        "lib": [
+            "ES2022",
+            "DOM"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "declaration": false,
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@/app/*": [
+                "./app/*"
+            ],
+            "@/config/*": [
+                "./config/*"
+            ],
+            "@/database/*": [
+                "./database/*"
+            ]
+        }
+    },
+    "include": [
+        "app/**/*",
+        "bootstrap/**/*",
+        "config/**/*",
+        "database/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "tests",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.test.ts"
+    ]
+}
