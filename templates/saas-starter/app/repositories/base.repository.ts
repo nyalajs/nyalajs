@@ -1,4 +1,4 @@
-import { Injectable } from "@nyalajs/core";
+import { Injectable, TenantContext } from "@nyalajs/core";
 import { eq, and, SQL } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import { db } from "../../database/connection";
@@ -7,7 +7,12 @@ import { db } from "../../database/connection";
  * Tenant-Aware Base Repository
  *
  * Automatically filters queries by tenant_id for multi-tenant isolation.
- * All queries are scoped to the current tenant from the request context.
+ * The current tenant comes from TenantContext (request-scoped, set by
+ * TenantMiddleware — see config/middleware.ts) rather than a field on this
+ * repository: this class is a DI singleton, so storing the tenant on `this`
+ * would leak one request's tenant into concurrent requests. Fails closed:
+ * a tenant-aware repository queried with no active tenant throws instead of
+ * silently returning every tenant's rows.
  *
  * @example
  * export class UserRepository extends BaseRepository<User> {
@@ -18,39 +23,42 @@ import { db } from "../../database/connection";
  */
 @Injectable()
 export abstract class BaseRepository<T> {
-    private tenantId?: string;
-
     constructor(
         protected readonly table: PgTable,
         protected readonly isTenantAware: boolean = true
     ) { }
 
     /**
-     * Set current tenant ID (should be called from middleware)
+     * The active tenant filter, or undefined if this repository isn't
+     * tenant-aware. Throws if it IS tenant-aware but no tenant is active —
+     * the same fail-closed policy @nyalajs/database's Model enforces.
      */
-    setTenantId(tenantId: string | undefined): void {
-        this.tenantId = tenantId;
-    }
+    protected requireTenantFilter(): SQL | undefined {
+        if (!this.isTenantAware) return undefined;
 
-    /**
-     * Get current tenant ID
-     */
-    protected getTenantId(): string | undefined {
-        return this.tenantId;
-    }
-
-    /**
-     * Add tenant filter to where clause
-     */
-    protected withTenantFilter(where?: SQL): SQL {
-        const tenantId = this.getTenantId();
-
-        if (!tenantId || !this.isTenantAware) {
-            return where || (undefined as any);
+        const tenantId = TenantContext.get();
+        if (!tenantId) {
+            throw new Error(
+                "Tenant context required: this repository is tenant-aware but no tenant is active for the " +
+                "current request. Ensure TenantMiddleware runs before this repository is used, or construct " +
+                "with isTenantAware=false for tenant-management operations (e.g. TenantRepository itself)."
+            );
         }
 
-        const tenantFilter = eq((this.table as any).tenantId, tenantId);
+        return eq((this.table as any).tenantId, tenantId);
+    }
 
+    /** Current tenant ID, or undefined for a non-tenant-aware repository. */
+    protected getTenantId(): string | undefined {
+        return this.isTenantAware ? TenantContext.get() : undefined;
+    }
+
+    /**
+     * Add tenant filter to where clause.
+     */
+    protected withTenantFilter(where?: SQL): SQL {
+        const tenantFilter = this.requireTenantFilter();
+        if (!tenantFilter) return where || (undefined as any);
         return where ? (and(tenantFilter, where) as SQL) : tenantFilter;
     }
 
@@ -84,12 +92,8 @@ export abstract class BaseRepository<T> {
      * Find record by ID (tenant-scoped)
      */
     async findById(id: string): Promise<T | null> {
-        const where = and(
-            eq((this.table as any).id, id),
-            this.getTenantId() && this.isTenantAware
-                ? eq((this.table as any).tenantId, this.getTenantId()!)
-                : undefined
-        );
+        const tenantFilter = this.requireTenantFilter();
+        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
 
         const results = await db
             .select()
@@ -119,7 +123,7 @@ export abstract class BaseRepository<T> {
     async create(data: Partial<T>): Promise<T> {
         const tenantId = this.getTenantId();
 
-        const recordData = this.isTenantAware && tenantId
+        const recordData = this.isTenantAware
             ? ({ ...data, tenantId } as any)
             : data;
 
@@ -135,12 +139,8 @@ export abstract class BaseRepository<T> {
      * Update record by ID (tenant-scoped)
      */
     async update(id: string, data: Partial<T>): Promise<T | null> {
-        const where = and(
-            eq((this.table as any).id, id),
-            this.getTenantId() && this.isTenantAware
-                ? eq((this.table as any).tenantId, this.getTenantId()!)
-                : undefined
-        );
+        const tenantFilter = this.requireTenantFilter();
+        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
 
         const results = await db
             .update(this.table)
@@ -155,12 +155,8 @@ export abstract class BaseRepository<T> {
      * Delete record by ID (tenant-scoped)
      */
     async delete(id: string): Promise<boolean> {
-        const where = and(
-            eq((this.table as any).id, id),
-            this.getTenantId() && this.isTenantAware
-                ? eq((this.table as any).tenantId, this.getTenantId()!)
-                : undefined
-        );
+        const tenantFilter = this.requireTenantFilter();
+        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
 
         const result = await db
             .delete(this.table)

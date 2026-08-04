@@ -1,0 +1,65 @@
+{
+    "name": "@nyalajs/ai",
+    "version": "1.1.0",
+    "description": "Framework-aware AI assistance for NyalaJS \u2014 multi-provider chat/explain/review, plus an agentic issue resolver that works in an isolated git worktree",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./cli": {
+            "types": "./dist/cli/index.d.ts",
+            "default": "./dist/cli/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@nyalajs/core": "*",
+        "fs-extra": "^11.2.0",
+        "ignore": "^7.0.0",
+        "dotenv": "^16.4.1"
+    },
+    "peerDependencies": {
+        "reflect-metadata": ">=0.1.13",
+        "@anthropic-ai/sdk": "^0.32.0",
+        "openai": "^4.70.0",
+        "@google/generative-ai": "^0.21.0"
+    },
+    "peerDependenciesMeta": {
+        "@anthropic-ai/sdk": {
+            "optional": true
+        },
+        "openai": {
+            "optional": true
+        },
+        "@google/generative-ai": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4",
+        "commander": "^11.1.0",
+        "@types/node": "^20.10.6",
+        "@types/fs-extra": "^11.0.4",
+        "@anthropic-ai/sdk": "^0.32.0",
+        "openai": "^4.70.0",
+        "@google/generative-ai": "^0.21.0"
+    },
+    "files": [
+        "dist",
+        "runtime",
+        "README.md",
+        "ARCHITECTURE.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

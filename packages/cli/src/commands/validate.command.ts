@@ -4,6 +4,8 @@ import chalk from "chalk";
 import ora from "ora";
 
 export class ValidateCommand {
+    constructor(private readonly cwd: string = process.cwd()) {}
+
     async execute(): Promise<void> {
         const spinner = ora("Validating application architecture").start();
 
@@ -39,9 +41,98 @@ export class ValidateCommand {
     }
 
     private async checkCircularDependencies(): Promise<string[]> {
-        // Simplified circular dependency check
-        // In production, this would use a proper dependency graph analyzer
-        return [];
+        const roots = ["app", "bootstrap", "config", "routes", "database"];
+
+        const files: string[] = [];
+        for (const root of roots) {
+            const rootPath = path.join(this.cwd, root);
+            if (await fs.pathExists(rootPath)) {
+                files.push(...(await this.getAllTsFiles(rootPath)));
+            }
+        }
+
+        const graph = new Map<string, string[]>();
+        for (const file of files) {
+            graph.set(file, await this.getLocalImports(file));
+        }
+
+        return this.findCycles(graph).map(
+            (cycle) => `Circular dependency: ${cycle.map((f) => path.relative(this.cwd, f)).join(" -> ")}`
+        );
+    }
+
+    /** Resolves a file's relative import/require specifiers to real file paths, skipping package imports. */
+    private async getLocalImports(file: string): Promise<string[]> {
+        const content = await fs.readFile(file, "utf-8");
+        const dir = path.dirname(file);
+        const specifiers = new Set<string>();
+
+        // Matches `import ... from "spec"` / `export ... from "spec"` / `require("spec")`.
+        const specifierPattern = /(?:import|export)[^'";]*?\bfrom\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g;
+        let match: RegExpExecArray | null;
+        while ((match = specifierPattern.exec(content)) !== null) {
+            const specifier = match[1] ?? match[2];
+            if (specifier && (specifier.startsWith("./") || specifier.startsWith("../"))) {
+                specifiers.add(specifier);
+            }
+        }
+
+        const resolved: string[] = [];
+        for (const specifier of specifiers) {
+            const resolvedPath = await this.resolveLocalImport(dir, specifier);
+            if (resolvedPath) resolved.push(resolvedPath);
+        }
+        return resolved;
+    }
+
+    private async resolveLocalImport(dir: string, specifier: string): Promise<string | null> {
+        const base = path.resolve(dir, specifier);
+        for (const candidate of [`${base}.ts`, path.join(base, "index.ts")]) {
+            if (await fs.pathExists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    /**
+     * Depth-first cycle detection over the local-import graph (classic
+     * white/gray/black DFS). Only enumerates each cycle once, from whichever
+     * node in it is visited first, and reports it as the concrete file path
+     * that closes the loop.
+     */
+    private findCycles(graph: Map<string, string[]>): string[][] {
+        const state = new Map<string, "visiting" | "done">();
+        const stack: string[] = [];
+        const cycles: string[][] = [];
+        const seen = new Set<string>();
+
+        const visit = (node: string) => {
+            state.set(node, "visiting");
+            stack.push(node);
+
+            for (const dependency of graph.get(node) ?? []) {
+                const depState = state.get(dependency);
+                if (depState === "visiting") {
+                    const start = stack.indexOf(dependency);
+                    const cycle = [...stack.slice(start), dependency];
+                    const key = [...new Set(cycle)].sort().join("|");
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        cycles.push(cycle);
+                    }
+                } else if (depState !== "done" && graph.has(dependency)) {
+                    visit(dependency);
+                }
+            }
+
+            stack.pop();
+            state.set(node, "done");
+        };
+
+        for (const node of graph.keys()) {
+            if (!state.has(node)) visit(node);
+        }
+
+        return cycles;
     }
 
     private async checkForbiddenImports(): Promise<string[]> {
@@ -51,7 +142,7 @@ export class ValidateCommand {
 
         const files: string[] = [];
         for (const root of roots) {
-            const rootPath = path.join(process.cwd(), root);
+            const rootPath = path.join(this.cwd, root);
             if (await fs.pathExists(rootPath)) {
                 files.push(...(await this.getAllTsFiles(rootPath)));
             }

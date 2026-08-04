@@ -14,6 +14,39 @@ jobs:
       matrix:
         node-version: [18.x, 20.x]
 
+    # Back packages/database's driver integration tests
+    # (src/__tests__/{mysql,postgres}-integration.spec.ts), which otherwise
+    # skip themselves when the corresponding *_TEST_URL isn't set.
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: nyala_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: nyala_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      MYSQL_TEST_URL: mysql://root@127.0.0.1:3306/nyala_test
+      POSTGRES_TEST_URL: postgres://postgres@127.0.0.1:5432/nyala_test
+
     steps:
       - uses: actions/checkout@v3
 

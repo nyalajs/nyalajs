@@ -7,7 +7,7 @@
         "dev": "nyala dev",
         "build": "nyala build",
         "start": "node dist/bootstrap/main.js",
-        "test": "vitest run",
+        "test": "vitest run --passWithNoTests",
         "db:migrate": "nyala db:migrate",
         "db:rollback": "nyala db:rollback",
         "db:fresh": "nyala db:fresh",

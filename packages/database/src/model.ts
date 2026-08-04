@@ -1,7 +1,7 @@
 import { SchemaRegistry } from "./schema/registry";
 import { TenantScope } from "./tenancy/tenant-scope";
 import { TransactionContext } from "./transaction-context";
-import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { AnyDatabase } from "./dialect";
 import { and, eq, SQL } from "drizzle-orm";
 import { TenantContext } from "@nyalajs/core";
 
@@ -10,9 +10,9 @@ export abstract class Model {
      * The database instance. In a real framework, this would be injected or
      * set globally. For the Active Record pattern, we'll assume it's set globally.
      */
-    static db: NodePgDatabase;
+    static db: AnyDatabase;
 
-    static setDatabase(db: NodePgDatabase) {
+    static setDatabase(db: AnyDatabase) {
         Model.db = db;
     }
 
@@ -66,6 +66,41 @@ export abstract class Model {
     }
 
     /**
+     * Inserts `data` and returns the persisted row. Postgres and SQLite both
+     * support `.returning()`, so a single INSERT does the job. MySQL has no
+     * RETURNING clause: if the caller supplied the primary key (the common
+     * case here, since this framework doesn't auto-generate ids), a single
+     * INSERT followed by a SELECT-by-id gets the same result; otherwise the
+     * driver-assigned id is read back via `$returningId()` first.
+     */
+    private static async insertAndReturn(modelClass: any, table: any, data: any): Promise<any> {
+        const conn = Model.connection(modelClass);
+
+        if (SchemaRegistry.getDialect() !== "mysql") {
+            const results = await conn.insert(table).values(data).returning();
+            return results[0];
+        }
+
+        const primaryKey = SchemaRegistry.getPrimaryKey(modelClass);
+        if (!primaryKey) {
+            await conn.insert(table).values(data);
+            return data;
+        }
+
+        let idValue = data[primaryKey];
+        if (idValue !== undefined) {
+            await conn.insert(table).values(data);
+        } else {
+            const [inserted] = await conn.insert(table).values(data).$returningId();
+            idValue = inserted?.[primaryKey];
+            if (idValue === undefined) return data;
+        }
+
+        const [row] = await conn.select().from(table).where(eq(table[primaryKey], idValue)).limit(1);
+        return row ?? data;
+    }
+
+    /**
      * Find all records.
      */
     static async all<T extends Model>(this: new () => T): Promise<T[]> {
@@ -97,8 +132,8 @@ export abstract class Model {
     static async create<T extends Model>(this: new () => T, data: Partial<T>): Promise<T> {
         const table = SchemaRegistry.getTable(this);
         const payload = Model.stampTenant(this, data);
-        const results = await Model.connection(this).insert(table).values(payload).returning();
-        return Object.assign(new this(), results[0]);
+        const row = await Model.insertAndReturn(this, table, payload);
+        return Object.assign(new this(), row);
     }
 
     /**
@@ -119,8 +154,8 @@ export abstract class Model {
         } else {
             // Insert
             const data = Model.stampTenant(constructor, { ...this });
-            const results = await Model.connection(constructor).insert(table).values(data).returning();
-            Object.assign(this, results[0]);
+            const row = await Model.insertAndReturn(constructor, table, data);
+            Object.assign(this, row);
         }
         return this;
     }

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "async_hooks";
-import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { AnyDatabase } from "./dialect";
 
 /**
  * Propagates the active transaction handle via AsyncLocalStorage so static
@@ -8,13 +8,13 @@ import { NodePgDatabase } from "drizzle-orm/node-postgres";
  * call-site changes needed.
  */
 export class TransactionContext {
-    private static readonly als = new AsyncLocalStorage<NodePgDatabase>();
+    private static readonly als = new AsyncLocalStorage<AnyDatabase>();
 
-    static run<T>(tx: NodePgDatabase, fn: () => Promise<T>): Promise<T> {
+    static run<T>(tx: AnyDatabase, fn: () => Promise<T>): Promise<T> {
         return this.als.run(tx, fn);
     }
 
-    static get(): NodePgDatabase | undefined {
+    static get(): AnyDatabase | undefined {
         return this.als.getStore();
     }
 }

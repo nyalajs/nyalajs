@@ -12,7 +12,8 @@
         "./build": {
             "types": "./dist/islands/build.d.ts",
             "default": "./dist/islands/build.js"
-        }
+        },
+        "./package.json": "./package.json"
     },
     "scripts": {
         "build": "tsc",

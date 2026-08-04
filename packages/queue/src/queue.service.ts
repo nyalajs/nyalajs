@@ -49,20 +49,33 @@ export class QueueService {
     private redisUrl?: string;
 
     async connect(config: QueueConfig = {}): Promise<void> {
-        if (config.url) {
-            try {
-                // Verify BullMQ is installed
-                // @ts-ignore — bullmq is a peer dep
-                await import("bullmq");
-                this.redisUrl = config.url;
-                this.useBullMQ = true;
-                console.log("[nyala/queue] Using BullMQ with Redis.");
-            } catch {
-                console.warn(
-                    "[nyala/queue] bullmq not installed — falling back to in-memory queue."
-                );
-            }
+        if (!config.url) {
+            // No Redis URL means the caller is intentionally not using a durable
+            // queue (e.g. local dev) — the in-memory queue is the expected,
+            // documented behavior here, not a degraded fallback.
+            console.log(
+                "[nyala/queue] No queue URL configured — using an in-process, non-persistent queue. Do not use this in production."
+            );
+            return;
         }
+
+        try {
+            // @ts-ignore — bullmq is a peer dep
+            await import("bullmq");
+        } catch {
+            // A URL was given, so the caller explicitly asked for a durable,
+            // Redis-backed queue. Silently falling back to in-memory here would
+            // mean jobs are dropped on every restart with nothing louder than a
+            // buried console.warn — fail loudly instead.
+            throw new Error(
+                '[nyala/queue] A queue URL was configured (expecting a durable, Redis-backed queue via BullMQ) but the optional peer dependency "bullmq" is not installed. ' +
+                "Run: npm install bullmq — or omit `url` to intentionally use the in-memory queue (not safe for production)."
+            );
+        }
+
+        this.redisUrl = config.url;
+        this.useBullMQ = true;
+        console.log("[nyala/queue] Using BullMQ with Redis.");
     }
 
     /**

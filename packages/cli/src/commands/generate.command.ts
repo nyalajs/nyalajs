@@ -2,6 +2,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 import chalk from "chalk";
 import ora from "ora";
+import { Node, Project } from "ts-morph";
 import { toPascalCase, toKebabCase } from "../utils/naming";
 
 interface ArtifactSpec {
@@ -28,6 +29,8 @@ interface ArtifactSpec {
  * but the template is a clearly-marked stub rather than working code.
  */
 export class GenerateCommand {
+    constructor(private readonly cwd: string = process.cwd()) {}
+
     async generateController(name: string): Promise<void> {
         await this.generateAndRegister(name, this.specs.controller, "controllers");
     }
@@ -44,7 +47,7 @@ export class GenerateCommand {
         const spinner = ora(`Generating migration: ${name}`).start();
         try {
             const fileName = `${this.timestamp()}_${toKebabCase(name)}`;
-            const migrationPath = path.join(process.cwd(), "database/migrations", `${fileName}.ts`);
+            const migrationPath = path.join(this.cwd, "database/migrations", `${fileName}.ts`);
 
             await fs.ensureDir(path.dirname(migrationPath));
             await fs.writeFile(migrationPath, this.getMigrationTemplate(name));
@@ -106,7 +109,7 @@ export class GenerateCommand {
         const spinner = ora(`Generating plugin: ${name}`).start();
         try {
             const fileName = toKebabCase(name);
-            const pluginDir = path.join(process.cwd(), "plugins", fileName);
+            const pluginDir = path.join(this.cwd, "plugins", fileName);
 
             if (await fs.pathExists(pluginDir)) {
                 spinner.fail(`Plugin ${name} already exists`);
@@ -236,7 +239,7 @@ export class GenerateCommand {
         const spinner = ora(`Generating ${spec.label}: ${name}`).start();
         try {
             const { className, fileName } = this.normalizeName(name, spec.suffix);
-            const artifactPath = path.join(process.cwd(), "app", spec.folder, `${fileName}.${spec.label}.ts`);
+            const artifactPath = path.join(this.cwd, "app", spec.folder, `${fileName}.${spec.label}.ts`);
 
             await fs.ensureDir(path.dirname(artifactPath));
             await fs.writeFile(artifactPath, spec.template(className, fileName));
@@ -258,7 +261,7 @@ export class GenerateCommand {
         const spinner = ora(`Generating ${spec.label}: ${name}`).start();
         try {
             const { className, fileName } = this.normalizeName(name, spec.suffix);
-            const artifactPath = path.join(process.cwd(), "app", spec.folder, `${fileName}.${spec.label}.ts`);
+            const artifactPath = path.join(this.cwd, "app", spec.folder, `${fileName}.${spec.label}.ts`);
 
             await fs.ensureDir(path.dirname(artifactPath));
             await fs.writeFile(artifactPath, spec.template(className, fileName));
@@ -274,43 +277,77 @@ export class GenerateCommand {
         }
     }
 
-    /** Best-effort: appends the import + array entry to bootstrap/app.module.ts. */
+    /**
+     * Best-effort: appends the import + array entry to bootstrap/app.module.ts.
+     * Edits the real AST (via ts-morph) rather than splicing text, so this
+     * survives whatever formatting the file happens to be in — multi-line
+     * arrays, trailing commas, comments between entries, etc. — instead of
+     * only working on the pristine template layout.
+     */
     private async registerInAppModule(
         arrayKey: "controllers" | "providers",
         className: string,
         importPath: string
     ): Promise<void> {
-        const modulePath = path.join(process.cwd(), "bootstrap/app.module.ts");
+        const modulePath = path.join(this.cwd, "bootstrap/app.module.ts");
 
         if (!(await fs.pathExists(modulePath))) {
             return;
         }
 
-        let content = await fs.readFile(modulePath, "utf-8");
-        const importStatement = `import { ${className} } from "${importPath}";`;
+        const project = new Project();
+        const sourceFile = project.addSourceFileAtPath(modulePath);
 
-        if (!content.includes(importStatement)) {
-            const importBlock = /(^import .*\n)+/m;
-            content = importBlock.test(content)
-                ? content.replace(importBlock, (match) => `${match}${importStatement}\n`)
-                : `${importStatement}\n${content}`;
+        const existingImport = sourceFile.getImportDeclaration(
+            (imp) => imp.getModuleSpecifierValue() === importPath
+        );
+        if (existingImport) {
+            if (!existingImport.getNamedImports().some((named) => named.getName() === className)) {
+                existingImport.addNamedImport(className);
+            }
+        } else {
+            sourceFile.addImportDeclaration({
+                moduleSpecifier: importPath,
+                namedImports: [className],
+            });
         }
 
-        const arrayRegex = new RegExp(`(${arrayKey}:\\s*\\[)([^\\]]*)(\\])`);
-        content = content.replace(arrayRegex, (_match, open, inner, close) => {
-            const items = inner
-                .split(",")
-                .map((item: string) => item.trim())
-                .filter(Boolean);
+        const moduleClass = sourceFile.getClasses().find((c) => c.getDecorator("Module") !== undefined);
+        if (!moduleClass) {
+            await sourceFile.save();
+            return;
+        }
 
-            if (!items.includes(className)) {
-                items.push(className);
+        const moduleArg = moduleClass.getDecoratorOrThrow("Module").getCallExpressionOrThrow().getArguments()[0];
+        if (!moduleArg || !Node.isObjectLiteralExpression(moduleArg)) {
+            await sourceFile.save();
+            return;
+        }
+
+        const existingProp = moduleArg.getProperty(arrayKey);
+        let arrayLiteral = Node.isPropertyAssignment(existingProp)
+            ? this.asArrayLiteral(existingProp.getInitializer())
+            : undefined;
+
+        if (!arrayLiteral) {
+            const newProp = moduleArg.addPropertyAssignment({ name: arrayKey, initializer: "[]" });
+            arrayLiteral = this.asArrayLiteral(newProp.getInitializer());
+            if (!arrayLiteral) {
+                await sourceFile.save();
+                return;
             }
+        }
 
-            return `${open}${items.join(", ")}${close}`;
-        });
+        const alreadyPresent = arrayLiteral.getElements().some((el) => el.getText() === className);
+        if (!alreadyPresent) {
+            arrayLiteral.addElement(className);
+        }
 
-        await fs.writeFile(modulePath, content);
+        await sourceFile.save();
+    }
+
+    private asArrayLiteral(node: Node | undefined) {
+        return node && Node.isArrayLiteralExpression(node) ? node : undefined;
     }
 
     private timestamp(): string {

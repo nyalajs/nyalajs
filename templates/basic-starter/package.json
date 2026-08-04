@@ -7,7 +7,7 @@
         "dev": "tsc-watch --preserveWatchOutput --onSuccess \"node dist/bootstrap/main.js\"",
         "build": "tsc",
         "start": "node dist/bootstrap/main.js",
-        "test": "vitest run",
+        "test": "vitest run --passWithNoTests",
         "test:unit": "vitest run tests/unit",
         "test:integration": "vitest run tests/integration",
         "test:e2e": "vitest run tests/e2e",

@@ -11,6 +11,7 @@ import { MigrateCommand } from "../commands/migrate.command";
 import { SeedCommand } from "../commands/seed.command";
 import { BuildIslandsCommand } from "../commands/build-islands.command";
 import { printBanner } from "../utils/banner";
+import { registerExternalCommands } from "../plugin-commands";
 
 const { version } = JSON.parse(
     fs.readFileSync(path.join(__dirname, "../../package.json"), "utf-8")
@@ -246,4 +247,7 @@ program
         process.exit(0);
     });
 
-program.parse(process.argv);
+(async () => {
+    await registerExternalCommands(program);
+    program.parse(process.argv);
+})();

@@ -4,6 +4,7 @@ import { PluginManager } from "../plugins/plugin.manager";
 import { NyalaPlugin } from "../plugins/plugin.interface";
 import { RouteResolver } from "../routing/route-resolver";
 import { MetadataScanner } from "../metadata/metadata-scanner";
+import { installProcessErrorHandlers } from "./crash-handlers";
 
 export interface NyalaOptions {
     cors?: boolean;
@@ -138,6 +139,7 @@ export class NyalaFactory {
         rootModule: Type,
         options: NyalaOptions = {}
     ): Promise<NyalaApplication> {
+        installProcessErrorHandlers();
         const kernel = new Kernel();
         await kernel.bootstrap(rootModule);
         const app = new NyalaApplication(kernel, options);

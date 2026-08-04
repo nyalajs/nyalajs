@@ -5,6 +5,11 @@ import { HealthCheckService } from "@nyalajs/observability";
 import { MetricsCollector } from "@nyalajs/observability";
 import { AuditLogger } from "@nyalajs/audit";
 import { JwtStrategy } from "@nyalajs/security";
+import {
+    TenantMiddleware,
+    JwtTenantResolver,
+    SubdomainTenantResolver,
+} from "@nyalajs/tenancy";
 import { HealthController } from "../app/controllers/health.controller";
 import { AuthController } from "../app/controllers/auth.controller";
 import { UsersController } from "../app/controllers/users.controller";
@@ -49,6 +54,24 @@ import { namespaces } from "../config";
             },
             inject: [ConfigService],
         },
+        // Multi-tenancy: resolves the tenant for every request (JWT first,
+        // since most routes are authenticated; subdomain as a fallback for
+        // pre-auth flows like signup/login) and publishes it via
+        // TenantContext, which BaseRepository and @nyalajs/database's Model
+        // both read to enforce tenant isolation. Wired as global middleware
+        // in config/middleware.ts.
+        JwtTenantResolver,
+        SubdomainTenantResolver,
+        {
+            provide: "TENANT_RESOLVERS",
+            useFactory: (jwt: JwtTenantResolver, subdomain: SubdomainTenantResolver) => [jwt, subdomain],
+            inject: [JwtTenantResolver, SubdomainTenantResolver],
+        },
+        // Not every route has a tenant (e.g. health checks, tenant signup) —
+        // enforcement happens at the repository/Model layer when data is
+        // actually accessed, not globally here.
+        { provide: "TENANT_REQUIRED", useValue: false },
+        TenantMiddleware,
         // Services
         AuthService,
         UsersService,

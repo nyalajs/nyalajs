@@ -1,4 +1,5 @@
 export * from "./database.service";
+export * from "./dialect";
 export * from "./model";
 export * from "./transaction-context";
 export * from "./schema/decorators";

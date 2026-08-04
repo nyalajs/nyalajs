@@ -4,9 +4,17 @@
     "description": "Storage abstraction for NyalaJS",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
     "scripts": {
         "build": "tsc",
-        "clean": "rm -rf dist"
+        "clean": "rm -rf dist",
+        "test": "vitest run --passWithNoTests"
     },
     "dependencies": {
         "@nyalajs/core": "*",
@@ -27,7 +35,8 @@
     },
     "devDependencies": {
         "@types/fs-extra": "^11.0.4",
-        "typescript": "^5.3.3"
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4"
     },
     "files": [
         "dist",
