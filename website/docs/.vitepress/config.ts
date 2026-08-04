@@ -61,6 +61,7 @@ export default defineConfig({
                     { text: 'Error Handling', link: '/features/error-handling' },
                     { text: 'Logging', link: '/features/logging' },
                     { text: 'Caching', link: '/features/caching' },
+                    { text: 'AI Assistant', link: '/features/ai' },
                 ]
             },
             {
