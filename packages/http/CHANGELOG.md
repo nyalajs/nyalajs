@@ -1,5 +1,11 @@
 # @nyalajs/http
 
+## 2.0.2
+
+### Patch Changes
+
+- Fix `@Body(key)` returning the entire request body instead of the single named field. `ParamType.BODY` was the only param type that ignored its `data` (key) argument — `@Param(key)`, `@Query(key)`, `@Headers(key)`, and `@Cookie(key)` all correctly indexed into their source object. `@Body("refreshToken")`, for example, now returns just the token string instead of the whole body object.
+
 ## 2.0.0
 
 ### Major Changes
