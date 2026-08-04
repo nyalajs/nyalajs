@@ -117,10 +117,7 @@ export default defineConfig({
             {
                 text: 'Examples',
                 items: [
-                    { text: 'Blog API', link: '/examples/blog-api' },
-                    { text: 'E-commerce', link: '/examples/ecommerce' },
-                    { text: 'SaaS Application', link: '/examples/saas' },
-                    { text: 'Microservices', link: '/examples/microservices' },
+                    { text: 'Overview', link: '/examples' },
                 ]
             },
             {
