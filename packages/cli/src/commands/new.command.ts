@@ -45,6 +45,7 @@ const TEMPLATE_FOLDERS: Record<string, string> = {
   mvc: "basic-starter",
   saas: "saas-starter",
   cms: "cms-starter",
+  inertia: "inertia-starter",
 };
 
 const EMPTY_TOP_LEVEL_FOLDERS = [
@@ -96,6 +97,10 @@ export class NewCommand {
           {
             name: "CMS Starter - Admin dashboard + CMS + public site, server-rendered with islands",
             value: "cms",
+          },
+          {
+            name: "Inertia Starter - React frontend + Nyala backend, no separate API (Inertia.js)",
+            value: "inertia",
           },
           {
             name: "Basic - No starter template, bare folder scaffold only",

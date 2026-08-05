@@ -1,0 +1,59 @@
+{
+    "name": "nyala-inertia-starter",
+    "version": "1.0.0",
+    "description": "Production-ready Inertia.js + React application built with Nyala Framework — no separate REST API, the backend returns page components with props",
+    "private": true,
+    "scripts": {
+        "dev": "nyala dev",
+        "build": "nyala build",
+        "start": "node dist/bootstrap/main.js",
+        "test": "vitest run --passWithNoTests",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "db:migrate": "tsx database/migrate.ts",
+        "db:seed": "tsx database/seed.ts",
+        "lint": "eslint \"{app,bootstrap,config,database,tests}/**/*.{ts,tsx}\" --fix",
+        "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+    },
+    "dependencies": {
+        "@inertiajs/core": "2.3.27",
+        "@inertiajs/react": "2.3.27",
+        "@nyalajs/config": "*",
+        "@nyalajs/core": "*",
+        "@nyalajs/database": "*",
+        "@nyalajs/http": "*",
+        "@nyalajs/inertia": "*",
+        "@nyalajs/observability": "*",
+        "@nyalajs/validation": "*",
+        "bcrypt": "^5.1.1",
+        "better-sqlite3": "^11.3.0",
+        "dotenv": "^16.4.1",
+        "drizzle-orm": "^0.29.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "reflect-metadata": "^0.2.1",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@nyalajs/cli": "*",
+        "@types/bcrypt": "^5.0.2",
+        "@types/better-sqlite3": "^7.6.8",
+        "@types/node": "^20.10.6",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "@vitejs/plugin-react": "^4.3.1",
+        "@vitest/coverage-v8": "^1.0.4",
+        "drizzle-kit": "^0.20.9",
+        "eslint": "^8.56.0",
+        "prettier": "^3.1.1",
+        "tsc-watch": "^6.2.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3",
+        "vite": "^5.4.21",
+        "vitest": "^1.0.4"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}

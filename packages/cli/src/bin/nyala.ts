@@ -10,6 +10,8 @@ import { ValidateCommand } from "../commands/validate.command";
 import { MigrateCommand } from "../commands/migrate.command";
 import { SeedCommand } from "../commands/seed.command";
 import { BuildIslandsCommand } from "../commands/build-islands.command";
+import { ViteDevCommand } from "../commands/vite-dev.command";
+import { ViteBuildCommand } from "../commands/vite-build.command";
 import { printBanner } from "../utils/banner";
 import { registerExternalCommands } from "../plugin-commands";
 
@@ -31,7 +33,7 @@ program
 program
     .command("new [name]")
     .description("Generate a new Nyala application")
-    .option("-t, --template <template>", "Template to use (mvc, saas, cms, basic)", "mvc")
+    .option("-t, --template <template>", "Template to use (mvc, saas, cms, inertia, basic)", "mvc")
     .option("-d, --database <driver>", "Database driver (postgres, mysql, sqlite)", "postgres")
     .action(async (name, options) => {
         const cmd = new NewCommand();
@@ -162,10 +164,23 @@ program
 program
     .command("dev")
     .description("Start the application in development mode with hot-reload")
-    .action(async () => {
+    .option("--vite-port <port>", "Port for the Vite dev server (Inertia-style apps only)", "5173")
+    .action(async (options) => {
         // Watches app/islands/manifest.ts's components and rebuilds on
         // change (no-op if that file doesn't exist).
         await new BuildIslandsCommand().handle("public", { watch: true });
+
+        // Starts a real Vite dev server as a child process, no-op if the
+        // app has no vite.config.ts (e.g. every template except
+        // inertia-starter). Runs alongside tsc-watch, not proxied through
+        // it — see docs/inertia-starter-spec.md §4/Open Question #2.
+        const viteProcess = await new ViteDevCommand().start(Number(options.vitePort));
+        if (viteProcess) {
+            const stopVite = () => viteProcess.kill();
+            process.on("exit", stopVite);
+            process.on("SIGINT", stopVite);
+            process.on("SIGTERM", stopVite);
+        }
 
         console.log("Starting Nyala development server...\n");
         // Compiles with the real TypeScript compiler (not esbuild/swc) and
@@ -177,7 +192,7 @@ program
         const result = spawnSync(
             "npx",
             ["tsc-watch", "--preserveWatchOutput", "--onSuccess", "node dist/bootstrap/main.js"],
-            { stdio: "inherit" }
+            { stdio: "inherit", env: { ...process.env, NYALA_VITE_DEV: viteProcess ? "true" : process.env.NYALA_VITE_DEV ?? "" } }
         );
 
         if (result.error) {
@@ -224,8 +239,9 @@ program
 
 program
     .command("build")
-    .description("Build the application for production (tsc → dist/, plus island bundles if present)")
+    .description("Build the application for production (tsc → dist/, plus island/Vite bundles if present)")
     .option("--out-dir <dir>", "Output directory", "dist")
+    .option("--ssr", "Also build the app/ssr.tsx entry, if present (Inertia-style apps only)")
     .action(async (options) => {
         console.log("Building Nyala application...\n");
         const result = spawnSync("npx", ["tsc", "--outDir", options.outDir, "--skipLibCheck"], {
@@ -243,6 +259,11 @@ program
         // Islands bundle into public/ (served via FastifyAdapter's staticDir),
         // independent of --out-dir — no-op if app/islands/manifest.ts doesn't exist.
         await new BuildIslandsCommand().handle("public");
+
+        // Frontend assets via `vite build` — no-op if there's no
+        // vite.config.ts. Produces dist/.vite/manifest.json + hashed
+        // assets, which AssetVersionResolver reads in production.
+        await new ViteBuildCommand().handle({ ssr: options.ssr });
 
         process.exit(0);
     });
