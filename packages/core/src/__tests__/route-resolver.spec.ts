@@ -5,6 +5,7 @@ import { Container } from "../di/container";
 import { ModuleGraph } from "../module/module-graph";
 import { Controller, Get, Post } from "../index";
 import { Module } from "../index";
+import { UseGuards, UseInterceptors } from "../decorators/use";
 
 @Controller("users")
 class UserController {
@@ -17,6 +18,56 @@ class UserController {
 
 @Module({ controllers: [UserController] })
 class UserModule {}
+
+class AuthGuard {
+    canActivate() {
+        return true;
+    }
+}
+
+class RolesGuard {
+    canActivate() {
+        return true;
+    }
+}
+
+class AuditInterceptor {}
+
+@UseGuards(AuthGuard)
+@Controller("admin")
+class AdminController {
+    @Get()
+    index() {}
+
+    @Get("reports")
+    @UseGuards(RolesGuard)
+    reports() {}
+
+    @Post("audited")
+    @UseInterceptors(AuditInterceptor)
+    audited() {}
+}
+
+@Module({ controllers: [AdminController] })
+class AdminModule {}
+
+function buildRoutes(controllerType: any, moduleType: any) {
+    const scanner = new MetadataScanner();
+    const container = new Container();
+    const graph = new ModuleGraph();
+
+    container.register({ provide: controllerType, useClass: controllerType });
+    graph.add({
+        id: moduleType.name,
+        type: moduleType,
+        metadata: { controllers: [controllerType] },
+        imports: [],
+        providers: new Map(),
+        exports: new Set(),
+    });
+
+    return new RouteResolver(scanner, container, graph).resolveRoutes();
+}
 
 describe("RouteResolver", () => {
     it("resolves routes from a controller with proper paths and methods", () => {
@@ -46,5 +97,35 @@ describe("RouteResolver", () => {
         const createRoute = routes.find(r => r.path === "/users/create" && r.method === "POST");
         expect(createRoute).toBeDefined();
         expect(createRoute?.handlerName).toBe("createUser");
+    });
+
+    it("attaches a class-level @UseGuards() to every route on that controller", () => {
+        const routes = buildRoutes(AdminController, AdminModule);
+
+        const index = routes.find(r => r.handlerName === "index");
+        expect(index?.guards).toEqual([AuthGuard]);
+    });
+
+    it("a method-level @UseGuards() replaces (not merges with) the class-level guards", () => {
+        const routes = buildRoutes(AdminController, AdminModule);
+
+        const reports = routes.find(r => r.handlerName === "reports");
+        expect(reports?.guards).toEqual([RolesGuard]);
+    });
+
+    it("attaches method-level @UseInterceptors()", () => {
+        const routes = buildRoutes(AdminController, AdminModule);
+
+        const audited = routes.find(r => r.handlerName === "audited");
+        expect(audited?.interceptors).toEqual([AuditInterceptor]);
+    });
+
+    it("leaves guards/interceptors undefined for a controller with no @UseGuards()/@UseInterceptors()", () => {
+        const routes = buildRoutes(UserController, UserModule);
+
+        for (const route of routes) {
+            expect(route.guards).toBeUndefined();
+            expect(route.interceptors).toBeUndefined();
+        }
     });
 });

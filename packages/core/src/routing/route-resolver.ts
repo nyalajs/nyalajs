@@ -48,11 +48,16 @@ export class RouteResolver {
                     const activeVersion = methodVersion ?? controllerVersion;
                     const resolvedPath = this.buildPath(controllerMeta.prefix, route.path, activeVersion);
 
+                    const guards = this.metadataScanner.getGuards(controllerType, route.handlerName);
+                    const interceptors = this.metadataScanner.getInterceptors(controllerType, route.handlerName);
+
                     routes.push({
                         method: route.method,
                         path: resolvedPath,
                         controller: controllerType,
                         handlerName: route.handlerName as string,
+                        guards: guards.length > 0 ? guards : undefined,
+                        interceptors: interceptors.length > 0 ? interceptors : undefined,
                         metadata: {},
                     });
                 }
