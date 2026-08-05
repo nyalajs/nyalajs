@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/inertia",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Inertia.js server adapter for NyalaJS — controllers return page components with props, no separate REST/GraphQL API",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
