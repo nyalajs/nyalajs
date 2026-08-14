@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { DoctorCommand, tenancyMiddlewareCheck, databaseDriverCheck } from "../cli/doctor.command";
+import { DoctorCommand, tenancyMiddlewareCheck, databaseDriverCheck, guardsWiredCheck } from "../cli/doctor.command";
 
 const SAAS_STARTER_PATH = path.resolve(__dirname, "../../../../templates/saas-starter");
+const CMS_STARTER_PATH = path.resolve(__dirname, "../../../../templates/cms-starter");
 
 describe("tenancyMiddlewareCheck — against the real saas-starter template", () => {
     it("passes against templates/saas-starter, which this session fixed to wire TenantMiddleware correctly", async () => {
@@ -105,6 +106,109 @@ describe("databaseDriverCheck", () => {
     it("skips when @nyalajs/database isn't used", async () => {
         await fs.writeJson(path.join(tmpDir, "package.json"), { dependencies: {} });
         const result = await databaseDriverCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+});
+
+describe("guardsWiredCheck — against the real cms-starter template", () => {
+    it("passes against templates/cms-starter, which genuinely uses @UseGuards() and resolves the fixed @nyalajs/core from the workspace", async () => {
+        const result = await guardsWiredCheck.run(CMS_STARTER_PATH);
+        expect(result.status).toBe("pass");
+        expect(result.message).toContain("@nyalajs/core@");
+    });
+});
+
+describe("guardsWiredCheck — basic behavior", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "nyala-doctor-guards-"));
+    });
+
+    afterEach(async () => {
+        await fs.remove(tmpDir);
+    });
+
+    it("skips when no app/src source uses @UseGuards() or @UseInterceptors()", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(path.join(tmpDir, "app/controllers/home.controller.ts"), "export class HomeController {}\n");
+
+        const result = await guardsWiredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+        expect(result.message).toContain("No @UseGuards()");
+    });
+
+    it("skips when there's no app/ or src/ directory at all", async () => {
+        const result = await guardsWiredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+
+    it("warns when @nyalajs/core can't be resolved from cwd (not installed / no npm install yet)", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseGuards(AuthGuard)\nexport class AdminController {}\n"
+        );
+
+        const result = await guardsWiredCheck.run(tmpDir);
+        expect(result.status).toBe("warn");
+        expect(result.message).toContain("couldn't resolve");
+    });
+
+    it("fails when @UseGuards() is used with an @nyalajs/core version older than the fix", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseGuards(AuthGuard)\nexport class AdminController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "node_modules/@nyalajs/core"));
+        await fs.writeJson(path.join(tmpDir, "node_modules/@nyalajs/core/package.json"), {
+            name: "@nyalajs/core",
+            version: "2.0.0",
+            main: "index.js",
+        });
+        await fs.writeFile(path.join(tmpDir, "node_modules/@nyalajs/core/index.js"), "module.exports = {};\n");
+
+        const result = await guardsWiredCheck.run(tmpDir);
+
+        expect(result.status).toBe("fail");
+        expect(result.message).toContain("@nyalajs/core@2.0.0");
+        expect(result.message).toContain("npm install @nyalajs/core@latest");
+    });
+
+    it("passes when @UseGuards() is used with an @nyalajs/core version at or above the fix", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseInterceptors(AuditInterceptor)\nexport class AdminController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "node_modules/@nyalajs/core"));
+        await fs.writeJson(path.join(tmpDir, "node_modules/@nyalajs/core/package.json"), {
+            name: "@nyalajs/core",
+            version: "2.0.1",
+            main: "index.js",
+        });
+        await fs.writeFile(path.join(tmpDir, "node_modules/@nyalajs/core/index.js"), "module.exports = {};\n");
+
+        const result = await guardsWiredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+
+    it("passes for a version well above the fix (e.g. a future 2.5.0)", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseGuards(AuthGuard)\nexport class AdminController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "node_modules/@nyalajs/core"));
+        await fs.writeJson(path.join(tmpDir, "node_modules/@nyalajs/core/package.json"), {
+            name: "@nyalajs/core",
+            version: "2.5.0",
+            main: "index.js",
+        });
+        await fs.writeFile(path.join(tmpDir, "node_modules/@nyalajs/core/index.js"), "module.exports = {};\n");
+
+        const result = await guardsWiredCheck.run(tmpDir);
         expect(result.status).toBe("pass");
     });
 });
