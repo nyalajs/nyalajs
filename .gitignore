@@ -6,3 +6,4 @@ dist/
 .turbo
 coverage/
 .nyala/
+.tmp-test/

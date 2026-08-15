@@ -33,6 +33,12 @@
         "access": "public"
     },
     "peerDependencies": {
+        "ioredis": "^5.0.0",
         "reflect-metadata": ">=0.1.13"
+    },
+    "peerDependenciesMeta": {
+        "ioredis": {
+            "optional": true
+        }
     }
 }

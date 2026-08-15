@@ -7,8 +7,18 @@ export interface ScheduledOptions {
     cron: string;
     /** Optional timezone. */
     timezone?: string;
-    /** Name of the job, for logging/debugging. */
+    /** Name of the job, for logging/debugging. Also the distributed lock key. */
     name?: string;
+    /**
+     * How long this job's distributed lock is held for, in milliseconds
+     * (default 60000). Only matters when SchedulerService is configured
+     * with a DistributedLock (see connect() and REDIS_URL) — with no lock
+     * configured, every tick just runs, same as before distributed locking
+     * existed. Size this comfortably longer than the job is expected to
+     * take: if the job runs longer than the TTL, the lock expires and
+     * ANOTHER replica could acquire it and run a second, overlapping copy.
+     */
+    lockTtlMs?: number;
 }
 
 /**
