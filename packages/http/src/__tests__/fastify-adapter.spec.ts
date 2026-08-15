@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Req, Res, Body, Param, Query } from "@nyalajs/core";
+import { Req, Res, Body, Param, Query, LogContext } from "@nyalajs/core";
 import { FastifyAdapter } from "../runtime/fastify-adapter";
 
 function mockContainer() {
@@ -241,6 +241,79 @@ describe("FastifyAdapter", () => {
 
             expect(res.statusCode).toBe(200);
             expect(JSON.parse(res.body)).toEqual({ refreshToken: "the-token-value" });
+        });
+    });
+
+    describe("LogContext — request correlation", () => {
+        it("populates requestId/traceId in LogContext for the duration of the request, readable from inside a handler with no access to the request object", async () => {
+            class WhoAmIController {
+                index() {
+                    return LogContext.get();
+                }
+            }
+
+            const controllerInstance = new WhoAmIController();
+            const requestContainer = {
+                register: vi.fn(),
+                resolve: (token: any) => (token === WhoAmIController ? controllerInstance : undefined),
+            };
+            const container = {
+                createRequestScope: () => requestContainer,
+                resolve: vi.fn(),
+            } as any;
+
+            const adapter = new FastifyAdapter(container, { session: false, csrf: false });
+            adapter.registerResolvedRoutes([
+                { method: "GET", path: "/whoami", controller: WhoAmIController, handlerName: "index", guards: [], interceptors: [] },
+            ]);
+
+            const res = await adapter.getInstance().inject({
+                method: "GET",
+                url: "/whoami",
+                headers: { "x-trace-id": "caller-supplied-trace" },
+            });
+
+            const body = JSON.parse(res.body);
+            expect(body.requestId).toEqual(expect.any(String));
+            expect(body.traceId).toBe("caller-supplied-trace");
+        });
+
+        it("two concurrent requests don't see each other's LogContext (AsyncLocalStorage isolation, not a shared global)", async () => {
+            class SlowController {
+                async index() {
+                    const before = LogContext.get().requestId;
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    const after = LogContext.get().requestId;
+                    return { before, after, same: before === after };
+                }
+            }
+
+            const controllerInstance = new SlowController();
+            const requestContainer = {
+                register: vi.fn(),
+                resolve: (token: any) => (token === SlowController ? controllerInstance : undefined),
+            };
+            const container = {
+                createRequestScope: () => requestContainer,
+                resolve: vi.fn(),
+            } as any;
+
+            const adapter = new FastifyAdapter(container, { session: false, csrf: false });
+            adapter.registerResolvedRoutes([
+                { method: "GET", path: "/slow", controller: SlowController, handlerName: "index", guards: [], interceptors: [] },
+            ]);
+
+            const [res1, res2] = await Promise.all([
+                adapter.getInstance().inject({ method: "GET", url: "/slow" }),
+                adapter.getInstance().inject({ method: "GET", url: "/slow" }),
+            ]);
+
+            const body1 = JSON.parse(res1.body);
+            const body2 = JSON.parse(res2.body);
+
+            expect(body1.same).toBe(true);
+            expect(body2.same).toBe(true);
+            expect(body1.before).not.toBe(body2.before);
         });
     });
 

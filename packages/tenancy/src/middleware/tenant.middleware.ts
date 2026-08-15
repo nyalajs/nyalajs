@@ -1,4 +1,4 @@
-import { Injectable, Inject, TenantContext } from "@nyalajs/core";
+import { Injectable, Inject, TenantContext, LogContext } from "@nyalajs/core";
 import { NextFunction, BadRequestException } from "@nyalajs/http";
 import { TenantResolver } from "../resolvers/tenant-resolver.interface";
 
@@ -22,6 +22,7 @@ export class TenantMiddleware {
 
             if (tenantId) {
                 TenantContext.set(tenantId);
+                LogContext.set({ tenantId });
                 break;
             }
         }

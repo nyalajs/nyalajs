@@ -12,4 +12,5 @@ export * from "./plugins/plugin.interface";
 export * from "./plugins/plugin.manager";
 export * from "./routing/route-resolver";
 export * from "./context/tenant-context";
+export * from "./context/log-context";
 export * from "./metadata/metadata-scanner";

@@ -1,6 +1,7 @@
 export * from "./module";
 export * from "./injectable";
 export * from "./inject";
+export * from "./optional";
 export * from "./controller";
 export * from "./route";
 export * from "./param";

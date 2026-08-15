@@ -1,5 +1,5 @@
 import pino from "pino";
-import { Injectable, Inject } from "@nyalajs/core";
+import { Injectable, Inject, LogContext } from "@nyalajs/core";
 
 export interface LogEntry {
     level: "debug" | "info" | "warn" | "error";
@@ -47,23 +47,43 @@ export class Logger {
         }
     }
 
+    /**
+     * requestId/traceId/tenantId/userId from the current request's
+     * AsyncLocalStorage scope (see LogContext, set once per request by
+     * FastifyAdapter and filled in further by TenantMiddleware/AuthGuard as
+     * they learn more) — every log call picks these up automatically, with
+     * no need to thread a child logger through call sites that don't have
+     * direct access to the request. Explicit `metadata` fields win on
+     * collision (e.g. a caller deliberately overriding requestId in a test).
+     */
+    private baseFields(metadata?: Record<string, any>): Record<string, any> {
+        const ctx = LogContext.get();
+        return {
+            ...(ctx.requestId !== undefined && { requestId: ctx.requestId }),
+            ...(ctx.traceId !== undefined && { traceId: ctx.traceId }),
+            ...(ctx.tenantId !== undefined && { tenantId: ctx.tenantId }),
+            ...(ctx.userId !== undefined && { userId: ctx.userId }),
+            ...metadata,
+            serviceName: this.serviceName,
+        };
+    }
+
     debug(message: string, metadata?: Record<string, any>): void {
-        this.logger.debug({ ...metadata, serviceName: this.serviceName }, message);
+        this.logger.debug(this.baseFields(metadata), message);
     }
 
     info(message: string, metadata?: Record<string, any>): void {
-        this.logger.info({ ...metadata, serviceName: this.serviceName }, message);
+        this.logger.info(this.baseFields(metadata), message);
     }
 
     warn(message: string, metadata?: Record<string, any>): void {
-        this.logger.warn({ ...metadata, serviceName: this.serviceName }, message);
+        this.logger.warn(this.baseFields(metadata), message);
     }
 
     error(message: string, error?: Error, metadata?: Record<string, any>): void {
         this.logger.error(
             {
-                ...metadata,
-                serviceName: this.serviceName,
+                ...this.baseFields(metadata),
                 error: error
                     ? {
                         message: error.message,

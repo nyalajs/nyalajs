@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { Type, Token } from "../types/common";
 import { ProviderDefinition, ProviderRecord, Scope } from "../types/provider";
-import { NYALA_INJECT_TOKENS } from "../constants/metadata-keys";
+import { NYALA_INJECT_TOKENS, NYALA_OPTIONAL_TOKENS } from "../constants/metadata-keys";
 
 export class Container {
     private readonly providers = new Map<Token, ProviderRecord>();
@@ -144,9 +144,30 @@ export class Container {
         const injectTokens =
             Reflect.getMetadata(NYALA_INJECT_TOKENS, type) ?? {};
 
-        const deps = designTypes.map((dep: Token, index: number) =>
-            this.resolveInternal(injectTokens[index] ?? dep, stack)
-        );
+        const optionalIndexes: Record<number, true> =
+            Reflect.getMetadata(NYALA_OPTIONAL_TOKENS, type) ?? {};
+
+        const deps = designTypes.map((dep: Token, index: number) => {
+            const token = injectTokens[index] ?? dep;
+
+            if (!optionalIndexes[index]) {
+                return this.resolveInternal(token, stack);
+            }
+
+            // @Optional(): resolve to undefined instead of throwing when no
+            // provider is registered for this one parameter. Any OTHER
+            // failure while resolving it (e.g. a real circular-dependency
+            // error, or an error thrown by the dependency's own constructor)
+            // still propagates — only "Provider not found" is swallowed.
+            try {
+                return this.resolveInternal(token, stack);
+            } catch (error) {
+                if (error instanceof Error && error.message.startsWith("Provider not found")) {
+                    return undefined;
+                }
+                throw error;
+            }
+        });
 
         return new type(...deps);
     }

@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nyalajs/core";
+import { Injectable, Inject, LogContext } from "@nyalajs/core";
 import { Guard, ExecutionContext, UnauthorizedException } from "@nyalajs/http";
 import { JwtStrategy } from "./jwt-strategy";
 
@@ -24,6 +24,10 @@ export class AuthGuard implements Guard {
         context.context.userId = identity.userId;
         context.context.tenantId = identity.tenantId;
         context.context.metadata.set("user", identity);
+        // So every Logger call for the rest of this request — not just the
+        // exception handler's own error logging — is correlated with the
+        // authenticated user, same AsyncLocalStorage scope TenantContext uses.
+        LogContext.set({ userId: identity.userId, tenantId: identity.tenantId });
 
         return true;
     }

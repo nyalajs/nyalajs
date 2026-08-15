@@ -1,5 +1,5 @@
 import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { Container, getParamMetadata, ParamType, TenantContext } from "@nyalajs/core";
+import { Container, getParamMetadata, ParamType, TenantContext, LogContext } from "@nyalajs/core";
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
@@ -332,19 +332,34 @@ export class FastifyAdapter {
         // inside one AsyncLocalStorage scope so TenantContext.set() (called
         // by tenant-resolving middleware) is visible to everything downstream,
         // including static Model calls with no access to the request object.
-        return TenantContext.run(() => this.handleRequestInScope(request, reply, route));
+        //
+        // requestId/traceId are generated once, up front, so they can seed
+        // LogContext before any downstream code (middleware, guards, the
+        // handler) has a chance to log something — every log line for this
+        // request is correlated from the very first one, not just after
+        // tenantId/userId get filled in later by TenantMiddleware/AuthGuard.
+        const requestId = randomUUID();
+        const traceId = (request.headers["x-trace-id"] as string) ?? randomUUID();
+
+        return TenantContext.run(() =>
+            LogContext.run({ requestId, traceId }, () =>
+                this.handleRequestInScope(request, reply, route, requestId, traceId)
+            )
+        );
     }
 
     private async handleRequestInScope(
         request: FastifyRequest,
         reply: FastifyReply,
-        route: any
+        route: any,
+        requestId: string,
+        traceId: string
     ): Promise<void> {
         const startTime = Date.now();
 
         const context: RequestContext = {
-            requestId: randomUUID(),
-            traceId: (request.headers["x-trace-id"] as string) ?? randomUUID(),
+            requestId,
+            traceId,
             startedAt: startTime,
             locale: request.headers["accept-language"] as string,
             metadata: new Map(),
