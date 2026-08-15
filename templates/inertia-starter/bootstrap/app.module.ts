@@ -15,6 +15,9 @@ import { PostsService } from "../app/services/posts.service";
 import { UserRepository } from "../app/repositories/user.repository";
 import { PostRepository } from "../app/repositories/post.repository";
 
+// Guards
+import { SessionAuthGuard } from "../app/guards/session-auth.guard";
+
 /**
  * Application Root Module
  *
@@ -40,6 +43,7 @@ import { PostRepository } from "../app/repositories/post.repository";
         PostRepository,
         AuthService,
         PostsService,
+        SessionAuthGuard,
     ],
     controllers: [AuthController, PostsController],
     exports: [ConfigService, Logger],

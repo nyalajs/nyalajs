@@ -4,7 +4,7 @@ import { Logger } from "@nyalajs/observability";
 import { HealthCheckService } from "@nyalajs/observability";
 import { MetricsCollector } from "@nyalajs/observability";
 import { AuditLogger } from "@nyalajs/audit";
-import { JwtStrategy } from "@nyalajs/security";
+import { JwtStrategy, AuthGuard } from "@nyalajs/security";
 import {
     TenantMiddleware,
     JwtTenantResolver,
@@ -54,6 +54,7 @@ import { namespaces } from "../config";
             },
             inject: [ConfigService],
         },
+        AuthGuard,
         // Multi-tenancy: resolves the tenant for every request (JWT first,
         // since most routes are authenticated; subdomain as a fallback for
         // pre-auth flows like signup/login) and publishes it via

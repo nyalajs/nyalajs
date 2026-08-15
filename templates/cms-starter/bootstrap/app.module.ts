@@ -36,6 +36,9 @@ import { MenuRepository, MenuItemRepository } from "../app/repositories/menu.rep
 import { SettingRepository } from "../app/repositories/setting.repository";
 import { FormSubmissionRepository } from "../app/repositories/form-submission.repository";
 
+// Guards
+import { SessionAuthGuard } from "../app/guards/session-auth.guard";
+
 /**
  * Application Root Module
  *
@@ -77,6 +80,7 @@ import { FormSubmissionRepository } from "../app/repositories/form-submission.re
         FormSubmissionRepository,
         AuthService,
         LayoutDataService,
+        SessionAuthGuard,
     ],
     controllers: [
         AdminAuthController,
