@@ -6,4 +6,5 @@ export * from "./controller";
 export * from "./route";
 export * from "./param";
 export * from "./use";
+export * from "./catch";
 export * from "./version";

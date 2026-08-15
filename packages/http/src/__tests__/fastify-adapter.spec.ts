@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Req, Res, Body, Param, Query, LogContext } from "@nyalajs/core";
+import { Req, Res, Body, Param, Query, LogContext, Catch } from "@nyalajs/core";
 import { FastifyAdapter } from "../runtime/fastify-adapter";
 
 function mockContainer() {
@@ -415,6 +415,126 @@ describe("FastifyAdapter", () => {
             });
 
             expect(res.body).toBe("<!DOCTYPE html><html><body>Custom 500: boom</body></html>");
+        });
+    });
+
+    describe("@Catch()/@UseFilters() — type-scoped exception filters", () => {
+        class NotFoundDomainError extends Error {}
+        class OtherDomainError extends Error {}
+
+        class ThrowsNotFoundController {
+            index() {
+                throw new NotFoundDomainError("thing missing");
+            }
+        }
+
+        class ThrowsOtherController {
+            index() {
+                throw new OtherDomainError("something else broke");
+            }
+        }
+
+        @Catch(NotFoundDomainError)
+        class NotFoundFilter {
+            catch(error: Error, _context: any, reply: any) {
+                reply.status(404).send({ handledBy: "NotFoundFilter", message: error.message });
+            }
+        }
+
+        function buildAdapter(controllerType: any, filterInstance: any) {
+            const controllerInstance = new controllerType();
+            const requestContainer = {
+                register: vi.fn(),
+                resolve: (token: any) => {
+                    if (token === controllerType) return controllerInstance;
+                    if (token === NotFoundFilter) return filterInstance;
+                    return undefined;
+                },
+            };
+            const container = {
+                createRequestScope: () => requestContainer,
+                resolve: vi.fn(),
+            } as any;
+
+            const adapter = new FastifyAdapter(container, { session: false, csrf: false });
+            adapter.registerResolvedRoutes([
+                {
+                    method: "GET",
+                    path: "/thing",
+                    controller: controllerType,
+                    handlerName: "index",
+                    guards: [],
+                    interceptors: [],
+                    filters: [NotFoundFilter],
+                },
+            ]);
+            return adapter;
+        }
+
+        it("a matching @Catch() filter handles the error instead of the default ExceptionHandler", async () => {
+            const filter = new NotFoundFilter();
+            const adapter = buildAdapter(ThrowsNotFoundController, filter);
+
+            const res = await adapter.getInstance().inject({ method: "GET", url: "/thing" });
+
+            expect(res.statusCode).toBe(404);
+            expect(JSON.parse(res.body)).toEqual({ handledBy: "NotFoundFilter", message: "thing missing" });
+        });
+
+        it("an error type the filter doesn't @Catch() falls through to the default ExceptionHandler", async () => {
+            const filter = new NotFoundFilter();
+            const adapter = buildAdapter(ThrowsOtherController, filter);
+
+            const res = await adapter.getInstance().inject({
+                method: "GET",
+                url: "/thing",
+                headers: { accept: "application/json" },
+            });
+
+            expect(res.statusCode).toBe(500);
+            expect(JSON.parse(res.body).message).toBe("something else broke");
+        });
+
+        it("a filter resolved from the request container actually receives the real reply object (can set custom headers)", async () => {
+            @Catch(NotFoundDomainError)
+            class HeaderSettingFilter {
+                catch(_error: Error, _context: any, reply: any) {
+                    reply.header("x-custom-filter", "yes").status(404).send({ custom: true });
+                }
+            }
+
+            const controllerInstance = new ThrowsNotFoundController();
+            const filterInstance = new HeaderSettingFilter();
+            const requestContainer = {
+                register: vi.fn(),
+                resolve: (token: any) => {
+                    if (token === ThrowsNotFoundController) return controllerInstance;
+                    if (token === HeaderSettingFilter) return filterInstance;
+                    return undefined;
+                },
+            };
+            const container = {
+                createRequestScope: () => requestContainer,
+                resolve: vi.fn(),
+            } as any;
+
+            const adapter = new FastifyAdapter(container, { session: false, csrf: false });
+            adapter.registerResolvedRoutes([
+                {
+                    method: "GET",
+                    path: "/thing",
+                    controller: ThrowsNotFoundController,
+                    handlerName: "index",
+                    guards: [],
+                    interceptors: [],
+                    filters: [HeaderSettingFilter],
+                },
+            ]);
+
+            const res = await adapter.getInstance().inject({ method: "GET", url: "/thing" });
+
+            expect(res.headers["x-custom-filter"]).toBe("yes");
+            expect(JSON.parse(res.body)).toEqual({ custom: true });
         });
     });
 

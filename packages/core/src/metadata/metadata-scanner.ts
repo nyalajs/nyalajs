@@ -7,6 +7,8 @@ import {
     NYALA_VERSION,
     NYALA_GUARDS,
     NYALA_INTERCEPTORS,
+    NYALA_FILTERS,
+    NYALA_CATCH_TYPES,
 } from "../constants/metadata-keys";
 import { Type } from "../types/common";
 import { ModuleMetadata } from "../types/module";
@@ -52,5 +54,17 @@ export class MetadataScanner {
         const methodInterceptors = Reflect.getMetadata(NYALA_INTERCEPTORS, controllerType, handlerName);
         if (methodInterceptors) return methodInterceptors;
         return Reflect.getMetadata(NYALA_INTERCEPTORS, controllerType) ?? [];
+    }
+
+    /** Same method-overrides-class precedence as getGuards(), for @UseFilters(). */
+    getFilters(controllerType: Type, handlerName: string | symbol): Type[] {
+        const methodFilters = Reflect.getMetadata(NYALA_FILTERS, controllerType, handlerName);
+        if (methodFilters) return methodFilters;
+        return Reflect.getMetadata(NYALA_FILTERS, controllerType) ?? [];
+    }
+
+    /** The Error (sub)types a filter class declared via @Catch(...types). Empty array means "catch everything". */
+    getCatchTypes(filterType: Type): Type<Error>[] {
+        return Reflect.getMetadata(NYALA_CATCH_TYPES, filterType) ?? [];
     }
 }

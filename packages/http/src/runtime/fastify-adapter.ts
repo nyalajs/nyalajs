@@ -1,5 +1,5 @@
 import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { Container, getParamMetadata, ParamType, TenantContext, LogContext } from "@nyalajs/core";
+import { Container, getParamMetadata, ParamType, TenantContext, LogContext, getCatchTypes } from "@nyalajs/core";
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
@@ -463,8 +463,40 @@ export class FastifyAdapter {
                 })
             );
         } catch (error) {
-            await this.exceptionHandler.handle(error as Error, executionContext, reply);
+            const handled = await this.tryExceptionFilters(route, error as Error, executionContext, reply, requestContainer);
+            if (!handled) {
+                await this.exceptionHandler.handle(error as Error, executionContext, reply);
+            }
         }
+    }
+
+    /**
+     * @UseFilters()-declared filters, tried in the order given. The first
+     * filter whose @Catch() types match (via `instanceof`, or unconditional
+     * if @Catch() was given no arguments) handles the error and short-
+     * circuits the framework's default ExceptionHandler. Returns false —
+     * meaning "nobody handled it, fall through to ExceptionHandler" — if
+     * there are no filters on this route, or none of them match.
+     */
+    private async tryExceptionFilters(
+        route: any,
+        error: Error,
+        executionContext: ExecutionContext,
+        reply: any,
+        requestContainer: Container
+    ): Promise<boolean> {
+        for (const FilterClass of route.filters ?? []) {
+            const catchTypes = getCatchTypes(FilterClass);
+            const matches = catchTypes.length === 0 || catchTypes.some((type) => error instanceof type);
+
+            if (matches) {
+                const filter = requestContainer.resolve(FilterClass) as any;
+                await filter.catch(error, executionContext, reply);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

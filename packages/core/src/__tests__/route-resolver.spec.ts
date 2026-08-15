@@ -6,6 +6,7 @@ import { ModuleGraph } from "../module/module-graph";
 import { Controller, Get, Post } from "../index";
 import { Module } from "../index";
 import { UseGuards, UseInterceptors } from "../decorators/use";
+import { UseFilters } from "../decorators/catch";
 
 @Controller("users")
 class UserController {
@@ -33,6 +34,10 @@ class RolesGuard {
 
 class AuditInterceptor {}
 
+class NotFoundFilter {
+    catch() {}
+}
+
 @UseGuards(AuthGuard)
 @Controller("admin")
 class AdminController {
@@ -46,6 +51,10 @@ class AdminController {
     @Post("audited")
     @UseInterceptors(AuditInterceptor)
     audited() {}
+
+    @Get("maybe-missing")
+    @UseFilters(NotFoundFilter)
+    maybeMissing() {}
 }
 
 @Module({ controllers: [AdminController] })
@@ -127,5 +136,19 @@ describe("RouteResolver", () => {
             expect(route.guards).toBeUndefined();
             expect(route.interceptors).toBeUndefined();
         }
+    });
+
+    it("attaches method-level @UseFilters()", () => {
+        const routes = buildRoutes(AdminController, AdminModule);
+
+        const maybeMissing = routes.find(r => r.handlerName === "maybeMissing");
+        expect(maybeMissing?.filters).toEqual([NotFoundFilter]);
+    });
+
+    it("leaves filters undefined for a route with no @UseFilters()", () => {
+        const routes = buildRoutes(AdminController, AdminModule);
+
+        const index = routes.find(r => r.handlerName === "index");
+        expect(index?.filters).toBeUndefined();
     });
 });

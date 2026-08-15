@@ -10,6 +10,7 @@ export interface ResolvedRoute {
     handlerName: string;
     guards?: Type[];
     interceptors?: Type[];
+    filters?: Type[];
     metadata: Record<string, any>;
 }
 
@@ -50,6 +51,7 @@ export class RouteResolver {
 
                     const guards = this.metadataScanner.getGuards(controllerType, route.handlerName);
                     const interceptors = this.metadataScanner.getInterceptors(controllerType, route.handlerName);
+                    const filters = this.metadataScanner.getFilters(controllerType, route.handlerName);
 
                     routes.push({
                         method: route.method,
@@ -58,6 +60,7 @@ export class RouteResolver {
                         handlerName: route.handlerName as string,
                         guards: guards.length > 0 ? guards : undefined,
                         interceptors: interceptors.length > 0 ? interceptors : undefined,
+                        filters: filters.length > 0 ? filters : undefined,
                         metadata: {},
                     });
                 }
