@@ -16,9 +16,9 @@
         "strictNullChecks": true,
         "types": ["vite/client"],
         "paths": {
-            "@/*": ["./*"]
+            "@/*": ["./resources/js/*"]
         }
     },
-    "include": ["resources/js/app.tsx", "resources/js/pages/**/*", "resources/js/components/**/*"],
+    "include": ["resources/js/**/*"],
     "exclude": ["node_modules", "dist", "public"]
 }

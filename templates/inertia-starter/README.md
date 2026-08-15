@@ -22,6 +22,24 @@ starter's navigation (`<Link>`, `useForm().post()`, ...) never triggers a
 full page reload — the backend still owns routing/data, but the browser
 only ever fetches a JSON prop blob after the first request.
 
+## Pages and routes
+
+| Route | Controller action | Page component | Notes |
+|---|---|---|---|
+| `GET /` | `AuthController.root()` | `Welcome` | Public marketing/framework-showcase landing page — no auth required |
+| `GET /login`, `POST /login` | `AuthController` | `Auth/Login` | |
+| `GET /register`, `POST /register` | `AuthController` | `Auth/Register` | |
+| `GET /dashboard` | `DashboardController.index()` | `Dashboard/Index` | Guarded; real stats computed from `PostsService.findAll()` |
+| `GET /posts`, `/posts/create`, `/posts/:id/edit` | `PostsController` | `Posts/Index`, `Posts/Create`, `Posts/Edit` | Guarded; the one full CRUD resource |
+| `GET /settings` | `SettingsController.page()` | `Settings/Index` | Guarded; update name, change password |
+
+`Dashboard`, `Posts`, and `Settings` all render inside `AdminLayout`
+(`resources/js/layouts/admin-layout.tsx`) — a shadcn/ui admin shell with a
+fixed sidebar on desktop that collapses into a `Sheet` drawer below the
+`lg` breakpoint, plus a sticky topbar with the account dropdown. `Welcome`,
+`Auth/Login`, and `Auth/Register` do **not** use `AdminLayout` — they're
+public pages with their own chrome.
+
 ## The request/response flow, concretely
 
 1. First visit to `/posts` (a normal browser navigation, no `X-Inertia`
@@ -54,7 +72,7 @@ only ever fetches a JSON prop blob after the first request.
    in the page component.
 5. A successful create/update/delete flashes a message
    (`flash(req, "success", "Post created.")`) and redirects to `/posts`;
-   `resources/js/components/Layout.tsx` reads `usePage().props.flash` to show it.
+   `resources/js/layouts/admin-layout.tsx` reads `usePage().props.flash` to show it.
    Both `errors` and `flash` are **read-once** — they show up on exactly
    the next response, then clear themselves (see
    `@nyalajs/inertia/src/flash.ts`).
@@ -72,21 +90,46 @@ only ever fetches a JSON prop blob after the first request.
   `cms-starter`, not the JWT pattern `mvc`/`saas` use (see
   `docs/inertia-starter-spec.md` §3 for why: this is one same-origin,
   cookie-authenticated app, not a separate API).
+- **Dashboard** (`app/controllers/dashboard.controller.ts`,
+  `resources/js/pages/Dashboard/`): stat cards + a recent-posts list, both
+  computed from real `PostsService` data — not hardcoded placeholder numbers.
 - **Posts** (`app/controllers/posts.controller.ts`,
   `app/services/posts.service.ts`, `app/repositories/post.repository.ts`,
   `resources/js/pages/Posts/`): the one full CRUD resource, demonstrating
   shared props, flash messages, and validation-error round-tripping end to end.
+- **Settings** (`app/controllers/settings.controller.ts`,
+  `resources/js/pages/Settings/`): update display name, change password —
+  two independent forms on one page, each its own `useForm()`/controller action.
 - **Data layer** (`app/models/`, `app/repositories/`): plain Drizzle
   `sqliteTable` schemas + a small `BaseRepository<T>` — same shape as
   `mvc`/`cms`'s Postgres-backed repositories, just SQLite (see "Why
   SQLite" below).
-- **Frontend** (`resources/js/pages/`, `resources/js/components/`,
-  `resources/js/app.tsx`, `vite.config.ts`): a real Vite-built React app,
+- **Frontend** (`resources/js/pages/`, `resources/js/layouts/`,
+  `resources/js/components/ui/`, `resources/js/app.tsx`, `vite.config.ts`):
+  a real Vite-built React app on Tailwind + [shadcn/ui](https://ui.shadcn.com),
   kept separate from the backend's `app/` — same split as Laravel's Inertia
   starter kits (`app/` = backend only, `resources/js/` = frontend only).
   `nyala dev` runs a real Vite dev server alongside the backend; `nyala
   build` runs `vite build` to produce the hashed production assets
   `@nyalajs/inertia`'s `AssetVersionResolver` reads.
+
+## UI: Tailwind + shadcn/ui
+
+`resources/js/components/ui/` holds the shadcn/ui primitives this starter
+actually uses (`button`, `input`, `card`, `table`, `dialog`, `sheet`,
+`dropdown-menu`, ...) — added the same way the shadcn CLI would generate
+them (Radix primitives underneath, styled with Tailwind + `class-variance-authority`,
+composed via `cn()` in `resources/js/lib/utils.ts`). Theming is CSS
+variables in `resources/js/app.css` (`:root`/`.dark`), configured in
+`tailwind.config.ts` and `components.json`. `@/*` resolves to
+`resources/js/*` (see `vite.config.ts`'s `resolve.alias` and
+`tsconfig.frontend.json`'s `paths`), matching shadcn's own import
+convention (`@/components/ui/button`, `@/lib/utils`).
+
+To add another shadcn component by hand, follow the same pattern as the
+existing files in `resources/js/components/ui/` — install any Radix
+package it needs, then write the component using `cn()` + `cva()` the same
+way `button.tsx`/`card.tsx` do.
 
 ## Why SQLite
 

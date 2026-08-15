@@ -6,6 +6,8 @@ import { namespaces } from "../config";
 // Controllers
 import { AuthController } from "../app/controllers/auth.controller";
 import { PostsController } from "../app/controllers/posts.controller";
+import { DashboardController } from "../app/controllers/dashboard.controller";
+import { SettingsController } from "../app/controllers/settings.controller";
 
 // Services
 import { AuthService } from "../app/services/auth.service";
@@ -45,7 +47,7 @@ import { SessionAuthGuard } from "../app/guards/session-auth.guard";
         PostsService,
         SessionAuthGuard,
     ],
-    controllers: [AuthController, PostsController],
+    controllers: [AuthController, PostsController, DashboardController, SettingsController],
     exports: [ConfigService, Logger],
 })
 export class AppModule {}

@@ -47,4 +47,26 @@ export class AuthService {
         const valid = await comparePassword(password, user.password);
         return valid ? user : null;
     }
+
+    /** Updates the signed-in user's display name — the one editable field on Settings. */
+    async updateProfile(userId: string, data: { name: string }): Promise<User | null> {
+        const updated = await this.userRepository.update(userId, data);
+        if (updated) {
+            this.logger.info("Profile updated", { userId });
+        }
+        return updated;
+    }
+
+    /** Changes the signed-in user's password after verifying the current one. */
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<"ok" | "invalid-current"> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) return "invalid-current";
+
+        const valid = await comparePassword(currentPassword, user.password);
+        if (!valid) return "invalid-current";
+
+        await this.userRepository.update(userId, { password: await hashPassword(newPassword) });
+        this.logger.info("Password changed", { userId });
+        return "ok";
+    }
 }

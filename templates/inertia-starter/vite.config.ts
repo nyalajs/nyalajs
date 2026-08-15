@@ -1,3 +1,4 @@
+import * as path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -13,6 +14,14 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
     plugins: [react()],
     root: __dirname,
+    // Matches components.json's aliases + tsconfig.frontend.json's "@/*"
+    // path mapping — shadcn/ui's generated imports (`@/components/ui/button`,
+    // `@/lib/utils`) resolve the same way at both typecheck and build time.
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./resources/js"),
+        },
+    },
     // No static assets to copy verbatim, and Vite's default publicDir
     // ("public/") would otherwise sit one level above build.outDir
     // ("public/build") and warn about the overlap on every build.

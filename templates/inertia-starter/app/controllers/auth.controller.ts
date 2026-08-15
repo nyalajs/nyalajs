@@ -20,10 +20,10 @@ import { RegisterValidator, LoginValidator } from "../validators/auth.validator"
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
 
-    /** Root redirects to the one real resource in this starter — Posts. */
+    /** Public marketing/framework-showcase landing page. */
     @Get("/")
-    root(@Res() res: any) {
-        return res.redirect(303, "/posts");
+    root(@Req() req: any, @Res() res: any) {
+        return inertia(req, res, "Welcome");
     }
 
     @Get("health")
