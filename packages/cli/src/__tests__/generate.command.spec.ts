@@ -130,3 +130,83 @@ export class AppModule {}
         expect(await fs.pathExists(path.join(tmpDir, "app/controllers/widget.controller.ts"))).toBe(true);
     });
 });
+
+describe("GenerateCommand — dto", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "nyala-generate-dto-"));
+    });
+
+    afterEach(async () => {
+        await fs.remove(tmpDir);
+    });
+
+    it("writes app/dto/<name>.dto.ts with a real, non-empty class body", async () => {
+        await new GenerateCommand(tmpDir).generateDto("CreatePost");
+
+        const filePath = path.join(tmpDir, "app/dto/create-post.dto.ts");
+        expect(await fs.pathExists(filePath)).toBe(true);
+
+        const content = await fs.readFile(filePath, "utf-8");
+        expect(content).toContain("export class CreatePostDto");
+    });
+
+    it("accepts a name that already includes the Dto suffix without doubling it", async () => {
+        await new GenerateCommand(tmpDir).generateDto("CreatePostDto");
+
+        const filePath = path.join(tmpDir, "app/dto/create-post.dto.ts");
+        const content = await fs.readFile(filePath, "utf-8");
+        expect(content).toContain("export class CreatePostDto");
+        expect(content).not.toContain("CreatePostDtoDto");
+    });
+});
+
+describe("GenerateCommand — factory", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "nyala-generate-factory-"));
+    });
+
+    afterEach(async () => {
+        await fs.remove(tmpDir);
+    });
+
+    it("writes a factory that imports and calls @faker-js/faker, not an empty TODO stub", async () => {
+        await new GenerateCommand(tmpDir).generateFactory("User");
+
+        // baseDir: "database" — this used to be folder: "../../database/factories"
+        // (relative to app/), which actually escaped one level ABOVE `tmpDir`
+        // itself (path.join normalizes ".." against the full path before
+        // concatenation), landing outside the project entirely. Regression
+        // test for that: the file must land inside tmpDir, not above it.
+        const filePath = path.join(tmpDir, "database/factories/user.factory.ts");
+        expect(await fs.pathExists(filePath)).toBe(true);
+
+        const content = await fs.readFile(filePath, "utf-8");
+        expect(content).toContain('import { faker } from "@faker-js/faker"');
+        expect(content).toContain("faker.");
+        expect(content).not.toContain("TODO: define default attributes");
+        expect(content).toContain("export class UserFactory");
+    });
+});
+
+describe("GenerateCommand — seeder", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "nyala-generate-seeder-"));
+    });
+
+    afterEach(async () => {
+        await fs.remove(tmpDir);
+    });
+
+    it("writes database/seeders/<name>.seeder.ts inside the project, not above it (same path-escape bug as factory)", async () => {
+        await new GenerateCommand(tmpDir).generateSeeder("Post");
+
+        const filePath = path.join(tmpDir, "database/seeders/post.seeder.ts");
+        expect(await fs.pathExists(filePath)).toBe(true);
+    });
+});

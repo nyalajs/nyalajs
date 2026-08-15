@@ -10,6 +10,16 @@ interface ArtifactSpec {
     folder: string;
     suffix: string;
     template: (className: string, name: string) => string;
+    /**
+     * Directory the artifact is written under, relative to the project
+     * root. Defaults to "app" (the overwhelming majority of artifact
+     * types). Migrations/seeders/factories live under database/ instead —
+     * they used to fake this with folder: "../../database/...", but
+     * path.join(cwd, "app", "../../database/...") normalizes BEFORE
+     * concatenation, so it actually escaped one level above `cwd` itself,
+     * not just above app/. Use this field instead of a folder escape hack.
+     */
+    baseDir?: string;
 }
 
 /**
@@ -199,13 +209,15 @@ export class GenerateCommand {
         },
         seeder: {
             label: "seeder",
-            folder: "../../database/seeders",
+            baseDir: "database",
+            folder: "seeders",
             suffix: "Seeder",
             template: (className) => this.getSeederTemplate(className),
         },
         factory: {
             label: "factory",
-            folder: "../../database/factories",
+            baseDir: "database",
+            folder: "factories",
             suffix: "Factory",
             template: (className, name) => this.getFactoryTemplate(className, name),
         },
@@ -239,14 +251,15 @@ export class GenerateCommand {
         const spinner = ora(`Generating ${spec.label}: ${name}`).start();
         try {
             const { className, fileName } = this.normalizeName(name, spec.suffix);
-            const artifactPath = path.join(this.cwd, "app", spec.folder, `${fileName}.${spec.label}.ts`);
+            const baseDir = spec.baseDir ?? "app";
+            const artifactPath = path.join(this.cwd, baseDir, spec.folder, `${fileName}.${spec.label}.ts`);
 
             await fs.ensureDir(path.dirname(artifactPath));
             await fs.writeFile(artifactPath, spec.template(className, fileName));
 
             spinner.succeed(`Successfully generated ${spec.label}: ${name}`);
             console.log(chalk.green(`\nCreated file:`));
-            console.log(chalk.cyan(`  app/${spec.folder}/${fileName}.${spec.label}.ts`));
+            console.log(chalk.cyan(`  ${baseDir}/${spec.folder}/${fileName}.${spec.label}.ts`));
         } catch (error) {
             spinner.fail(`Failed to generate ${spec.label}`);
             console.error(error);
@@ -593,18 +606,26 @@ export default class ${className} extends Seeder {
 
     private getFactoryTemplate(className: string, name: string): string {
         const modelName = toPascalCase(name);
-        return `import { Factory } from "@nyalajs/database";
+        return `import { faker } from "@faker-js/faker";
+import { Factory } from "@nyalajs/database";
 // import { ${modelName} } from "../../app/models/${toKebabCase(name)}";
 
+/**
+ * ${className}
+ *
+ * Generates fake ${modelName} instances for seeders and tests — see
+ * @faker-js/faker's docs (https://fakerjs.dev/api/) for every field type
+ * available beyond the examples below. Requires @faker-js/faker as a
+ * devDependency (already in every starter template's package.json).
+ */
 export class ${className} extends Factory<any /* ${modelName} */> {
     model = Object as any; // TODO: replace with ${modelName}
 
-    /**
-     * Define the model's default state.
-     */
     definition(): any /* Partial<${modelName}> */ {
         return {
-            // TODO: define default attributes
+            // Delete/replace with real ${modelName} fields:
+            id: faker.string.uuid(),
+            createdAt: faker.date.recent(),
         };
     }
 }
@@ -612,8 +633,17 @@ export class ${className} extends Factory<any /* ${modelName} */> {
     }
 
     private getDtoTemplate(className: string): string {
-        return `export class ${className} {
-    // TODO: Define your data transfer object properties
+        return `/**
+ * ${className}
+ *
+ * Data Transfer Object — the shape a request body is expected to have once
+ * it's been validated (see @nyalajs/validation's @ValidateBody() and a
+ * matching Zod schema in app/validators/). Add fields below; "!" marks a
+ * required field, "?" an optional one — see app/dto/ in the starter
+ * templates for real examples.
+ */
+export class ${className} {
+    // id!: string;
 }
 `;
     }

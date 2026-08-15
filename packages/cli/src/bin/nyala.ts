@@ -9,6 +9,7 @@ import { GenerateCommand } from "../commands/generate.command";
 import { ValidateCommand } from "../commands/validate.command";
 import { MigrateCommand } from "../commands/migrate.command";
 import { SeedCommand } from "../commands/seed.command";
+import { DiffCommand } from "../commands/diff.command";
 import { BuildIslandsCommand } from "../commands/build-islands.command";
 import { ViteDevCommand } from "../commands/vite-dev.command";
 import { ViteBuildCommand } from "../commands/vite-build.command";
@@ -86,6 +87,13 @@ generate
     .description("Generate a new request DTO in app/requests")
     .action(async (name) => {
         await new GenerateCommand().generateRequest(name);
+    });
+
+generate
+    .command("dto <name>")
+    .description("Generate a new DTO in app/dto")
+    .action(async (name) => {
+        await new GenerateCommand().generateDto(name);
     });
 
 generate
@@ -235,6 +243,15 @@ program
     .action(async (options) => {
         const command = new SeedCommand();
         await command.handle({ class: options.class });
+    });
+
+program
+    .command("db:diff [name]")
+    .description("Generate a migration from the diff between app/models and the last migration (via drizzle-kit)")
+    .option("--schema <path>", "Path to your schema file/folder", "app/models/index.ts")
+    .action(async (name, options) => {
+        const command = new DiffCommand();
+        await command.handle(name, { schema: options.schema });
     });
 
 program
