@@ -11,8 +11,21 @@ export default {
     theme: {
         container: {
             center: true,
-            padding: "2rem",
+            // Tailwind's container corePlugin reads container.screens
+            // *instead of* theme.screens when present, so a padding key not
+            // in this (deliberately narrowed, shadcn-default) screens set
+            // is silently dropped rather than falling back to theme.screens
+            // — verified against node_modules/tailwindcss/lib/corePlugins.js.
+            // Every padding breakpoint used below must have a matching entry
+            // here.
+            padding: {
+                DEFAULT: "1rem",
+                sm: "1.5rem",
+                lg: "2rem",
+            },
             screens: {
+                sm: "640px",
+                lg: "1024px",
                 "2xl": "1400px",
             },
         },

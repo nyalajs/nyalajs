@@ -74,7 +74,7 @@ export default function Create() {
                             </Label>
                         </div>
                     </CardContent>
-                    <CardFooter className="justify-end gap-2">
+                    <CardFooter className="flex-wrap justify-end gap-2">
                         <Button type="button" variant="outline" asChild>
                             <Link href="/posts">Cancel</Link>
                         </Button>

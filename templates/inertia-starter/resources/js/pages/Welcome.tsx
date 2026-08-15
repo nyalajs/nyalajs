@@ -63,14 +63,17 @@ export default function Welcome() {
             <Head title="Welcome" />
 
             <header className="border-b">
-                <div className="container flex h-16 items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                        <span className="font-semibold">Nyala Inertia Starter</span>
+                <div className="container flex h-16 items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+                        <span className="truncate font-semibold">
+                            <span className="sm:hidden">Nyala Starter</span>
+                            <span className="hidden sm:inline">Nyala Inertia Starter</span>
+                        </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                         {user ? (
-                            <Button asChild>
+                            <Button asChild size="sm" className="sm:h-10 sm:px-4 sm:py-2 sm:text-sm">
                                 <Link href="/dashboard">
                                     Dashboard
                                     <ArrowRight className="h-4 w-4" />
@@ -78,10 +81,10 @@ export default function Welcome() {
                             </Button>
                         ) : (
                             <>
-                                <Button asChild variant="ghost">
+                                <Button asChild variant="ghost" size="sm" className="sm:h-10 sm:px-4 sm:py-2 sm:text-sm">
                                     <Link href="/login">Log in</Link>
                                 </Button>
-                                <Button asChild>
+                                <Button asChild size="sm" className="sm:h-10 sm:px-4 sm:py-2 sm:text-sm">
                                     <Link href="/register">Get started</Link>
                                 </Button>
                             </>
