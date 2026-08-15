@@ -1,51 +1,61 @@
 # Security
 
-Security utilities and best practices.
+Security utilities API reference, from `@nyalajs/security` and `@nyalajs/http`. For guard usage patterns and full examples, see [Authentication](../features/authentication) and [Authorization](../features/authorization).
 
-## Authentication
+## `JwtStrategy`
 
-### JWT Service
+Signs and verifies JWTs — not a service you call `.verify()`/`.generateToken()` on; the real methods are `sign()` and `authenticate()`:
 
 ```typescript
-import { JwtService } from '@nyalajs/jwt';
+import { Injectable } from '@nyalajs/core';
+import { JwtStrategy } from '@nyalajs/security';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(private jwtStrategy: JwtStrategy) {}
 
-  generateToken(payload: any) {
-    return this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '15m',
-    });
+  generateToken(userId: string) {
+    return this.jwtStrategy.sign({ sub: userId });
   }
 
-  verifyToken(token: string) {
-    return this.jwtService.verify(token, {
-      secret: process.env.JWT_SECRET,
-    });
+  async verifyToken(token: string) {
+    // Returns UserIdentity | null — never throws for an invalid/expired token.
+    return this.jwtStrategy.authenticate(token);
   }
 }
 ```
 
-### Password Hashing
+`JwtStrategy` itself is constructed with `{ secret, expiresIn?, issuer?, audience? }` — see [Authentication](../features/authentication) for how it's registered as a provider (typically via a `useFactory` reading `JWT_SECRET` from config).
+
+## `HashingService`
+
+Bcrypt-backed password hashing:
 
 ```typescript
-import { hash, compare } from '@nyalajs/crypto';
+import { Injectable } from '@nyalajs/core';
+import { HashingService } from '@nyalajs/security';
 
-// Hash password
-const hashedPassword = await hash('plain-password', 10);
+@Injectable()
+export class AuthService {
+  constructor(private hashing: HashingService) {}
 
-// Compare password
-const isValid = await compare('plain-password', hashedPassword);
+  async hashPassword(plain: string) {
+    return this.hashing.hash(plain);
+  }
+
+  async checkPassword(plain: string, hashed: string) {
+    return this.hashing.compare(plain, hashed);
+  }
+}
 ```
 
-## Authorization
+## Guards: `AuthGuard`, `RolesGuard`, `PolicyGuard`
 
-### Role-Based Access Control
+All three implement the real `Guard` interface (`@nyalajs/http`) — `canActivate(context: ExecutionContext): boolean | Promise<boolean>`, reading `context.request` directly (there's no `context.switchToHttp()`, that's a different framework's API):
 
 ```typescript
-import { Roles, RolesGuard } from '@nyalajs/auth';
+import { Controller, Get, Delete, UseGuards } from '@nyalajs/core';
+import { AuthGuard, RolesGuard, Roles } from '@nyalajs/security';
 
 @Controller('/admin')
 @UseGuards(AuthGuard, RolesGuard)
@@ -56,111 +66,67 @@ export class AdminController {
 
   @Delete('/users/:id')
   @Roles('admin', 'moderator')
-  async deleteUser() {}
+  async deleteUser(@Param('id') id: string) {}
 }
 ```
 
-### Custom Guards
+Every class passed to `@UseGuards()` must also be registered in the module's `providers` array — see [Authorization](../features/authorization) for why, and the `nyala doctor` check (`guard-providers-registered`) that catches it if you forget.
+
+### Writing a Custom Guard
 
 ```typescript
-import { CanActivate, ExecutionContext } from '@nyalajs/core';
+import { Injectable } from '@nyalajs/core';
+import { Guard, ExecutionContext } from '@nyalajs/http';
 
 @Injectable()
-export class OwnershipGuard implements CanActivate {
+export class OwnershipGuard implements Guard {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    const resourceId = request.params.id;
+    const user = context.context.metadata.get('user');
+    const resourceId = context.request.params.id;
 
     const resource = await this.getResource(resourceId);
-    return resource.ownerId === user.id;
+    return resource.ownerId === user?.userId;
   }
+
+  private async getResource(id: string) { /* ... */ }
 }
 ```
 
-## CSRF Protection
+## CSRF, Helmet, CORS, Rate Limiting
+
+These are not middleware you import and call `app.use()` on — they're built into `FastifyAdapter` and enabled by default, configured via options passed to it in `bootstrap/main.ts`:
 
 ```typescript
-import { csrf } from '@nyalajs/security';
-
-// Enable CSRF
-app.use(csrf({
-  cookie: true,
-}));
-
-// Get token in template
-<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+const httpAdapter = new FastifyAdapter(app.getKernel().getContainer(), {
+  helmet: true,        // default: true — sets security headers via @fastify/helmet
+  csrf: true,           // default: true — @fastify/csrf-protection, paired with sessions
+  cors: true,
+  corsOrigin: ['https://example.com'],
+  rateLimit: true,      // default: true — @fastify/rate-limit, Redis-backed when REDIS_URL is set
+  session: true,         // required for csrf to have something to bind tokens to
+});
 ```
 
-## XSS Protection
-
-```typescript
-import { helmet } from '@nyalajs/security';
-
-// Enable security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-    },
-  },
-}));
-```
+There's no separate `@nyalajs/throttler` package or `@Throttle()` decorator — rate limiting is global (per-IP, via `RATE_LIMIT_MAX`/`RATE_LIMIT_WINDOW_MS` env vars), not configured per-route. See [`FastifyAdapterOptions`](./http) for the complete option list, including CSP directive customization.
 
 ## SQL Injection Prevention
 
-Always use parameterized queries:
+Always use parameterized queries — Drizzle's query builder does this by default:
 
 ```typescript
-// ✅ Good: Parameterized query
-const user = await db
-  .select()
-  .from(users)
-  .where(eq(users.email, email));
+// ✅ Good: parameterized
+const user = await db.select().from(users).where(eq(users.email, email));
 
-// ❌ Bad: String concatenation
-const user = await db.execute(
-  sql`SELECT * FROM users WHERE email = '${email}'`
-);
-```
-
-## Secrets Management
-
-```typescript
-import { SecretService } from '@nyalajs/secrets';
-
-@Injectable()
-export class ConfigService {
-  constructor(private secrets: SecretService) {}
-
-  async getDatabasePassword() {
-    return this.secrets.get('DATABASE_PASSWORD');
-  }
-}
-```
-
-## Rate Limiting
-
-```typescript
-import { ThrottlerGuard } from '@nyalajs/throttler';
-
-@Controller('/api')
-@UseGuards(ThrottlerGuard)
-export class ApiController {
-  // Limited to 10 requests per minute
-  @Get('/data')
-  @Throttle(10, 60)
-  async getData() {}
-}
+// ❌ Bad: string concatenation, even via sql`` — never interpolate directly
+const user = await db.execute(sql`SELECT * FROM users WHERE email = '${email}'`);
 ```
 
 ## Input Validation
 
-Always validate user input:
-
 ```typescript
 import { z } from 'zod';
+import { Post, Body } from '@nyalajs/core';
+import { UseValidation } from '@nyalajs/validation';
 
 const CreateUserValidator = z.object({
   email: z.string().email(),
@@ -173,46 +139,29 @@ const CreateUserValidator = z.object({
 async create(@Body() dto: CreateUserDto) {}
 ```
 
+## Secrets
+
+There is no `@nyalajs/secrets`/`SecretService` package — secrets are read from environment variables via `ConfigService` (`@nyalajs/config`), loaded from `.env` files. See [Configuration](../configuration) for the real mechanism; there's currently no built-in integration with an external secrets manager (Vault, AWS Secrets Manager, etc.) beyond `.env`.
+
 ## Encryption
 
-```typescript
-import { encrypt, decrypt } from '@nyalajs/crypto';
-
-// Encrypt sensitive data
-const encrypted = encrypt('sensitive-data', process.env.ENCRYPTION_KEY);
-
-// Decrypt
-const decrypted = decrypt(encrypted, process.env.ENCRYPTION_KEY);
-```
-
-## Security Headers
-
-```typescript
-// Add security headers
-app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  next();
-});
-```
+There is no `@nyalajs/crypto` package with `encrypt()`/`decrypt()` helpers. For encryption needs beyond password hashing (which `HashingService` covers), use Node's built-in `crypto` module directly.
 
 ## Best Practices
 
-1. **Never store plain passwords**
+1. **Never store plain passwords** — always hash with `HashingService`
 2. **Use HTTPS in production**
-3. **Validate all inputs**
-4. **Use parameterized queries**
-5. **Implement rate limiting**
+3. **Validate all inputs** with `@UseValidation()`
+4. **Use parameterized queries** (Drizzle does this by default — never hand-interpolate into `sql\`\``)
+5. **Keep `helmet`/`csrf`/`rateLimit` enabled** in `FastifyAdapterOptions` (all default to `true`)
 6. **Keep dependencies updated**
-7. **Use security headers**
-8. **Implement CSRF protection**
-9. **Log security events**
-10. **Regular security audits**
+7. **Register every guard/interceptor/filter class as a provider** — see [Authorization](../features/authorization)
+8. **Use audit logging** (`@nyalajs/audit`) for security-relevant events
+9. **Regular security audits** of dependencies
 
 ## Next Steps
 
 - [Authentication](../features/authentication) - Auth implementation
 - [Authorization](../features/authorization) - Access control
 - [Validation](../features/validation) - Input validation
+- [HTTP](./http) - `FastifyAdapterOptions` reference

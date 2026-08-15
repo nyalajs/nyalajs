@@ -94,13 +94,15 @@ async remove(@Param('id') id: string) {}
 
 #### @UseGuards(...guards)
 
-Apply guards to protect routes.
+Apply guards to protect routes. Every guard listed here must also be in the module's `providers` array (see [@Module(options)](#module-options) above) — `@UseGuards()` only records which classes to run; a guard missing from `providers` resolves fine at boot but throws `Provider not found` the first time a request reaches that route.
 
 ```typescript
 @Get('/profile')
 @UseGuards(AuthGuard, RolesGuard)
 async getProfile() {}
 ```
+
+Same rule applies to `@UseInterceptors()` and `@UseFilters()` below.
 
 #### @UseValidation(schema, target?)
 

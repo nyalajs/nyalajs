@@ -69,6 +69,18 @@ export class AuthController {
 }
 ```
 
+`AuthGuard` (and any other guard/interceptor/filter you use with `@UseGuards()`/`@UseInterceptors()`/`@UseFilters()`) has to be listed in the module's `providers` array too — the decorator only records which class to run; the DI container still resolves an actual instance of it per request:
+
+```typescript
+@Module({
+  providers: [AuthGuard, AuthService, /* ... */],
+  controllers: [AuthController],
+})
+export class AppModule {}
+```
+
+Forgetting this doesn't fail at boot — the first request to a guarded route throws `Provider not found`. `nyala doctor`'s `guard-providers-registered` check flags this before it reaches production.
+
 ## Auth Service
 
 ```typescript

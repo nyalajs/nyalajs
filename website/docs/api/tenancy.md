@@ -1,218 +1,128 @@
 # Tenancy API
 
-Multi-tenancy API reference.
+Multi-tenancy API reference. For the full setup walkthrough, see [Multi-Tenancy Setup](../multi-tenancy/setup) — this page is the quick per-symbol reference.
 
-## Tenant Context
+## `TenantContext`
 
-Access current tenant information.
+`TenantContext` (from `@nyalajs/core`, not `@nyalajs/tenancy`) is a static, `AsyncLocalStorage`-backed class — not something you inject. `TenantMiddleware` calls `TenantContext.set(tenantId)` once per request after resolving the tenant; everything downstream reads it with `TenantContext.get()`.
 
 ```typescript
-import { TenantContext } from '@nyalajs/tenancy';
+import { Injectable } from '@nyalajs/core';
+import { TenantContext } from '@nyalajs/core';
 
 @Injectable()
 export class UsersService {
-  constructor(private tenantContext: TenantContext) {}
-
-  getCurrentTenant() {
-    return this.tenantContext.getCurrentTenantId();
-  }
-
-  getTenantData() {
-    return this.tenantContext.getTenant();
+  getCurrentTenantId(): string | undefined {
+    return TenantContext.get();
   }
 }
 ```
 
-## Tenant Repository
+`TenantContext.get()` returns `undefined` if no tenant is active for the current request — there's no `getTenant()` returning a full `Tenant` object; if you need more than the ID, look it up yourself (e.g. via a `TenantRepository`-based repository over the `Tenant` model — see [Shared (Non-Tenant-Scoped) Data](#shared-non-tenant-scoped-data) below for why that model isn't itself tenant-scoped).
 
-Base repository with automatic tenant filtering.
+## `TenantRepository`
+
+Abstract base for tenant-scoped repositories, backed by `@nyalajs/database`'s `Model` (not raw Drizzle tables) — every method delegates to `Model`'s static methods, which already enforce tenant scoping and fail closed when no tenant is active.
 
 ```typescript
+import { Injectable } from '@nyalajs/core';
 import { TenantRepository } from '@nyalajs/tenancy';
+import { Table, Primary, Column, StringColumn } from '@nyalajs/database';
+import { Model } from '@nyalajs/database';
+
+@Table('invoices')
+class Invoice extends Model {
+  @Primary() @StringColumn() id!: string;
+  @Column({ name: 'tenant_id' }) tenantId!: string;
+}
 
 @Injectable()
-export class UsersRepository extends TenantRepository<User> {
-  constructor(tenantContext: TenantContext) {
-    super(users, tenantContext);
-  }
-
-  // All queries automatically filtered by tenant
-  async findByEmail(email: string) {
-    return this.findOne(eq(users.email, email));
-  }
+export class InvoiceRepository extends TenantRepository<Invoice> {
+  protected readonly model = Invoice;
 }
 ```
 
-## Tenant Middleware
+`model` is a class property, not a constructor argument — `TenantRepository` has no constructor of its own to pass a table/context into. Some starter templates (`saas-starter`, `helpdesk-saas`) instead use a hand-rolled `BaseRepository` over raw Drizzle tables that reads `TenantContext` directly; see [Multi-Tenancy Setup](../multi-tenancy/setup#alternative-a-hand-rolled-tenant-aware-repository) for that pattern and when it's used instead of `Model`/`TenantRepository`.
 
-Extract tenant from requests.
+## `TenantMiddleware`
+
+Resolves the tenant for the current request and publishes it via `TenantContext`. Configured with two DI tokens, not a `MiddlewareConsumer.forRoutes()` call (Nyala doesn't have that API) — it's registered globally like any other `Middleware`:
 
 ```typescript
-import { TenantMiddleware } from '@nyalajs/tenancy';
+import { Module } from '@nyalajs/core';
+import { TenantMiddleware, JwtTenantResolver, SubdomainTenantResolver } from '@nyalajs/tenancy';
 
-@Module({})
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(TenantMiddleware)
-      .forRoutes('*');
-  }
+@Module({
+  providers: [
+    JwtTenantResolver,
+    SubdomainTenantResolver,
+    {
+      provide: 'TENANT_RESOLVERS',
+      useFactory: (jwt: JwtTenantResolver, subdomain: SubdomainTenantResolver) => [jwt, subdomain],
+      inject: [JwtTenantResolver, SubdomainTenantResolver],
+    },
+    { provide: 'TENANT_REQUIRED', useValue: false },
+    TenantMiddleware,
+  ],
+})
+export class AppModule {}
+```
+
+Then register it as global middleware in `config/middleware.ts` — see [Multi-Tenancy Setup](../multi-tenancy/setup) for the complete wiring, including where the middleware actually gets attached to the request pipeline.
+
+There is no `TenantGuard` and no `@CurrentTenant()` decorator — tenant enforcement happens at the repository/`Model` layer (fail-closed on `TenantContext.get()` being empty), not via a separate guard on the controller.
+
+## `TenantResolver`
+
+The interface every resolver in `TENANT_RESOLVERS` implements:
+
+```typescript
+export interface TenantResolver {
+  resolve(request: any): Promise<string | undefined>;
 }
 ```
 
-## Tenant Guard
-
-Protect routes requiring tenant context.
+`resolve()` returns `undefined` (not a rejected promise) when it can't determine a tenant from this request — `TenantMiddleware` tries each resolver in `TENANT_RESOLVERS` order until one returns a value. A custom resolver looks like:
 
 ```typescript
-import { TenantGuard } from '@nyalajs/tenancy';
-
-@Controller('/api')
-@UseGuards(TenantGuard)
-export class ApiController {
-  // Requires valid tenant
-}
-```
-
-## Tenant Decorator
-
-Get current tenant in controllers.
-
-```typescript
-import { CurrentTenant } from '@nyalajs/tenancy';
-
-@Get('/settings')
-async getSettings(@CurrentTenant() tenant: Tenant) {
-  return tenant;
-}
-```
-
-## Tenant Resolution
-
-Configure how tenants are resolved.
-
-```typescript
+import { Injectable } from '@nyalajs/core';
 import { TenantResolver } from '@nyalajs/tenancy';
 
 @Injectable()
-export class CustomTenantResolver implements TenantResolver {
-  async resolve(request: Request): Promise<string> {
-    // Header-based
-    const tenantId = request.headers['x-tenant-id'];
-    if (tenantId) return tenantId;
-
-    // Subdomain-based
-    const subdomain = request.hostname.split('.')[0];
-    const tenant = await this.findBySlug(subdomain);
-    if (tenant) return tenant.id;
-
-    // JWT-based
-    const token = extractToken(request);
-    const payload = verifyToken(token);
-    return payload.tenantId;
+export class HeaderTenantResolver implements TenantResolver {
+  async resolve(request: any): Promise<string | undefined> {
+    return request.headers['x-tenant-id'];
   }
 }
 ```
 
-## Shared Resources
+The framework ships `JwtTenantResolver`, `SubdomainTenantResolver`, and `HeaderTenantResolver` already — write a custom one only for a resolution strategy those don't cover.
 
-Resources accessible across all tenants.
+## Shared (Non-Tenant-Scoped) Data
+
+`Model`'s tenant enforcement is determined by the model itself, not by a flag on `TenantRepository`: `Model` checks whether the underlying table declares a `tenantId` column (`packages/database/src/model.ts`) — if it doesn't, that model's queries are never tenant-filtered, active `TenantContext` or not. So a genuinely cross-tenant resource (subscription plans, the `Tenant` model itself) is just a `Model` with no `tenantId` column:
 
 ```typescript
-import { BaseRepository } from '@nyalajs/core';
+import { Table, Primary, Column, StringColumn } from '@nyalajs/database';
+import { Model } from '@nyalajs/database';
 
-@Injectable()
-export class PlansRepository extends BaseRepository<Plan> {
-  constructor() {
-    super(plans);
-    // No tenant context - shared across tenants
-  }
+@Table('plans')
+class Plan extends Model {
+  @Primary() @StringColumn() id!: string;
+  @Column() name!: string;
+  // no tenantId column — this model is never tenant-scoped
 }
 ```
 
-## Tenant Switching
+`TenantRepository<Plan>` (or `TenantRepository<Tenant>`, for managing tenants themselves) works the same way as any other `TenantRepository` subclass — there's no separate constructor flag to opt out, because the model's own shape already determines whether `Model` enforces scoping.
 
-Switch tenant context (admin feature).
+## Cross-Tenant Enforcement
 
-```typescript
-@Injectable()
-export class AdminService {
-  constructor(private tenantContext: TenantContext) {}
-
-  async switchTenant(tenantId: string) {
-    this.tenantContext.setTenantId(tenantId);
-  }
-}
-```
-
-## Cross-Tenant Queries
-
-Bypass tenant filtering (use carefully).
-
-```typescript
-@Injectable()
-export class AdminRepository extends TenantRepository<User> {
-  async findAcrossAllTenants(email: string) {
-    // Bypass tenant filter
-    return db
-      .select()
-      .from(users)
-      .where(eq(users.email, email));
-  }
-}
-```
-
-## Tenant Isolation
-
-Ensure data isolation.
-
-```typescript
-// Add tenant check in services
-@Injectable()
-export class OrdersService {
-  async findById(id: string) {
-    const order = await this.repo.findById(id);
-
-    if (!order) {
-      throw new NotFoundException();
-    }
-
-    // Verify tenant ownership
-    const currentTenant = this.tenantContext.getCurrentTenantId();
-    if (order.tenantId !== currentTenant) {
-      throw new NotFoundException(); // Don't reveal it exists
-    }
-
-    return order;
-  }
-}
-```
-
-## Tenant Events
-
-Listen to tenant-related events.
-
-```typescript
-import { OnTenantCreate, OnTenantDelete } from '@nyalajs/tenancy';
-
-@Injectable()
-export class TenantListener {
-  @OnTenantCreate()
-  async handleTenantCreated(tenant: Tenant) {
-    // Initialize tenant resources
-    await this.createDefaultData(tenant.id);
-  }
-
-  @OnTenantDelete()
-  async handleTenantDeleted(tenantId: string) {
-    // Cleanup tenant resources
-    await this.cleanupData(tenantId);
-  }
-}
-```
+There's no built-in "switch tenant" API and no `OnTenantCreate()`/`OnTenantDelete()` event decorators. The isolation guarantee is intentionally narrow: any `Model` that declares a `tenantId` column is always scoped to `TenantContext.get()`, and fails closed (throws) rather than returning unscoped data when no tenant is active — see [Data Isolation](../multi-tenancy/isolation) for the exact mechanism. There's no supported way to bypass this on a tenant-scoped model from inside a request; genuine cross-tenant work (an admin panel, a background job iterating every tenant) should run each tenant's portion inside its own `TenantContext.run()` scope instead of trying to disable scoping.
 
 ## Next Steps
 
 - [Multi-Tenancy Overview](../multi-tenancy/overview) - Concepts
 - [Setup](../multi-tenancy/setup) - Implementation
+- [Data Isolation](../multi-tenancy/isolation) - How the fail-closed guarantee works
 - [Best Practices](../multi-tenancy/best-practices) - Guidelines

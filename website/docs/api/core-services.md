@@ -1,70 +1,76 @@
 # Core Services
 
-Built-in services provided by Nyala framework.
+Built-in services shipped across `@nyalajs/*` packages, with their real method signatures. Every class name and method below is taken directly from source — see each linked feature page for full usage patterns and examples.
 
-## Configuration Service
-
-Access application configuration.
+## `ConfigService` (`@nyalajs/config`)
 
 ```typescript
 @Injectable()
 export class ConfigService {
-  get<T>(key: string, defaultValue?: T): T;
-  getNumber(key: string, defaultValue?: number): number;
-  getBoolean(key: string, defaultValue?: boolean): boolean;
+  load(namespace: string, values: Record<string, any>): void;
+  get<T = any>(key: string, defaultValue?: T): T;
+  getOrThrow<T = any>(key: string): T;
+  getNamespace<T = Record<string, any>>(namespace: string): T;
+  getAll(): Record<string, any>;
 }
+```
 
-// Usage
+There's no `getNumber()`/`getBoolean()` — `get()` returns whatever type `T` you ask for; env values loaded via `.env` are strings unless you coerce them yourself (e.g. `Number(config.get('PORT', '3000'))`).
+
+```typescript
 @Injectable()
 export class AppService {
   constructor(private config: ConfigService) {}
 
   getPort() {
-    return this.config.getNumber('PORT', 3000);
+    return Number(this.config.get('server.port', 3000));
   }
 }
 ```
 
-## Logger Service
+## `Logger` (`@nyalajs/observability`)
 
-Application logging.
+Pino-backed structured logging — the class is `Logger`, not `LoggerService`, and its methods are `debug`/`info`/`warn`/`error`, not Nest-style `log()`/`verbose()`:
 
 ```typescript
 @Injectable()
-export class LoggerService {
-  log(message: string, context?: string): void;
-  error(message: string, trace?: string, context?: string): void;
-  warn(message: string, context?: string): void;
-  debug(message: string, context?: string): void;
-  verbose(message: string, context?: string): void;
+export class Logger {
+  debug(message: string, metadata?: Record<string, any>): void;
+  info(message: string, metadata?: Record<string, any>): void;
+  warn(message: string, metadata?: Record<string, any>): void;
+  error(message: string, error?: Error, metadata?: Record<string, any>): void;
+  child(bindings: Record<string, any>): Logger;
 }
+```
 
-// Usage
+Every call automatically picks up `requestId`/`traceId`/`tenantId`/`userId` from the current request's `LogContext` — see [Logging](../features/logging) for how that correlation works and why you rarely need `child()` for per-request context.
+
+```typescript
 @Injectable()
 export class UsersService {
-  constructor(private logger: LoggerService) {}
+  constructor(private logger: Logger) {}
 
   async create(dto: CreateUserDto) {
-    this.logger.log('Creating user', 'UsersService');
+    this.logger.info('Creating user', { email: dto.email });
     // ...
   }
 }
 ```
 
-## Event Emitter
+## `EventEmitter` (`@nyalajs/events`)
 
-Emit and listen to application events.
+In-process pub-sub — `on`/`off`/`emit` are real; there's no `once()`. `emit()` fires listeners asynchronously without waiting for them; use `emitSync()` to await every listener before returning:
 
 ```typescript
-@Injectable()
 export class EventEmitter {
-  emit(event: string, data: any): void;
-  on(event: string, handler: Function): void;
-  once(event: string, handler: Function): void;
-  off(event: string, handler: Function): void;
+  on<T>(event: string, handler: (payload: T) => void | Promise<void>): void;
+  off<T>(event: string, handler: (payload: T) => void | Promise<void>): void;
+  emit<T>(event: string, payload: T): void;
+  emitSync<T>(event: string, payload: T): Promise<void>;
 }
+```
 
-// Emit events
+```typescript
 @Injectable()
 export class OrdersService {
   constructor(private events: EventEmitter) {}
@@ -76,7 +82,6 @@ export class OrdersService {
   }
 }
 
-// Listen to events
 @Injectable()
 export class EmailService {
   constructor(private events: EventEmitter) {
@@ -84,126 +89,81 @@ export class EmailService {
   }
 
   private async sendOrderEmail(order: Order) {
-    // Send email
+    // ...
   }
 }
 ```
 
-## Cache Service
+There's also a decorator-based `EventBus` (`@nyalajs/events`) for class-method event listeners — see the package source (`packages/events/src/event-bus.ts`) if you need that instead of manual `on()`/`off()` wiring.
 
-Application caching.
+## `CacheService` (`@nyalajs/cache`)
+
+Redis-backed with an automatic in-memory fallback when no `REDIS_URL` is configured:
 
 ```typescript
 @Injectable()
 export class CacheService {
-  async get<T>(key: string): Promise<T | null>;
-  async set(key: string, value: any, ttl?: number): Promise<void>;
-  async delete(key: string): Promise<void>;
-  async clear(): Promise<void>;
-  async has(key: string): Promise<boolean>;
+  connect(config?: CacheConfig): Promise<void>;
+  get<T = unknown>(key: string): Promise<T | null>;
+  set<T = unknown>(key: string, value: T, ttl?: number): Promise<void>;
+  forget(key: string): Promise<void>;
+  flush(): Promise<void>;
+  remember<T>(key: string, ttl: number, factory: () => Promise<T>): Promise<T>;
 }
+```
 
-// Usage
+There's no `delete()`/`clear()`/`has()` — the real names are `forget()` and `flush()`, and there's no existence check beyond `get()` returning `null`. See [Caching](../features/caching) for the full API including the `@Cacheable()`/`@CacheEvict()` decorators.
+
+```typescript
 @Injectable()
 export class ProductsService {
   constructor(private cache: CacheService) {}
 
   async findById(id: string) {
-    const cached = await this.cache.get<Product>(`product:${id}`);
-    if (cached) return cached;
-
-    const product = await this.repo.findById(id);
-    await this.cache.set(`product:${id}`, product, 3600);
-    return product;
+    return this.cache.remember(`product:${id}`, 3600, () => this.repo.findById(id));
   }
 }
 ```
 
-## HTTP Service
+## `SchedulerService` (`@nyalajs/scheduler`)
 
-Make HTTP requests.
+Cron jobs are declared with the `@Scheduled()` decorator on a provider method, not by calling `.schedule()`/`.interval()`/`.timeout()` imperatively — there's no such API:
 
 ```typescript
-@Injectable()
-export class HttpService {
-  get<T>(url: string, config?: RequestConfig): Promise<T>;
-  post<T>(url: string, data?: any, config?: RequestConfig): Promise<T>;
-  put<T>(url: string, data?: any, config?: RequestConfig): Promise<T>;
-  delete<T>(url: string, config?: RequestConfig): Promise<T>;
-}
+import { Injectable } from '@nyalajs/core';
+import { Scheduled } from '@nyalajs/scheduler';
 
-// Usage
 @Injectable()
-export class PaymentService {
-  constructor(private http: HttpService) {}
-
-  async charge(amount: number) {
-    return this.http.post('https://api.stripe.com/charges', {
-      amount,
-      currency: 'usd',
-    });
+export class TasksService {
+  @Scheduled({ cron: '0 0 * * *', name: 'nightly-cleanup' })
+  async cleanup() {
+    // Runs every day at midnight
   }
 }
 ```
 
-## Scheduler Service
+`SchedulerService` itself is the framework-internal class that scans providers for `@Scheduled()` methods and registers real `node-cron` jobs at boot — you don't call methods on it directly. It also supports an optional Redis-backed distributed lock (`SchedulerService.connect({ redisUrl })`) so a given job only runs on one replica when the app is scaled out — see the package README/source (`packages/scheduler/src/scheduler.service.ts`) for that config.
 
-Schedule tasks and cron jobs.
-
-```typescript
-@Injectable()
-export class SchedulerService {
-  schedule(name: string, cron: string, callback: Function): void;
-  interval(name: string, milliseconds: number, callback: Function): void;
-  timeout(name: string, milliseconds: number, callback: Function): void;
-  cancel(name: string): void;
-}
-
-// Usage
-@Injectable()
-export class TasksService implements OnModuleInit {
-  constructor(private scheduler: SchedulerService) {}
-
-  onModuleInit() {
-    // Run every day at midnight
-    this.scheduler.schedule('cleanup', '0 0 * * *', () => {
-      this.cleanup();
-    });
-
-    // Run every hour
-    this.scheduler.interval('health-check', 3600000, () => {
-      this.checkHealth();
-    });
-  }
-
-  private async cleanup() {
-    // Cleanup logic
-  }
-
-  private async checkHealth() {
-    // Health check logic
-  }
-}
-```
-
-## Queue Service
-
-Background job processing.
+## `QueueService` (`@nyalajs/queue`)
 
 ```typescript
 @Injectable()
 export class QueueService {
-  add(queue: string, job: string, data: any, options?: JobOptions): Promise<void>;
-  process(queue: string, handler: Function): void;
+  connect(config?: QueueConfig): Promise<void>;
+  dispatch(queueName: string, jobName: string, data?: JobPayload): Promise<void>;
+  process(queueName: string, handler: (job: { name: string; data: JobPayload }) => Promise<void>): void;
 }
+```
 
-// Usage
+The real dispatch method is `dispatch()`, not `add()`. With no `url` passed to `connect()`, jobs run in-process and non-persistently (fine for dev/tests); pass a Redis URL to get BullMQ-backed durable queues.
+
+```typescript
 @Injectable()
 export class EmailService {
   constructor(private queue: QueueService) {}
 
   async sendWelcomeEmail(email: string) {
-    await this.queue.add('emails', 'welcome', { email });
+    await this.queue.dispatch('emails', 'welcome', { email });
   }
 
   onModuleInit() {
@@ -216,8 +176,13 @@ export class EmailService {
 }
 ```
 
+## Not a Built-In Service
+
+There is no `HttpService` for making outbound HTTP requests — Nyala doesn't ship an Axios/`fetch` wrapper. Use `fetch` (built into Node 18+) or a library of your choice directly in a service.
+
 ## Next Steps
 
-- [HTTP](./http) - HTTP utilities
-- [Security](./security) - Security features
+- [HTTP](./http) - `FastifyAdapterOptions` and the real request/response model
+- [Security](./security) - Guards, hashing, JWT
+- [Caching](../features/caching) - `CacheService` in full, including decorators
 - [Services](../building-blocks/services) - Creating services

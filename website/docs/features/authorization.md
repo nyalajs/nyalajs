@@ -37,6 +37,22 @@ export class UsersController {
 
 `AuthGuard` runs first and attaches the authenticated identity to the request context. `RolesGuard` then reads that identity and checks it against the roles declared with `@Roles()` on the handler being called.
 
+> **Both guard classes must be registered as providers in the module that declares `UsersController`** — `@UseGuards()` only stores *which* guard classes to run; the DI container still has to resolve an actual instance of each one at request time. A guard class referenced by `@UseGuards()` but missing from `providers` throws `Provider not found` the first time a request actually reaches that route — not at boot, so it's easy to miss until someone hits it:
+>
+> ```typescript
+> import { Module } from '@nyalajs/core';
+> import { AuthGuard, RolesGuard } from '@nyalajs/security';
+> import { UsersController } from './users.controller';
+>
+> @Module({
+>   providers: [AuthGuard, RolesGuard, UsersService],
+>   controllers: [UsersController],
+> })
+> export class AppModule {}
+> ```
+>
+> This applies to `PolicyGuard` (below) the same way, and to any custom guard/interceptor/filter class you write yourself — `nyala doctor` has a `guard-providers-registered` check that flags a class used in `@UseGuards()`/`@UseInterceptors()`/`@UseFilters()` with no matching entry in any `providers` array, so running it after adding a new guard will catch this before it reaches production.
+
 ## Role-Based Access Control
 
 ### The `@Roles()` Decorator
@@ -220,6 +236,8 @@ export class PostsController {
 - **`PolicyClass`** — the policy to evaluate. `PolicyGuard` resolves it from the DI container if possible, falling back to a plain `new PolicyClass()` if it isn't registered as a provider.
 - **`action`** *(optional)* — which method on the policy to call. If omitted, it's derived from the HTTP verb: `GET` → `view`, `POST` → `create`, `PUT`/`PATCH` → `update`, `DELETE` → `delete`, anything else → `handle`.
 - **`resourceArg`** *(optional)* — the index of the handler argument that holds the resource being checked, used by `PolicyGuard` to pass the right value as the policy's `resource` parameter.
+
+That fallback is specific to the *policy* class named in `@UsePolicy()`. `PolicyGuard` itself has no such fallback — like `AuthGuard`/`RolesGuard`, it must be in the module's `providers` array (`providers: [AuthGuard, PolicyGuard, ...]`) or resolving it throws `Provider not found` at request time.
 
 ### `PolicyGuard`
 

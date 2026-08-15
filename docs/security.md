@@ -60,6 +60,18 @@ export class ProtectedController {
 }
 ```
 
+`AuthGuard` and `RolesGuard` must also be added to the module's `providers` array — `@UseGuards()` only records which guards to run; the container still resolves an actual instance of each one per request:
+
+```typescript
+@Module({
+  providers: [AuthGuard, RolesGuard, /* ... */],
+  controllers: [ProtectedController],
+})
+export class AppModule {}
+```
+
+A guard referenced in `@UseGuards()` but missing from `providers` doesn't fail at boot — it throws `Provider not found` the first time a request reaches that route. `nyala doctor`'s `guard-providers-registered` check catches this.
+
 ## Security Headers
 
 Nyala enables security headers by default:
@@ -93,6 +105,8 @@ export class UsersController {
   // All actions automatically logged
 }
 ```
+
+Same rule as guards: `AuditInterceptor` needs to be in the module's `providers` array too (`providers: [AuditInterceptor, /* ... */]`), or it throws `Provider not found` the first time a request hits `UsersController`.
 
 ## Production Checklist
 

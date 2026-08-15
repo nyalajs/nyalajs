@@ -156,39 +156,22 @@ export class OrderProcessor {
 
 ## Correlating Logs with Requests
 
-Every incoming request in Nyala gets a unique `requestId` and `traceId` attached to its `RequestContext` (the same identifiers used in HTTP error responses — see [Error Handling](./error-handling)). Bind a child logger with these fields inside a guard or the start of a handler to correlate every log line for a request:
+Every `Logger` call automatically picks up `requestId`/`traceId`/`tenantId`/`userId` from `LogContext` (`@nyalajs/core`) — no manual binding required. `FastifyAdapter` populates `requestId`/`traceId` in `LogContext` at the start of every request; `TenantMiddleware` and `AuthGuard` fill in `tenantId`/`userId` as they're learned further into the request lifecycle. Just inject `Logger` and call it — anywhere in the call stack for that request, even in code with no access to the request object at all:
 
 ```typescript
-import { Injectable } from '@nyalajs/core';
-import { Guard, ExecutionContext } from '@nyalajs/http';
-import { Logger } from '@nyalajs/observability';
-
 @Injectable()
-export class RequestLoggingGuard implements Guard {
+export class UsersService {
   constructor(private logger: Logger) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const { requestId, traceId } = context.context;
-
-    // Stash a request-scoped logger for handlers/services to reuse
-    context.context.metadata.set(
-      'logger',
-      this.logger.child({ requestId, traceId })
-    );
-
-    return true;
+  async findById(id: string) {
+    // requestId/traceId/tenantId/userId are all attached automatically
+    this.logger.info('Fetching user', { userId: id });
+    return this.repo.findById(id);
   }
 }
 ```
 
-```typescript
-@Get('/:id')
-async show(@Param('id') id: string, @Req() req: any) {
-  const logger = req.context?.metadata?.get('logger') ?? this.logger;
-  logger.info('Fetching user', { userId: id });
-  return this.usersService.findById(id);
-}
-```
+An explicit `metadata` field passed to a call wins over `LogContext` on a collision (e.g. deliberately overriding `requestId` in a test). `child()` still exists for adding your own extra bindings on top (a job name, a batch ID) — it's just no longer needed purely to thread request correlation through, the way the old pattern in earlier versions of this doc required.
 
 ## File Output and Rotation
 
