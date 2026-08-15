@@ -1,5 +1,23 @@
 # @nyalajs/http
 
+## 2.2.0
+
+### Minor Changes
+
+- Type-scoped exception filters, `nyala db:diff`, and CLI generator fixes.
+
+  - New `@Catch(...errorTypes)` and `@UseFilters(...filters)` decorators (`@nyalajs/core`) plus an `ExceptionFilter` interface (`@nyalajs/http`): a pluggable, type-scoped alternative to the single global `ExceptionHandler`. A filter registered via `@Catch(SomeError)` only runs for errors that are `instanceof SomeError`; anything else falls through to the framework's default error handling. Fully additive — no behavior change for routes with no `@UseFilters()`.
+  - New `nyala db:diff [name]`: generates a migration from the diff between your Drizzle models and the last migration, via `drizzle-kit generate` under the hood. Wraps the generated SQL in the existing `up(db)`/`down(db)` migration convention rather than introducing a second format.
+  - `nyala generate dto <name>` is now reachable from the CLI (the command existed on `GenerateCommand` but had no `nyala.ts` subcommand wiring it up).
+  - Fixed: `nyala generate seeder`/`nyala generate factory` were writing files one directory above the project root instead of into `database/seeders`/`database/factories`, due to a `path.join` normalization bug in how their target directory was computed.
+  - `nyala generate factory` now produces a real, faker-wired factory (imports `@faker-js/faker`, calls it in `definition()`) instead of an empty stub — every starter template gained `@faker-js/faker` as a devDependency.
+  - Every starter template's `drizzle-orm`/`drizzle-kit` versions bumped to match `@nyalajs/database`'s (`drizzle-orm@^0.45.2`, `drizzle-kit@^0.31.10`) — they previously pinned an incompatible older major version.
+
+### Patch Changes
+
+- Updated dependencies
+  - @nyalajs/core@2.2.0
+
 ## 2.1.0
 
 ### Minor Changes
