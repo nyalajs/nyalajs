@@ -25,7 +25,7 @@ export default defineConfig({
         outDir: "public/build",
         manifest: true,
         rollupOptions: {
-            input: "app/main.tsx",
+            input: "resources/js/app.tsx",
         },
         emptyOutDir: true,
         commonjsOptions: {

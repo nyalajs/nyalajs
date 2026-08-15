@@ -258,7 +258,7 @@ program
     .command("build")
     .description("Build the application for production (tsc → dist/, plus island/Vite bundles if present)")
     .option("--out-dir <dir>", "Output directory", "dist")
-    .option("--ssr", "Also build the app/ssr.tsx entry, if present (Inertia-style apps only)")
+    .option("--ssr", "Also build the resources/js/ssr.tsx entry, if present (Inertia-style apps only)")
     .action(async (options) => {
         console.log("Building Nyala application...\n");
         const result = spawnSync("npx", ["tsc", "--outDir", options.outDir, "--skipLibCheck"], {

@@ -5,23 +5,23 @@ import { InertiaPage } from "../types";
  * resolved Open Question #3) — the default `nyala dev`/`nyala build`/
  * `nyala start` never start or call this. An app that wants SSR:
  *
- *   1. Adds an `app/ssr.tsx` entry that calls @inertiajs/react/server's
+ *   1. Adds a `resources/js/ssr.tsx` entry that calls @inertiajs/react/server's
  *      createInertiaApp() with a `render` (renderToString) option — see
  *      the exact shape in @inertiajs/react's types/createInertiaApp.d.ts
  *      (InertiaAppOptionsForSSR), confirmed against the real installed
  *      package.
  *   2. Builds that entry separately (`nyala build --ssr`, or
- *      `vite build --ssr app/ssr.tsx --outDir dist/ssr`) and runs it as a
- *      long-lived Node process: `node dist/ssr/ssr.js`. That process uses
- *      @inertiajs/core/server's default export, which starts a tiny HTTP
- *      server (default port 13714) with one route worth knowing about:
+ *      `vite build --ssr resources/js/ssr.tsx --outDir dist/ssr`) and runs
+ *      it as a long-lived Node process: `node dist/ssr/ssr.js`. That process
+ *      uses @inertiajs/core/server's default export, which starts a tiny
+ *      HTTP server (default port 13714) with one route worth knowing about:
  *      `POST /render` — body is the JSON-encoded Page object, response is
  *      `{ head: string[], body: string }`.
  *   3. The Nyala backend calls renderViaSsrServer() (below) instead of
  *      html-shell.ts's client-side hydration markup when SSR is enabled,
  *      splicing the returned `head`/`body` into the HTML shell.
  *
- * Example app/ssr.tsx:
+ * Example resources/js/ssr.tsx:
  *
  *   import { createInertiaApp } from "@inertiajs/react/server";
  *   import createServer from "@inertiajs/core/server";
@@ -53,7 +53,7 @@ export interface SsrClientOptions {
 const DEFAULT_SSR_URL = "http://127.0.0.1:13714";
 
 /**
- * Calls a running `app/ssr.tsx` process's /render endpoint (started
+ * Calls a running `resources/js/ssr.tsx` process's /render endpoint (started
  * separately — see this module's doc comment) to server-render a page.
  * Returns null on any failure (SSR server not running, timeout, ...) so
  * callers can fall back to plain CSR rather than 500ing the whole request

@@ -53,10 +53,10 @@ describe("ViteBuildCommand", () => {
         expect(spawnSyncMock).toHaveBeenCalledTimes(1);
     });
 
-    it("builds app/ssr.tsx via `vite build --ssr` when --ssr is passed and the entry exists", async () => {
+    it("builds resources/js/ssr.tsx via `vite build --ssr` when --ssr is passed and the entry exists", async () => {
         await fs.writeFile(path.join(tmpDir, "vite.config.ts"), "export default {}");
-        await fs.ensureDir(path.join(tmpDir, "app"));
-        await fs.writeFile(path.join(tmpDir, "app/ssr.tsx"), "export {}");
+        await fs.ensureDir(path.join(tmpDir, "resources/js"));
+        await fs.writeFile(path.join(tmpDir, "resources/js/ssr.tsx"), "export {}");
         spawnSyncMock.mockReturnValue({ status: 0, error: undefined });
 
         await new ViteBuildCommand(tmpDir).handle({ ssr: true });
@@ -64,12 +64,12 @@ describe("ViteBuildCommand", () => {
         expect(spawnSyncMock).toHaveBeenCalledTimes(2);
         expect(spawnSyncMock).toHaveBeenLastCalledWith(
             "npx",
-            ["vite", "build", "--ssr", path.join(tmpDir, "app/ssr.tsx"), "--outDir", "dist/ssr"],
+            ["vite", "build", "--ssr", path.join(tmpDir, "resources/js/ssr.tsx"), "--outDir", "dist/ssr"],
             expect.objectContaining({ cwd: tmpDir })
         );
     });
 
-    it("skips the SSR build (without failing) when --ssr is passed but no app/ssr.tsx exists", async () => {
+    it("skips the SSR build (without failing) when --ssr is passed but no resources/js/ssr.tsx exists", async () => {
         await fs.writeFile(path.join(tmpDir, "vite.config.ts"), "export default {}");
         spawnSyncMock.mockReturnValue({ status: 0, error: undefined });
 

@@ -9,7 +9,7 @@
  * page name and resolve it.
  *
  * @example
- *   // app/main.tsx
+ *   // resources/js/app.tsx
  *   createInertiaApp({
  *     resolve: (name) =>
  *       resolvePageComponent(

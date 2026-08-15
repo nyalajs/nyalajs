@@ -57,8 +57,6 @@
         "**/*.spec.tsx",
         "**/*.test.ts",
         "**/*.test.tsx",
-        "app/main.tsx",
-        "app/pages/**/*",
-        "app/components/**/*"
+        "resources/**/*"
     ]
 }

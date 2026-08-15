@@ -5,7 +5,7 @@ import { spawnSync } from "child_process";
 
 export interface ViteBuildOptions {
     /**
-     * Also build the SSR entry (app/ssr.tsx) if one exists, via
+     * Also build the SSR entry (resources/js/ssr.tsx) if one exists, via
      * `vite build --ssr`. Off by default — SSR is opt-in per
      * docs/inertia-starter-spec.md's resolved Open Question #3, so a plain
      * `nyala build` never builds it unless asked.
@@ -22,10 +22,10 @@ export interface ViteBuildOptions {
  */
 export class ViteBuildCommand {
     /**
-     * @param cwd Project root to look for vite.config.ts/app/ssr.tsx in and
-     * run `vite build` from. Defaults to process.cwd() — constructor-
-     * injectable so tests don't need to process.chdir(), which vitest
-     * workers don't support.
+     * @param cwd Project root to look for vite.config.ts/resources/js/ssr.tsx
+     * in and run `vite build` from. Defaults to process.cwd() —
+     * constructor-injectable so tests don't need to process.chdir(), which
+     * vitest workers don't support.
      */
     constructor(private readonly cwd: string = process.cwd()) {}
 
@@ -57,7 +57,7 @@ export class ViteBuildCommand {
         if (!ssrEntry) {
             console.warn(
                 chalk.yellow(
-                    "\n--ssr was passed but no app/ssr.tsx (or .ts/.jsx/.js) entry was found — skipping SSR build."
+                    "\n--ssr was passed but no resources/js/ssr.tsx (or .ts/.jsx/.js) entry was found — skipping SSR build."
                 )
             );
             return;
@@ -78,7 +78,12 @@ export class ViteBuildCommand {
     }
 
     private async findSsrEntry(): Promise<string | null> {
-        for (const name of ["app/ssr.tsx", "app/ssr.ts", "app/ssr.jsx", "app/ssr.js"]) {
+        for (const name of [
+            "resources/js/ssr.tsx",
+            "resources/js/ssr.ts",
+            "resources/js/ssr.jsx",
+            "resources/js/ssr.js",
+        ]) {
             const candidate = path.join(this.cwd, name);
             if (await fs.pathExists(candidate)) {
                 return candidate;

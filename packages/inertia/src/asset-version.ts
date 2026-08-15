@@ -4,7 +4,7 @@ import * as crypto from "crypto";
 
 /**
  * A parsed Vite build manifest — keyed by source file path (e.g.
- * "app/main.tsx"), verified against the real output of `vite build` with
+ * "resources/js/app.tsx"), verified against the real output of `vite build` with
  * `build.manifest: true` (Vite 5.4.21). Only the fields this package
  * actually reads are declared; Vite's manifest has more.
  */

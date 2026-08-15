@@ -19,6 +19,6 @@
             "@/*": ["./*"]
         }
     },
-    "include": ["app/main.tsx", "app/pages/**/*", "app/components/**/*"],
+    "include": ["resources/js/app.tsx", "resources/js/pages/**/*", "resources/js/components/**/*"],
     "exclude": ["node_modules", "dist", "public"]
 }

@@ -73,7 +73,7 @@ async function bootstrap() {
         });
 
         // Shares the current user on every InertiaResponse for the
-        // request — read by app/components/Layout.tsx via usePage().props.user.
+        // request — read by resources/js/components/Layout.tsx via usePage().props.user.
         httpAdapter.addMiddleware(
             new InertiaShareMiddleware(async (req) => ({
                 user: currentUser(req),

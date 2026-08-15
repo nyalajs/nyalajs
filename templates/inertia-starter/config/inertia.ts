@@ -8,8 +8,8 @@
 
 export default {
     // Path (relative to the app root) of the client entry that calls
-    // createInertiaApp() — see app/main.tsx.
-    entry: "app/main.tsx",
+    // createInertiaApp() — see resources/js/app.tsx.
+    entry: "resources/js/app.tsx",
     // Where `vite build` writes dist/.vite/manifest.json + hashed assets
     // (matches vite.config.ts's build.outDir).
     buildOutDir: process.env.VITE_BUILD_OUT_DIR || "public/build",

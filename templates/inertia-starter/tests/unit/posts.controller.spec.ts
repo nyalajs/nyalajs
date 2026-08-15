@@ -105,7 +105,7 @@ describe("PostsController", () => {
         // (dev: true) avoids needing a real Vite manifest.json on disk.
         configureInertia({
             assets: new AssetVersionResolver({ outDir: "/tmp/does-not-exist", dev: true }),
-            html: { entry: "app/main.tsx" },
+            html: { entry: "resources/js/app.tsx" },
         });
 
         repo = new FakePostRepository();

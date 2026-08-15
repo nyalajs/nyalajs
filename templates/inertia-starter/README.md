@@ -30,11 +30,12 @@ only ever fetches a JSON prop blob after the first request.
    no `X-Inertia` header, so it renders a full HTML shell
    (`@nyalajs/inertia`'s `html-shell.ts`) — a `<div id="app"
    data-page="...">` with the page object JSON-encoded into that
-   attribute, plus a `<script>` loading `app/main.tsx` (dev: straight from
-   Vite's dev server; prod: the hashed build from Vite's manifest).
-2. `app/main.tsx` calls `createInertiaApp()` (re-exported from
+   attribute, plus a `<script>` loading `resources/js/app.tsx` (dev:
+   straight from Vite's dev server; prod: the hashed build from Vite's
+   manifest).
+2. `resources/js/app.tsx` calls `createInertiaApp()` (re-exported from
    `@nyalajs/inertia/client`), which reads `data-page`, resolves
-   `"Posts/Index"` to `app/pages/Posts/Index.tsx` via
+   `"Posts/Index"` to `resources/js/pages/Posts/Index.tsx` via
    `resolvePageComponent()` + `import.meta.glob()`, and mounts it with
    `{ posts: [...] }` as props.
 3. Clicking a `<Link href="/posts/create">` does **not** navigate the
@@ -53,7 +54,7 @@ only ever fetches a JSON prop blob after the first request.
    in the page component.
 5. A successful create/update/delete flashes a message
    (`flash(req, "success", "Post created.")`) and redirects to `/posts`;
-   `app/components/Layout.tsx` reads `usePage().props.flash` to show it.
+   `resources/js/components/Layout.tsx` reads `usePage().props.flash` to show it.
    Both `errors` and `flash` are **read-once** — they show up on exactly
    the next response, then clear themselves (see
    `@nyalajs/inertia/src/flash.ts`).
@@ -73,17 +74,19 @@ only ever fetches a JSON prop blob after the first request.
   cookie-authenticated app, not a separate API).
 - **Posts** (`app/controllers/posts.controller.ts`,
   `app/services/posts.service.ts`, `app/repositories/post.repository.ts`,
-  `app/pages/Posts/`): the one full CRUD resource, demonstrating shared
-  props, flash messages, and validation-error round-tripping end to end.
+  `resources/js/pages/Posts/`): the one full CRUD resource, demonstrating
+  shared props, flash messages, and validation-error round-tripping end to end.
 - **Data layer** (`app/models/`, `app/repositories/`): plain Drizzle
   `sqliteTable` schemas + a small `BaseRepository<T>` — same shape as
   `mvc`/`cms`'s Postgres-backed repositories, just SQLite (see "Why
   SQLite" below).
-- **Frontend** (`app/pages/`, `app/components/`, `app/main.tsx`,
-  `vite.config.ts`): a real Vite-built React app. `nyala dev` runs a real
-  Vite dev server alongside the backend; `nyala build` runs `vite build`
-  to produce the hashed production assets `@nyalajs/inertia`'s
-  `AssetVersionResolver` reads.
+- **Frontend** (`resources/js/pages/`, `resources/js/components/`,
+  `resources/js/app.tsx`, `vite.config.ts`): a real Vite-built React app,
+  kept separate from the backend's `app/` — same split as Laravel's Inertia
+  starter kits (`app/` = backend only, `resources/js/` = frontend only).
+  `nyala dev` runs a real Vite dev server alongside the backend; `nyala
+  build` runs `vite build` to produce the hashed production assets
+  `@nyalajs/inertia`'s `AssetVersionResolver` reads.
 
 ## Why SQLite
 
@@ -150,6 +153,6 @@ on the next render). Same pattern as `examples/todo-api/tests/`.
 ## SSR (optional, off by default)
 
 Server-side rendering is opt-in — see `@nyalajs/inertia/src/ssr/index.ts`'s
-doc comment for the full setup (an `app/ssr.tsx` entry, built separately
-via `nyala build --ssr`, run as its own long-lived process). A plain
-`nyala dev`/`nyala build`/`nyala start` never touches it.
+doc comment for the full setup (a `resources/js/ssr.tsx` entry, built
+separately via `nyala build --ssr`, run as its own long-lived process). A
+plain `nyala dev`/`nyala build`/`nyala start` never touches it.

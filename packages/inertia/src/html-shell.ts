@@ -14,7 +14,7 @@ export interface RootHtmlOptions {
     rootId?: string;
     /**
      * Path (relative to the app root) of the client entry module — the
-     * file that calls createInertiaApp(). e.g. "app/main.tsx".
+     * file that calls createInertiaApp(). e.g. "resources/js/app.tsx".
      */
     entry: string;
     /** Resolves dev-vs-prod asset locations. */
@@ -34,7 +34,7 @@ export interface RootHtmlOptions {
     /** Extra <head> HTML (fonts, meta tags, ...) inserted verbatim before </head>. */
     head?: string;
     /**
-     * Server-rendered markup from a running app/ssr.tsx process (see
+     * Server-rendered markup from a running resources/js/ssr.tsx process (see
      * ssr/index.ts's renderViaSsrServer()). When present, the root div is
      * pre-populated with this markup (like ReactDOMServer.renderToString
      * output for any other SSR setup) instead of being left empty for
