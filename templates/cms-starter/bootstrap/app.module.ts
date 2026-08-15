@@ -38,6 +38,7 @@ import { FormSubmissionRepository } from "../app/repositories/form-submission.re
 
 // Guards
 import { SessionAuthGuard } from "../app/guards/session-auth.guard";
+import { RolesGuard } from "@nyalajs/security";
 
 /**
  * Application Root Module
@@ -81,6 +82,7 @@ import { SessionAuthGuard } from "../app/guards/session-auth.guard";
         AuthService,
         LayoutDataService,
         SessionAuthGuard,
+        RolesGuard,
     ],
     controllers: [
         AdminAuthController,

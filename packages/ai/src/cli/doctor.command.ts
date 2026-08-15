@@ -215,7 +215,148 @@ export const guardsWiredCheck: DoctorCheck = {
     },
 };
 
-const DEFAULT_CHECKS: DoctorCheck[] = [tenancyMiddlewareCheck, databaseDriverCheck, guardsWiredCheck];
+/**
+ * Finds every `providers: [ ... ]` array in `source` and returns the raw
+ * text inside each one. Tracks bracket depth character-by-character rather
+ * than using a regex like `\[([\s\S]*?)\]` — real provider arrays commonly
+ * contain their own nested `[`/`]` (e.g. `useFactory: () => { for (const
+ * [a, b] of entries) { ... } }`), which stops a non-greedy regex at the
+ * FIRST inner `]` instead of the array's real closing bracket, silently
+ * truncating the scan before reaching providers declared later in the
+ * array — confirmed live against templates/cms-starter's real
+ * app.module.ts (a `for (const [namespace, values] of ...)` inside one
+ * factory truncated the match well before SessionAuthGuard/RolesGuard).
+ */
+function extractProvidersBlocks(source: string): string[] {
+    const blocks: string[] = [];
+    const startPattern = /providers\s*:\s*\[/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = startPattern.exec(source)) !== null) {
+        const contentStart = match.index + match[0].length;
+        let depth = 1;
+        let i = contentStart;
+        while (i < source.length && depth > 0) {
+            if (source[i] === "[") depth++;
+            else if (source[i] === "]") depth--;
+            i++;
+        }
+        // depth === 0 means we found the real matching close bracket;
+        // depth > 0 at end-of-string means malformed/unclosed source — skip it.
+        if (depth === 0) {
+            blocks.push(source.slice(contentStart, i - 1));
+        }
+    }
+
+    return blocks;
+}
+
+/**
+ * Catches a class referenced by @UseGuards()/@UseInterceptors()/@UseFilters()
+ * that was never added to bootstrap/app.module.ts's `providers` array — the
+ * DI container throws "Provider not found" the first time a request
+ * actually reaches that route, since RouteResolver resolves guards from the
+ * container at request time, not at boot. Found live, more than once, in
+ * this framework's own shipped templates/examples (SessionAuthGuard,
+ * AuthGuard, RolesGuard each missing from one app or another) — this check
+ * automates the exact manual audit that caught those.
+ *
+ * Deliberately conservative: only flags a class name that appears in NO
+ * providers array anywhere in the project (not just app.module.ts, in case
+ * a project splits providers across multiple files) — a class this check
+ * can't find is reported as a warning to go check manually, not a hard
+ * fail, since a false "fail" here is worse than a missed true positive
+ * (this is regex-based, not a real TS/AST parse of the module graph).
+ */
+export const guardProvidersRegisteredCheck: DoctorCheck = {
+    name: "guard-providers-registered",
+    async run(cwd) {
+        const appSourceDirs = ["app", "src"];
+        const referencedClasses = new Map<string, string>(); // class name -> first file it was found in
+
+        for (const dir of appSourceDirs) {
+            const dirPath = path.join(cwd, dir);
+            if (!(await fs.pathExists(dirPath))) continue;
+            const files = (await fs.readdir(dirPath, { recursive: true } as any)) as string[];
+
+            for (const file of files) {
+                if (!file.endsWith(".ts") && !file.endsWith(".tsx")) continue;
+                const filePath = path.join(dirPath, file);
+                const source = await fs.readFile(filePath, "utf-8").catch(() => "");
+
+                const decoratorCalls = source.matchAll(/@Use(?:Guards|Interceptors|Filters)\(([^)]*)\)/g);
+                for (const call of decoratorCalls) {
+                    const args = call[1];
+                    // Class identifiers only — skips spread/property-access
+                    // arguments (rare, but not this check's job to evaluate).
+                    const classNames = args.match(/\b[A-Z][A-Za-z0-9_]*\b/g) ?? [];
+                    for (const className of classNames) {
+                        if (!referencedClasses.has(className)) {
+                            referencedClasses.set(className, path.relative(cwd, filePath));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (referencedClasses.size === 0) {
+            return {
+                name: "guard-providers-registered",
+                status: "pass",
+                message: "No @UseGuards()/@UseInterceptors()/@UseFilters() usage found — skipped.",
+            };
+        }
+
+        // Search every .ts file under the project root (not just
+        // bootstrap/app.module.ts) for `providers: [...]` blocks, in case a
+        // project splits its module across multiple files — collect every
+        // identifier that appears inside any such block, project-wide.
+        const registeredNames = new Set<string>();
+        const allFiles = (await fs.readdir(cwd, { recursive: true } as any).catch(() => [])) as string[];
+        for (const file of allFiles) {
+            if (!file.endsWith(".ts") || file.includes("node_modules") || file.includes(".drizzle-meta")) continue;
+            const source = await fs.readFile(path.join(cwd, file), "utf-8").catch(() => "");
+            for (const block of extractProvidersBlocks(source)) {
+                const names = block.match(/\b[A-Z][A-Za-z0-9_]*\b/g) ?? [];
+                for (const name of names) registeredNames.add(name);
+            }
+        }
+
+        const missing: Array<{ className: string; file: string }> = [];
+        for (const [className, file] of referencedClasses) {
+            if (!registeredNames.has(className)) {
+                missing.push({ className, file });
+            }
+        }
+
+        if (missing.length === 0) {
+            return {
+                name: "guard-providers-registered",
+                status: "pass",
+                message: `Every class referenced by @UseGuards()/@UseInterceptors()/@UseFilters() (${referencedClasses.size} found) appears in a providers array.`,
+            };
+        }
+
+        return {
+            name: "guard-providers-registered",
+            status: "warn",
+            message:
+                `${missing.length} class(es) referenced by @UseGuards()/@UseInterceptors()/@UseFilters() ` +
+                `were not found in any providers array — if genuinely unregistered, every route using them ` +
+                `will throw "Provider not found" at request time, not at boot: ` +
+                missing.map((m) => `${m.className} (${m.file})`).join(", ") +
+                `. This check is regex-based and can miss providers registered dynamically or split across ` +
+                `files in an unusual way — verify manually before assuming this is a false positive.`,
+        };
+    },
+};
+
+const DEFAULT_CHECKS: DoctorCheck[] = [
+    tenancyMiddlewareCheck,
+    databaseDriverCheck,
+    guardsWiredCheck,
+    guardProvidersRegisteredCheck,
+];
 
 export class DoctorCommand {
     private readonly cwd: string;

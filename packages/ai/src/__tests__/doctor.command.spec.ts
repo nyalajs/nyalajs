@@ -2,10 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { DoctorCommand, tenancyMiddlewareCheck, databaseDriverCheck, guardsWiredCheck } from "../cli/doctor.command";
+import {
+    DoctorCommand,
+    tenancyMiddlewareCheck,
+    databaseDriverCheck,
+    guardsWiredCheck,
+    guardProvidersRegisteredCheck,
+} from "../cli/doctor.command";
 
 const SAAS_STARTER_PATH = path.resolve(__dirname, "../../../../templates/saas-starter");
 const CMS_STARTER_PATH = path.resolve(__dirname, "../../../../templates/cms-starter");
+const INERTIA_STARTER_PATH = path.resolve(__dirname, "../../../../templates/inertia-starter");
 
 describe("tenancyMiddlewareCheck — against the real saas-starter template", () => {
     it("passes against templates/saas-starter, which this session fixed to wire TenantMiddleware correctly", async () => {
@@ -210,6 +217,144 @@ describe("guardsWiredCheck — basic behavior", () => {
 
         const result = await guardsWiredCheck.run(tmpDir);
         expect(result.status).toBe("pass");
+    });
+});
+
+describe("guardProvidersRegisteredCheck — against the real templates, all fixed", () => {
+    it("passes against templates/cms-starter (SessionAuthGuard + RolesGuard both registered)", async () => {
+        const result = await guardProvidersRegisteredCheck.run(CMS_STARTER_PATH);
+        expect(result.status).toBe("pass");
+    });
+
+    it("passes against templates/saas-starter (AuthGuard + RolesGuard both registered)", async () => {
+        const result = await guardProvidersRegisteredCheck.run(SAAS_STARTER_PATH);
+        expect(result.status).toBe("pass");
+    });
+
+    it("passes against templates/inertia-starter (SessionAuthGuard registered)", async () => {
+        const result = await guardProvidersRegisteredCheck.run(INERTIA_STARTER_PATH);
+        expect(result.status).toBe("pass");
+    });
+});
+
+describe("guardProvidersRegisteredCheck — basic behavior", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "nyala-doctor-guard-providers-"));
+    });
+
+    afterEach(async () => {
+        await fs.remove(tmpDir);
+    });
+
+    it("skips when no app/src source uses @UseGuards()/@UseInterceptors()/@UseFilters()", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(path.join(tmpDir, "app/controllers/home.controller.ts"), "export class HomeController {}\n");
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+        expect(result.message).toContain("No @UseGuards()");
+    });
+
+    it("skips when there's no app/ or src/ directory at all", async () => {
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+
+    it("warns when a guard class used in @UseGuards() is missing from every providers array — regression test for the real bug found in cms-starter/saas-starter/inertia-starter", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            '@UseGuards(SessionAuthGuard)\nexport class AdminController {}\n'
+        );
+        await fs.ensureDir(path.join(tmpDir, "bootstrap"));
+        await fs.writeFile(
+            path.join(tmpDir, "bootstrap/app.module.ts"),
+            "@Module({ providers: [AuthService], controllers: [AdminController] })\nexport class AppModule {}\n"
+        );
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+
+        expect(result.status).toBe("warn");
+        expect(result.message).toContain("SessionAuthGuard");
+        expect(result.message).toContain("app/controllers/admin.controller.ts");
+    });
+
+    it("passes when the guard class IS in the providers array", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseGuards(SessionAuthGuard)\nexport class AdminController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "bootstrap"));
+        await fs.writeFile(
+            path.join(tmpDir, "bootstrap/app.module.ts"),
+            "@Module({ providers: [AuthService, SessionAuthGuard], controllers: [AdminController] })\nexport class AppModule {}\n"
+        );
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+
+    it("checks every class when @UseGuards() lists more than one (e.g. @UseGuards(AuthGuard, RolesGuard))", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/users.controller.ts"),
+            "@UseGuards(AuthGuard, RolesGuard)\nexport class UsersController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "bootstrap"));
+        // Only AuthGuard registered — RolesGuard missing, matching the exact
+        // real bug found in templates/saas-starter's users.controller.ts.
+        await fs.writeFile(
+            path.join(tmpDir, "bootstrap/app.module.ts"),
+            "@Module({ providers: [AuthGuard], controllers: [UsersController] })\nexport class AppModule {}\n"
+        );
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+
+        expect(result.status).toBe("warn");
+        expect(result.message).toContain("RolesGuard");
+        // Only RolesGuard should be reported missing, not AuthGuard (which
+        // IS registered) — count occurrences rather than a substring check,
+        // since "RolesGuard" itself contains no "AuthGuard" but a naive
+        // check could be fooled either way.
+        const missingCount = (result.message.match(/AuthGuard \(/g) ?? []).length;
+        expect(missingCount).toBe(0);
+    });
+
+    it("finds a providers array in a file other than bootstrap/app.module.ts", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/admin.controller.ts"),
+            "@UseGuards(SessionAuthGuard)\nexport class AdminController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "bootstrap"));
+        await fs.writeFile(
+            path.join(tmpDir, "bootstrap/security.module.ts"),
+            "@Module({ providers: [SessionAuthGuard] })\nexport class SecurityModule {}\n"
+        );
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+        expect(result.status).toBe("pass");
+    });
+
+    it("checks @UseFilters() too, not just @UseGuards()/@UseInterceptors()", async () => {
+        await fs.ensureDir(path.join(tmpDir, "app/controllers"));
+        await fs.writeFile(
+            path.join(tmpDir, "app/controllers/posts.controller.ts"),
+            "@UseFilters(NotFoundFilter)\nexport class PostsController {}\n"
+        );
+        await fs.ensureDir(path.join(tmpDir, "bootstrap"));
+        await fs.writeFile(
+            path.join(tmpDir, "bootstrap/app.module.ts"),
+            "@Module({ providers: [], controllers: [PostsController] })\nexport class AppModule {}\n"
+        );
+
+        const result = await guardProvidersRegisteredCheck.run(tmpDir);
+
+        expect(result.status).toBe("warn");
+        expect(result.message).toContain("NotFoundFilter");
     });
 });
 
