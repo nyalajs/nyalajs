@@ -1,5 +1,11 @@
 # @nyalajs/ai
 
+## 1.4.0
+
+### Minor Changes
+
+- `nyala doctor` gains `guard-providers-registered`: scans every `@UseGuards()`/`@UseInterceptors()`/`@UseFilters()` usage in your project and warns if any referenced class doesn't appear in a `providers` array anywhere — a guard/interceptor/filter class that's declared on a controller but never registered resolves fine at boot and only throws `Provider not found` the first time a request actually reaches that route. Found this exact bug live in three shipped starter templates before building the check.
+
 ## 1.3.0
 
 ### Minor Changes
