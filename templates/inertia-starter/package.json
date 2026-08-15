@@ -1,7 +1,7 @@
 {
     "name": "nyala-inertia-starter",
     "version": "1.0.0",
-    "description": "Production-ready Inertia.js + React application built with Nyala Framework — no separate REST API, the backend returns page components with props",
+    "description": "Production-ready Inertia.js + React application built with Nyala Framework \u2014 no separate REST API, the backend returns page components with props",
     "private": true,
     "scripts": {
         "dev": "nyala dev",
@@ -12,6 +12,7 @@
         "test:coverage": "vitest run --coverage",
         "db:migrate": "tsx database/migrate.ts",
         "db:seed": "tsx database/seed.ts",
+        "db:diff": "nyala db:diff",
         "lint": "eslint \"{app,bootstrap,config,database,tests}/**/*.{ts,tsx}\" --fix",
         "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
     },
@@ -28,7 +29,7 @@
         "bcrypt": "^5.1.1",
         "better-sqlite3": "^11.3.0",
         "dotenv": "^16.4.1",
-        "drizzle-orm": "^0.29.0",
+        "drizzle-orm": "^0.45.2",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "reflect-metadata": "^0.2.1",
@@ -36,6 +37,7 @@
     },
     "devDependencies": {
         "@nyalajs/cli": "*",
+        "@faker-js/faker": "^9.0.0",
         "@types/bcrypt": "^5.0.2",
         "@types/better-sqlite3": "^7.6.8",
         "@types/node": "^20.10.6",
@@ -43,7 +45,7 @@
         "@types/react-dom": "^18.3.0",
         "@vitejs/plugin-react": "^4.3.1",
         "@vitest/coverage-v8": "^1.0.4",
-        "drizzle-kit": "^0.20.9",
+        "drizzle-kit": "^0.31.10",
         "eslint": "^8.56.0",
         "prettier": "^3.1.1",
         "tsc-watch": "^6.2.0",

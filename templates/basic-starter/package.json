@@ -17,6 +17,7 @@
         "db:rollback": "nyala db:rollback",
         "db:fresh": "nyala db:fresh",
         "db:seed": "nyala db:seed",
+        "db:diff": "nyala db:diff",
         "lint": "eslint \"{app,bootstrap,config,database,routes,tests}/**/*.ts\" --fix",
         "format": "prettier --write \"**/*.{ts,json,md}\"",
         "docker:build": "docker build -t nyala-mvc .",
@@ -32,7 +33,7 @@
         "@nyalajs/validation": "*",
         "@nyalajs/observability": "*",
         "reflect-metadata": "^0.2.1",
-        "drizzle-orm": "^0.29.0",
+        "drizzle-orm": "^0.45.2",
         "postgres": "^3.4.3",
         "zod": "^3.22.4",
         "bcrypt": "^5.1.1",
@@ -41,6 +42,7 @@
     },
     "devDependencies": {
         "@nyalajs/cli": "*",
+        "@faker-js/faker": "^9.0.0",
         "typescript": "^5.3.3",
         "tsc-watch": "^6.2.0",
         "tsx": "^4.7.0",
@@ -53,7 +55,7 @@
         "@typescript-eslint/eslint-plugin": "^6.18.0",
         "@typescript-eslint/parser": "^6.18.0",
         "prettier": "^3.1.1",
-        "drizzle-kit": "^0.20.9"
+        "drizzle-kit": "^0.31.10"
     },
     "engines": {
         "node": ">=18.0.0",
