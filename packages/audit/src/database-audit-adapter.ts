@@ -1,5 +1,7 @@
+import { and, eq, gte, lte, SQL } from "drizzle-orm";
 import { AuditStorage } from "./audit-logger";
 import { AuditEvent } from "./audit-event";
+import { AuditQueryCriteria } from "./audit-query-criteria";
 
 /**
  * Persists audit logs to a relational database using Drizzle ORM.
@@ -29,17 +31,30 @@ export class DatabaseAuditAdapter implements AuditStorage {
         }
     }
 
-    async query(criteria: any): Promise<AuditEvent[]> {
+    async query(criteria: AuditQueryCriteria = {}): Promise<AuditEvent[]> {
         const table = this.db._schema[this.tableName] || this.db._schema.auditLogs;
-        
+
+        // `table` is a caller-supplied Drizzle table with whatever column
+        // set they defined for save() — build the where clause only from
+        // criteria fields that have a matching column, rather than
+        // assuming every AuditEvent field exists on every schema.
+        const conditions: SQL[] = [];
+        if (criteria.action !== undefined && table.action) conditions.push(eq(table.action, criteria.action));
+        if (criteria.resourceType !== undefined && table.resourceType) conditions.push(eq(table.resourceType, criteria.resourceType));
+        if (criteria.resourceId !== undefined && table.resourceId) conditions.push(eq(table.resourceId, criteria.resourceId));
+        if (criteria.tenantId !== undefined && table.tenantId) conditions.push(eq(table.tenantId, criteria.tenantId));
+        if (criteria.actorId !== undefined && table.actorId) conditions.push(eq(table.actorId, criteria.actorId));
+        if (criteria.from !== undefined && table.timestamp) conditions.push(gte(table.timestamp, criteria.from));
+        if (criteria.to !== undefined && table.timestamp) conditions.push(lte(table.timestamp, criteria.to));
+
         let query = this.db.select().from(table);
-        
-        // Basic filtering support
-        if (criteria.action) {
-            // query = query.where(eq(table.action, criteria.action));
-            // Assuming eq is bound or handled dynamically
+        if (conditions.length > 0) {
+            query = query.where(and(...conditions));
         }
-        
+        if (criteria.limit !== undefined) {
+            query = query.limit(criteria.limit);
+        }
+
         return await query;
     }
 }

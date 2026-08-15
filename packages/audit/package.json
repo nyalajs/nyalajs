@@ -17,7 +17,8 @@
     },
     "dependencies": {
         "@nyalajs/core": "*",
-        "@nyalajs/http": "*"
+        "@nyalajs/http": "*",
+        "drizzle-orm": "^0.45.2"
     },
     "devDependencies": {
         "typescript": "^5.3.3",

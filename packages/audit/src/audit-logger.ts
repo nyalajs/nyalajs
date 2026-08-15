@@ -1,10 +1,11 @@
 import { Injectable } from "@nyalajs/core";
 import { AuditEvent } from "./audit-event";
+import { AuditQueryCriteria } from "./audit-query-criteria";
 import { randomUUID } from "crypto";
 
 export interface AuditStorage {
     save(event: AuditEvent): Promise<void>;
-    query(criteria: any): Promise<AuditEvent[]>;
+    query(criteria: AuditQueryCriteria): Promise<AuditEvent[]>;
 }
 
 @Injectable()
@@ -32,7 +33,7 @@ export class AuditLogger {
         }
     }
 
-    async query(criteria: any): Promise<AuditEvent[]> {
+    async query(criteria: AuditQueryCriteria = {}): Promise<AuditEvent[]> {
         if (!this.storage) {
             throw new Error("Audit storage not configured");
         }
