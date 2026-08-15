@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/ai",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "Framework-aware AI assistance for NyalaJS — multi-provider chat/explain/review, plus an agentic issue resolver that works in an isolated git worktree",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
