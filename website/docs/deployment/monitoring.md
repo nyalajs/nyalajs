@@ -95,7 +95,7 @@ healthCheckService.registerIndicator(new DatabaseHealthIndicator(db));
 
 ### How each starter exposes it
 
-The three starters diverge here — don't assume they all behave the same way.
+The four starters diverge here — don't assume they all behave the same way.
 
 **`saas-starter`** wires the real `@nyalajs/observability` services. `bootstrap/app.module.ts` provides `HealthCheckService` and `MetricsCollector` directly as providers, and `app/controllers/health.controller.ts` exposes them over HTTP:
 
@@ -163,6 +163,18 @@ Note the different response shapes and status strings (`"ok"`/`"alive"`/`"ready"
 
 **`cms-starter`** has no health or readiness endpoint at all currently — there's no `HealthController`, no `HomeController` equivalent with a `/health` route, and `@nyalajs/observability` isn't wired into its `bootstrap/app.module.ts`. If you need one, the most direct route is to copy the `basic-starter` pattern or wire in `ObservabilityModule` (see [Wiring It Into Your Own App](#wiring-it-into-your-own-app) below).
 
+**`inertia-starter`** also doesn't use `@nyalajs/observability`'s health service — like `cms-starter`, `ObservabilityModule`/`HealthCheckService` aren't wired into its `bootstrap/app.module.ts` at all. Unlike `cms-starter`, it does ship one bare hand-rolled route, defined directly on `AuthController` (`app/controllers/auth.controller.ts`) rather than a dedicated health/home controller:
+
+```typescript
+// templates/inertia-starter/app/controllers/auth.controller.ts
+@Get("health")
+health() {
+    return { status: "ok", timestamp: new Date().toISOString() };
+}
+```
+
+- `GET /health` → `{ "status": "ok", "timestamp": "..." }` — no `uptime`/`memory` fields like `basic-starter`'s version, and no separate `/health/live`/`/health/ready` routes at all. There's nothing to point a Kubernetes readiness probe at differently from a liveness probe here; both would have to target the same `/health`.
+
 ## Metrics
 
 ### The collector
@@ -228,7 +240,7 @@ controllers: [
 ],
 ```
 
-`basic-starter` and `cms-starter` don't define a metrics controller or reference `MetricsCollector` anywhere in their app code.
+`basic-starter`, `cms-starter`, and `inertia-starter` don't define a metrics controller or reference `MetricsCollector` anywhere in their app code.
 
 ### Pointing Prometheus at it
 
@@ -307,7 +319,7 @@ Configuration is read directly from `process.env` inside the constructor, not th
 export class ObservabilityModule {}
 ```
 
-`saas-starter` doesn't import `ObservabilityModule` itself — it re-provides `Logger`, `HealthCheckService`, and `MetricsCollector` individually in its own `app.module.ts` (with its own factory hardcoding the service name `"saas-app"` instead of reading `APP_NAME`). `basic-starter` provides `Logger` directly too (with no factory, so it falls back to the `SERVICE_NAME` DI token's default of `"nyala-app"` unless something else binds that token). Neither currently imports `ObservabilityModule` wholesale.
+`saas-starter` doesn't import `ObservabilityModule` itself — it re-provides `Logger`, `HealthCheckService`, and `MetricsCollector` individually in its own `app.module.ts` (with its own factory hardcoding the service name `"saas-app"` instead of reading `APP_NAME`). `basic-starter` provides `Logger` directly too (with no factory, so it falls back to the `SERVICE_NAME` DI token's default of `"nyala-app"` unless something else binds that token). `inertia-starter` provides only `Logger` (no `HealthCheckService`/`MetricsCollector` at all — see [Health Checks](#health-checks) above), via a factory reading `process.env.APP_NAME ?? "nyala-inertia-app"`, the same "hardcoded fallback string" shape as `saas-starter`'s, not `basic-starter`'s DI-token-default shape. None of the four currently import `ObservabilityModule` wholesale.
 
 ## Wiring It Into Your Own App
 
@@ -331,9 +343,9 @@ Then register any `HealthIndicator`s you need (database, external API, queue con
 
 Once endpoints are live:
 
-- **Uptime / liveness checks** — point at `/health` (`basic-starter`) or `/v1/health/live` (`saas-starter`, once you've fixed the versioned-route mismatch noted in [Kubernetes](./kubernetes)).
-- **Load balancer / orchestrator readiness gating** — use `/health/ready` (`basic-starter`, currently a stub) or `/v1/health/ready` (`saas-starter`, currently empty unless you register indicators). Don't wire either into a Kubernetes readiness probe as a proxy for "database is up" until you've actually registered a `HealthIndicator` that checks it — see above.
-- **Metrics scraping** — `/metrics`, once `MetricsController` is registered (`saas-starter`) or you've built an equivalent route (`basic-starter`, `cms-starter`).
+- **Uptime / liveness checks** — point at `/health` (`basic-starter`, `inertia-starter`) or `/v1/health/live` (`saas-starter`, once you've fixed the versioned-route mismatch noted in [Kubernetes](./kubernetes)).
+- **Load balancer / orchestrator readiness gating** — use `/health/ready` (`basic-starter`, currently a stub) or `/v1/health/ready` (`saas-starter`, currently empty unless you register indicators). `inertia-starter` has no separate readiness route at all — its one `/health` route would have to serve both purposes, or you add a real `/health/ready` yourself. Don't wire any of these into a Kubernetes readiness probe as a proxy for "database is up" until you've actually registered a `HealthIndicator` that checks it — see above.
+- **Metrics scraping** — `/metrics`, once `MetricsController` is registered (`saas-starter`) or you've built an equivalent route (`basic-starter`, `cms-starter`, `inertia-starter`).
 - **Structured logs** — `Logger` emits JSON via `pino` to stdout by default (or to a rotated file if `LOG_FILE` is set), which is friendly to any log shipper that tails container stdout (Fluent Bit, Vector, CloudWatch Logs agent, etc.) without extra configuration on the app side.
 
 ## Next Steps

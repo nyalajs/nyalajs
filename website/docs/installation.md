@@ -40,25 +40,28 @@ nyala new my-app
 ```
 
 You'll be prompted to choose:
-- **Template**: mvc, saas, cms, or basic
-- **Database**: postgresql, mysql, or sqlite
-- **Package manager**: npm or yarn
+- **Project name** (if not passed as an argument)
+- **Template**: mvc, saas, cms, inertia, or basic
+- **Database driver**: postgres, mysql, or sqlite
+
+There's no package-manager prompt — `nyala new` doesn't run an install step or ask which package manager to use; run `npm install` (or your package manager of choice) yourself after the project is created.
 
 ### Direct Creation
 
 Specify options directly:
 
 ```bash
-nyala new my-app --template=mvc --database=postgresql
+nyala new my-app --template=mvc --database=postgres
 ```
 
 Available options:
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--template` | mvc, saas, cms, basic | mvc |
-| `--database` | postgresql, mysql, sqlite | postgresql |
-| `--package-manager` | npm, yarn | npm |
+| `--template` | mvc, saas, cms, inertia, basic | mvc |
+| `--database` | postgres, mysql, sqlite | postgres |
+
+`--database` only feeds the interactive prompt flow — it doesn't change which files get copied for any starter template. `inertia` in particular always ships on SQLite (`better-sqlite3`) regardless of this flag; there's no Postgres/MySQL variant of it.
 | `--skip-install` | - | false |
 
 ## Template Options
@@ -116,20 +119,37 @@ nyala new my-site --template=cms
 
 **Best for:** Marketing sites, blogs, and small content-driven sites that need an admin dashboard
 
+### Inertia Starter
+
+A React frontend and a Nyala backend in one app, talking over the real [Inertia.js](https://inertiajs.com) protocol — no separate REST/GraphQL API, no client-side router:
+
+```bash
+nyala new my-app --template=inertia
+```
+
+**Includes:**
+- Session-based authentication (register, login, logout)
+- A shadcn/ui admin dashboard (`resources/js/layouts/admin-layout.tsx`) — responsive sidebar + topbar shell for the Dashboard, Posts, and Settings pages
+- Posts CRUD, a stats dashboard, and account settings (name, password) — all real, working pages, not stubs
+- A public Welcome landing page
+- SQLite by default, no Docker/Postgres setup needed
+
+See [CLI → Templates](./cli/templates#inertia-starter-template-inertia) for the full directory listing and file-by-file breakdown.
+
+**Best for:** Internal tools and CRUD-heavy apps that want a full client-side React UI without standing up a separate API
+
 ### Basic
 
-Minimal setup for custom projects:
+Minimal setup for custom projects — no starter template is copied, just the bare `app/<type>/` folder convention:
 
 ```bash
 nyala new my-app --template=basic
 ```
 
 **Includes:**
-- Core framework structure
-- Basic routing setup
-- Database connection
-- Docker configuration
-- Minimal dependencies
+- Empty `app/<type>/` folders for every artifact type (controllers, models, services, repositories, and more), each with a `.gitkeep`
+- `config/`, `bootstrap/app.module.ts` + `main.ts`, `routes/api.ts`
+- `.env` / `.env.example`, `package.json`, `tsconfig.json`
 
 **Best for:** Custom projects, microservices, learning
 

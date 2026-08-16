@@ -1,6 +1,6 @@
 # Environment Variables
 
-Nyala apps read configuration through `@nyalajs/config`'s `ConfigService`, fed by a project's `config/*.ts` namespace files. This page is a full reference of the real environment variables read by those namespace files across the three official starters, plus the variables read directly by framework packages (like `@nyalajs/observability`'s `Logger`) outside of that namespace system.
+Nyala apps read configuration through `@nyalajs/config`'s `ConfigService`, fed by a project's `config/*.ts` namespace files. This page is a full reference of the real environment variables read by those namespace files across the four official starters, plus the variables read directly by framework packages (like `@nyalajs/observability`'s `Logger`) outside of that namespace system.
 
 ## How Configuration Loading Works
 
@@ -327,6 +327,69 @@ Source: `templates/cms-starter/config/*.ts`. The smallest of the three.
 
 `cms-starter`'s `.env.example` defines `SESSION_SECRET` and `SESSION_SALT` with **no default values and a comment stating there is no insecure fallback** — these gate the admin dashboard's session-based authentication. Unlike every other secret documented on this page, there's no `config/session.ts` file in `cms-starter` — these two are consumed directly wherever the CMS's session/auth code reads `process.env`, not through the namespace system. Treat them as required at startup.
 
+## Namespace Reference: inertia-starter (5 namespaces)
+
+Source: `templates/inertia-starter/config/*.ts`. The smallest of the four — no `auth`, `cors`, `cache`, or `storage` namespaces at all, since this starter is one same-origin app with no separate API and no file uploads.
+
+### `app`
+
+| Variable | Default |
+|----------|---------|
+| `APP_NAME` | `Nyala Inertia App` |
+| `NODE_ENV` | `development` |
+| `APP_URL` | `http://localhost:3000` |
+| `APP_DEBUG` | `false` (`true` in `.env.example`) |
+| `APP_TIMEZONE` | `UTC` |
+
+Unlike `basic-starter`/`saas-starter`/`cms-starter`, `debug` here is its own explicit `APP_DEBUG` variable (`=== "true"`), not derived from `NODE_ENV`.
+
+### `server`
+
+| Variable | Default |
+|----------|---------|
+| `HOST` | `0.0.0.0` |
+| `PORT` | `3000` |
+| `BODY_LIMIT` | `1048576` (1MB) |
+| `REQUEST_TIMEOUT` | `30000` (30s) |
+
+### `database`
+
+| Variable | Default |
+|----------|---------|
+| `DB_DRIVER` | `better-sqlite3` |
+| `DB_PATH` | `./storage/database.sqlite` |
+| `DB_HOST` | `localhost` (unused unless `DB_DRIVER` is changed) |
+| `DB_PORT` | `5432` (unused unless `DB_DRIVER` is changed) |
+| `DB_NAME` | `nyala_inertia` (unused unless `DB_DRIVER` is changed) |
+| `DB_USER` | `postgres` (unused unless `DB_DRIVER` is changed) |
+| `DB_PASSWORD` | `""` (unused unless `DB_DRIVER` is changed) |
+| `DATABASE_URL` | `""` (unused unless `DB_DRIVER` is changed) |
+
+This is the only starter whose `database` namespace defaults to SQLite. `database/connection.ts` reads `DB_PATH` directly (via `better-sqlite3`) and ignores every other field unless you swap the driver yourself — see [FAQ: Which databases does Nyala actually support?](../resources/faq#which-databases-does-nyala-actually-support).
+
+### `inertia`
+
+Not present in any other starter — configures `@nyalajs/inertia`'s dev-vs-prod asset resolution (see `packages/inertia/src/asset-version.ts`).
+
+| Variable | Default |
+|----------|---------|
+| `VITE_BUILD_OUT_DIR` | `public/build` |
+| `VITE_DEV_SERVER_URL` | `http://localhost:5173` |
+
+`entry` (`resources/js/app.tsx`) and `assetBaseUrl` (`/build/`) are hardcoded in `config/inertia.ts`, not read from the environment.
+
+### `logging`
+
+| Variable | Default |
+|----------|---------|
+| `LOG_LEVEL` | `info` |
+
+`pretty` is derived from `NODE_ENV !== "production"`, same as `cms-starter`.
+
+### Session variables (not in a `config/*.ts` namespace)
+
+Same shape as `cms-starter`: `SESSION_SECRET` and `SESSION_SALT` gate session-based auth (`@fastify/secure-session`) and aren't read through the namespace system. The one difference is `.env.example` itself: `inertia-starter`'s ships **placeholder values** (`SESSION_SECRET=change-this-to-a-random-32-character-or-longer-string`, `SESSION_SALT=change-this-16ch`) rather than `cms-starter`'s empty strings — meaning nothing stops the app from booting with the placeholder still in place if you copy `.env.example` to `.env` without editing it. Treat these as required to *change*, not just required to be present.
+
 ## Full `.env.example` Reference
 
 These are the real, complete example files from each template, verbatim.
@@ -449,6 +512,46 @@ RATE_LIMIT_MAX=100
 RATE_LIMIT_WINDOW_MS=60000
 ```
 
+### `templates/inertia-starter/.env.example`
+
+```env
+# Application
+NODE_ENV=development
+APP_NAME="Nyala Inertia App"
+APP_URL=http://localhost:3000
+APP_DEBUG=true
+APP_TIMEZONE=UTC
+
+# Server
+HOST=0.0.0.0
+PORT=3000
+BODY_LIMIT=1048576
+REQUEST_TIMEOUT=30000
+
+# Database — SQLite by default. Swap DB_DRIVER + the other DB_*/DATABASE_URL
+# vars below for a real Postgres/MySQL deployment.
+DB_DRIVER=better-sqlite3
+DB_PATH=./storage/database.sqlite
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nyala_inertia
+DB_USER=postgres
+DB_PASSWORD=
+DATABASE_URL=
+
+# Sessions — required (@fastify/secure-session).
+# SESSION_SECRET must be at least 32 chars; SESSION_SALT exactly 16.
+SESSION_SECRET=change-this-to-a-random-32-character-or-longer-string
+SESSION_SALT=change-this-16ch
+
+# Inertia / Vite
+VITE_BUILD_OUT_DIR=public/build
+VITE_DEV_SERVER_URL=http://localhost:5173
+
+# Logging
+LOG_LEVEL=info
+```
+
 ## Logging Variables Outside the Namespace System
 
 `@nyalajs/observability`'s `Logger` class (`packages/observability/src/logging/logger.ts`) reads its own environment variables directly, independent of any `config/logging.ts` namespace:
@@ -470,9 +573,9 @@ Variables with **no safe default** that you must set explicitly before running i
 | Variable | Where it matters |
 |----------|-------------------|
 | `JWT_SECRET` | All templates with JWT auth (`basic-starter`, `saas-starter`) — defaults to `change-me-in-production` / `change-this-to-a-secure-random-string-in-production`, which is obviously not safe to leave as-is |
-| `SESSION_SECRET` | `cms-starter` — **no fallback at all**, per its `.env.example` comment |
-| `SESSION_SALT` | `cms-starter` — same, no fallback |
-| `DB_PASSWORD` | All templates — defaults to empty string |
+| `SESSION_SECRET` | Templates with session auth (`cms-starter`, `inertia-starter`) — `cms-starter` has no fallback at all; `inertia-starter` ships a placeholder (`change-this-to-a-random-32-character-or-longer-string`) that's just as unsafe to leave as-is |
+| `SESSION_SALT` | Same two templates, same shape — `inertia-starter`'s placeholder is `change-this-16ch` and must be exactly 16 characters |
+| `DB_PASSWORD` | Templates using `@nyalajs/database`/Postgres (`basic-starter`, `saas-starter`, `cms-starter`) — defaults to empty string. Doesn't apply to `inertia-starter` (SQLite, no password) |
 | `DATABASE_URL` | `saas-starter`, `cms-starter` — defaults to empty string / a local dev connection string |
 
 ## Production Notes
@@ -489,7 +592,7 @@ Or from Node directly:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Never commit `.env` files — all three starters' `.gitignore` should exclude them (confirm `cms-starter/.gitignore`, which is present, covers `.env` alongside `.env.example` being tracked).
+Never commit `.env` files — all four starters' `.gitignore` should exclude them (confirm `cms-starter/.gitignore`, which is present, covers `.env` alongside `.env.example` being tracked).
 
 ## Next Steps
 

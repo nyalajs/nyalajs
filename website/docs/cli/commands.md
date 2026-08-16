@@ -16,18 +16,18 @@ nyala new [name] [options]
 
 | Flag | Values | Default |
 |---|---|---|
-| `-t, --template <template>` | `mvc`, `saas`, `cms`, `basic` | `mvc` |
+| `-t, --template <template>` | `mvc`, `saas`, `cms`, `inertia`, `basic` | `mvc` |
 | `-d, --database <driver>` | `postgres`, `mysql`, `sqlite` | `postgres` |
 
 ### Behavior
 
 - If you omit `[name]`, the CLI prompts interactively for a project name.
-- If you omit `--template`, the CLI prompts you to choose one from a list (the same four values above).
+- If you omit `--template`, the CLI prompts you to choose one from a list (the same five values above).
 - If you omit `--database`, the CLI prompts you to choose a driver.
 - If a directory matching `name` already exists in the current working directory, the command fails without touching it.
-- For `mvc`, `saas`, and `cms`, the CLI copies the corresponding starter template (see [Templates](./templates) for exactly what that includes), excluding `node_modules`, `dist`, `.turbo`, and `.git`, then rewrites the `name` field in the copied `package.json` to match your project name.
+- For `mvc`, `saas`, `cms`, and `inertia`, the CLI copies the corresponding starter template (see [Templates](./templates) for exactly what that includes), excluding `node_modules`, `dist`, `.turbo`, and `.git`, then rewrites the `name` field in the copied `package.json` to match your project name.
 - For `basic` (or any unrecognized `--template` value), no starter template is copied — instead the CLI writes a bare scaffold: the full `app/<type>` folder convention (controllers, models, services, repositories, middleware, requests, resources, validators, policies, events, listeners, jobs, mail, notifications, exceptions, dto, enums, interfaces, contracts, helpers — each with a `.gitkeep`), empty top-level folders (`database/migrations`, `database/seeders`, `database/factories`, `routes`, `storage`, `public`, `resources`, `tests`, `docs`, `plugins`, `framework`), a `config/` directory with 13 typed config files, `bootstrap/app.module.ts` + `bootstrap/main.ts`, `routes/api.ts`, `package.json`, `tsconfig.json`, `.env` / `.env.example`, `.gitignore`, and a `README.md`.
-- `--database` is only consulted by the interactive prompt flow today — it doesn't change which files are written for the bare `basic` scaffold (the generated `config/database.ts` always reads `DB_DRIVER` from the environment at runtime).
+- `--database` is only consulted by the interactive prompt flow today — it doesn't change which files are written for any template, including the bare `basic` scaffold (the generated `config/database.ts` always reads `DB_DRIVER` from the environment at runtime). `inertia` always ships on SQLite regardless of `--database` — there's no Postgres/MySQL variant of it.
 
 ### Examples
 
@@ -43,13 +43,19 @@ Direct creation with an MVC starter on Postgres:
 nyala new blog-api --template=mvc --database=postgres
 ```
 
+Direct creation with the Inertia starter (React + shadcn/ui admin dashboard, SQLite):
+
+```bash
+nyala new my-app --template=inertia
+```
+
 Bare scaffold, no starter template copied:
 
 ```bash
 nyala new my-service --template=basic
 ```
 
-See [Templates](./templates) for what `mvc`, `saas`, and `cms` actually contain.
+See [Templates](./templates) for what `mvc`, `saas`, `cms`, and `inertia` actually contain.
 
 ## `nyala generate <type> <name>`
 
@@ -285,5 +291,5 @@ DB_PASSWORD=your_password
 ## See Also
 
 - [Generators](./generators) — the full `nyala generate <type>` reference
-- [Templates](./templates) — what `--template=mvc|saas|cms` each scaffold
+- [Templates](./templates) — what `--template=mvc|saas|cms|inertia` each scaffold
 - [Installation](../installation) — first-time setup walkthrough

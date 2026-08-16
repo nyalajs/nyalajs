@@ -56,11 +56,11 @@ Every invocation prints a small banner (the Nyala logo plus the installed versio
 
 A slightly deeper pass than the table above — full detail lives on the [Commands](./commands) and [Generators](./generators) pages.
 
-- **`new`** either copies one of three starter templates (`mvc`, `saas`, `cms` — see [Templates](./templates)) into a new directory, or, for `--template=basic`, writes a bare `app/<type>/` folder scaffold with no starter code. It can run fully interactively (prompting for name, template, and database) or take everything as flags.
+- **`new`** either copies one of four starter templates (`mvc`, `saas`, `cms`, `inertia` — see [Templates](./templates)) into a new directory, or, for `--template=basic`, writes a bare `app/<type>/` folder scaffold with no starter code. It can run fully interactively (prompting for name, template, and database) or take everything as flags.
 - **`generate`** (alias `g`) writes one artifact — a controller, model, migration, service, repository, request, policy, middleware, event, listener, job, resource, plugin, seeder, or factory — into the matching `app/<type>/` (or `database/...`, `plugins/...`) folder of the *current* project. It has 15 subcommands, one per artifact type; see [Generators](./generators) for the full list.
-- **`dev`** bundles any registered islands (no-op if your app doesn't use `@nyalajs/react` islands), then runs your app under `nodemon` + `ts-node` so it restarts on file changes.
-- **`db:migrate`** / **`db:rollback`** / **`db:fresh`** / **`db:seed`** all operate against Postgres, resolving connection details from `.env` in the current directory (`DB_URL`, `DATABASE_URL`, or discrete `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` variables).
-- **`build`** runs `tsc` to compile your app to `dist/` (or a custom `--out-dir`), then bundles islands into `public/` if present.
+- **`dev`** bundles any registered islands (no-op if your app doesn't use `@nyalajs/react` islands), runs a real Vite dev server alongside it if the project has a `vite.config.ts` (the `inertia` template does), then runs your app under `nodemon` + `ts-node` so it restarts on file changes.
+- **`db:migrate`** / **`db:rollback`** / **`db:fresh`** / **`db:seed`** all operate against Postgres, resolving connection details from `.env` in the current directory (`DB_URL`, `DATABASE_URL`, or discrete `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` variables). The `inertia` template doesn't use these — it's SQLite-only, so its `package.json` points `db:migrate`/`db:seed` at its own `database/migrate.ts`/`seed.ts` scripts instead.
+- **`build`** runs `tsc` to compile your app to `dist/` (or a custom `--out-dir`), then bundles islands into `public/` if present, or runs `vite build` if the project has a `vite.config.ts`.
 - **`validate`** scans `app/`, `bootstrap/`, `config/`, `routes/`, and `database/` for overly-deep relative imports (more than two `../` segments) as a lightweight architecture check, suitable for CI.
 
 ## Where Commands Run From
@@ -77,7 +77,7 @@ nyala db:migrate
 
 ## The `app/` Convention
 
-Every command that scaffolds or generates code shares one convention: application code lives under `app/`, one subfolder per artifact type. `nyala new` creates all twenty of these folders up front (populated with starter code for `mvc`/`saas`/`cms`, or just a `.gitkeep` for `--template=basic`):
+Every command that scaffolds or generates code shares one convention: application code lives under `app/`, one subfolder per artifact type. `nyala new` creates all twenty of these folders up front (populated with starter code for `mvc`/`saas`/`cms`/`inertia`, or just a `.gitkeep` for `--template=basic`):
 
 ```
 app/controllers   app/models        app/services      app/repositories
@@ -87,7 +87,7 @@ app/mail          app/notifications app/exceptions    app/dto
 app/enums         app/interfaces    app/contracts     app/helpers
 ```
 
-`nyala generate <type> <name>` (see [Generators](./generators)) writes into whichever of these folders matches `<type>` — `nyala generate controller Post` always goes to `app/controllers/`, regardless of which starter template you began from. This is also why `nyala generate` works identically across the `mvc`, `saas`, and `cms` templates: they all share this same folder shape, they just start with different files already in place.
+`nyala generate <type> <name>` (see [Generators](./generators)) writes into whichever of these folders matches `<type>` — `nyala generate controller Post` always goes to `app/controllers/`, regardless of which starter template you began from. This is also why `nyala generate` works identically across the `mvc`, `saas`, `cms`, and `inertia` templates: they all share this same folder shape for backend code, they just start with different files already in place. `inertia` is the one exception on the frontend side — its React pages live in `resources/js/pages/`, outside the `app/<type>/` convention entirely, and `nyala generate` doesn't scaffold those.
 
 Framework composition happens in `bootstrap/`: `app.module.ts` is the app's single `@Module({...})` declaration (controllers, providers), and `main.ts` is the entry point that boots it. The `controller` and `service` generators edit `bootstrap/app.module.ts` for you automatically — see [Generators → Auto-Registration](./generators#auto-registration).
 
@@ -130,7 +130,7 @@ Full reference for `new`, `dev`, the `db:*` commands, `build`, and `validate` �
 Every `nyala generate <type>` subcommand, what file it writes, and where.
 
 **[Templates →](./templates)**
-What's inside the `mvc`, `saas`, and `cms` starters, and how to choose between them.
+What's inside the `mvc`, `saas`, `cms`, and `inertia` starters, and how to choose between them.
 
 </div>
 

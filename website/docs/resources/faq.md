@@ -26,18 +26,19 @@ It's maintained by [Hailemariyam](https://github.com/Hailemariyam) as the primar
 
 ## Templates
 
-### Which starter template should I use — mvc, saas, cms, or basic?
+### Which starter template should I use — mvc, saas, cms, inertia, or basic?
 
-- **`mvc`** (the default) — a standard application with JWT auth, user CRUD, migrations, and Docker. Use this unless you specifically need multi-tenancy or a CMS.
+- **`mvc`** (the default) — a standard application with JWT auth, user CRUD, migrations, and Docker. Use this unless you specifically need multi-tenancy, a CMS, or a client-side React UI.
 - **`saas`** — everything in `mvc` plus multi-tenancy, tenant management, and cross-tenant protection. Use this if you're building a product with multiple customer organizations sharing one deployment.
 - **`cms`** — an admin dashboard, content management (pages, blog, media, menus, forms), and a server-rendered public site built on `@nyalajs/react`, with session-based auth instead of JWT. Use this for marketing sites, blogs, or content-driven sites that need an admin panel.
+- **`inertia`** — a React frontend and a Nyala backend in one app over the real [Inertia.js](https://inertiajs.com) protocol (no separate REST API), with a Tailwind + shadcn/ui admin dashboard already wired up. Use this for internal tools or CRUD-heavy apps that want a full client-side React UI without standing up a separate API.
 - **`basic`** — no starter template at all, just the bare `app/`, `database/`, `config/` folder scaffold with no auth, no CRUD, and stub config files. Use this only if you're deliberately building from scratch and don't want any of the above opinions.
 
 Full details are on the [Installation](../installation#template-options) page.
 
-### What's actually different between `basic` and the other three templates?
+### What's actually different between `basic` and the other templates?
 
-More than "less code." `basic` isn't a trimmed-down `mvc` — it's a separate, minimal scaffold. Its generated `config/database.ts` even ships with the comment `// No ORM/database adapter ships yet`, because the bare scaffold reserves the config shape without wiring up a real driver. If you want a working authenticated app out of the box, start from `mvc` or `saas`, not `basic`.
+More than "less code." `basic` isn't a trimmed-down `mvc` — it's a separate, minimal scaffold. Its generated `config/database.ts` even ships with the comment `// No ORM/database adapter ships yet`, because the bare scaffold reserves the config shape without wiring up a real driver. If you want a working authenticated app out of the box, start from `mvc`, `saas`, `cms`, or `inertia`, not `basic`.
 
 ### Can I switch templates after creating a project?
 
@@ -81,7 +82,9 @@ As of `@nyalajs/database@2.0.0`, only **PostgreSQL**, via [Drizzle ORM](https://
 
 ### `nyala new` asked me to pick MySQL or SQLite — does that work?
 
-Not currently, in the two templates that actually ship a wired-up database (`mvc`/`saas`/`cms`). The `--database` / interactive database prompt exists in the CLI and gets written into a `DB_DRIVER` environment variable in generated config, but `@nyalajs/database` only implements a Postgres driver — the `mysql`/`sqlite` choices don't produce a working MySQL or SQLite connection. Pick PostgreSQL (the recommended default) unless you're prepared to write your own driver integration. This is also covered in [Troubleshooting](./troubleshooting#i-selected-mysql-or-sqlite-in-nyala-new-and-nothing-connects).
+Not currently, in the templates that wire up `@nyalajs/database` (`mvc`/`saas`/`cms`). The `--database` / interactive database prompt exists in the CLI and gets written into a `DB_DRIVER` environment variable in generated config, but `@nyalajs/database` only implements a Postgres driver — the `mysql`/`sqlite` choices don't produce a working MySQL or SQLite connection there. Pick PostgreSQL (the recommended default) unless you're prepared to write your own driver integration. This is also covered in [Troubleshooting](./troubleshooting#i-selected-mysql-or-sqlite-in-nyala-new-and-nothing-connects).
+
+The `inertia` template is a separate case: its actual database connection (`database/connection.ts`) talks to SQLite directly via `better-sqlite3` and Drizzle's own `drizzle-orm/better-sqlite3` — no `DatabaseService`/`Model` from `@nyalajs/database` anywhere in that path, even though the package still appears in its `package.json` (unused there). The `--database` prompt/flag is ignored for it entirely; it's SQLite-only regardless of what you pass.
 
 ### How do migrations work?
 
@@ -105,7 +108,7 @@ You need `@nyalajs/tenancy` installed and wired up (tenant middleware, a tenant 
 
 ### Is authentication JWT-based or session-based?
 
-Depends on the template. `mvc` and `saas` use JWT authentication (access + refresh tokens) via `@nyalajs/security`. `cms` uses session-based authentication instead, which fits its server-rendered admin dashboard model better than stateless JWTs.
+Depends on the template. `mvc` and `saas` use JWT authentication (access + refresh tokens) via `@nyalajs/security`. `cms` and `inertia` both use session-based authentication (`@fastify/secure-session`) instead — it fits their same-origin, cookie-authenticated model better than stateless JWTs, since neither ships a separate API consumed cross-origin.
 
 ### Do I need to set `JWT_SECRET`?
 
