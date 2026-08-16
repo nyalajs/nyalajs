@@ -20,9 +20,14 @@ export default function NotFound({ slug }: Props) {
                 <p className="max-w-md text-muted-foreground">
                     There's no doc at <code className="rounded bg-muted px-1.5 py-0.5">/docs/{slug}</code>.
                 </p>
-                <Button asChild>
-                    <Link href="/docs/introduction">Back to docs</Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                        <Link href="/">Back to docs</Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href="/docs/create">Create this doc</Link>
+                    </Button>
+                </div>
             </div>
         </DocsLayout>
     );

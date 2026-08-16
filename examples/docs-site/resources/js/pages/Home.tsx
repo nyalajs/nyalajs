@@ -1,5 +1,5 @@
 import { Head, Link } from "@nyalajs/inertia/client";
-import { ArrowRight, BookOpen, Rocket } from "lucide-react";
+import { ArrowRight, BookOpen, Plus, Rocket } from "lucide-react";
 import { DocsLayout } from "@/layouts/docs-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,8 @@ interface Props {
 }
 
 export default function Home({ nav }: Props) {
+    const firstSlug = nav[0]?.items[0]?.slug;
+
     return (
         <DocsLayout>
             <Head title="Nyala Documentation" />
@@ -19,21 +21,37 @@ export default function Home({ nav }: Props) {
                 <div className="mx-auto max-w-3xl text-center">
                     <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Nyala Documentation</h1>
                     <p className="mt-4 text-lg text-muted-foreground">
-                        Real docs, rendered live from the actual website/docs/*.md source by this
-                        Inertia + Nyala app — not a static build.
+                        Full CRUD over real doc content — stored in SQLite, seeded from the real
+                        Nyala docs, editable straight from this Inertia + Nyala app.
                     </p>
                     <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                        <Button asChild size="lg">
-                            <Link href="/docs/introduction">
-                                Get Started
-                                <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </Button>
+                        {firstSlug && (
+                            <Button asChild size="lg">
+                                <Link href={`/docs/${firstSlug}`}>
+                                    Get Started
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                        )}
                         <Button asChild size="lg" variant="outline">
-                            <Link href="/docs/cli/templates">Browse Templates</Link>
+                            <Link href="/docs/create">
+                                <Plus className="h-4 w-4" />
+                                New doc
+                            </Link>
                         </Button>
                     </div>
                 </div>
+
+                {nav.length === 0 && (
+                    <div className="mx-auto mt-16 max-w-md text-center text-sm text-muted-foreground">
+                        No docs yet — run <code className="rounded bg-muted px-1.5 py-0.5">npm run db:seed</code> to
+                        load the real Nyala docs, or{" "}
+                        <Link href="/docs/create" className="font-medium text-primary underline-offset-4 hover:underline">
+                            create one
+                        </Link>
+                        .
+                    </div>
+                )}
 
                 <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2">
                     {nav.map((group) => (

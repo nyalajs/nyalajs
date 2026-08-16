@@ -29,3 +29,9 @@ Thumbs.db
 
 # Testing
 coverage/
+
+# Database
+storage/database.sqlite
+storage/database.sqlite-*
+storage/test.sqlite
+storage/test.sqlite-*

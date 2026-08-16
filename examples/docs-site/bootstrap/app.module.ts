@@ -9,6 +9,9 @@ import { DocsController } from "../app/controllers/docs.controller";
 // Services
 import { DocsService } from "../app/services/docs.service";
 
+// Repositories
+import { DocRepository } from "../app/repositories/doc.repository";
+
 /**
  * Application Root Module
  *
@@ -30,6 +33,7 @@ import { DocsService } from "../app/services/docs.service";
             provide: Logger,
             useFactory: () => new Logger(process.env.APP_NAME ?? "nyala-docs-site"),
         },
+        DocRepository,
         DocsService,
     ],
     controllers: [DocsController],

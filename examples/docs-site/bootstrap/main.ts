@@ -46,7 +46,7 @@ async function bootstrap() {
         configureInertia({
             assets,
             html: {
-                title: config.get<string>("app.name", "Nyala Inertia App"),
+                title: config.get<string>("app.name", "Nyala Docs"),
                 entry: inertiaConfig.entry,
                 viteDevServerUrl: inertiaConfig.viteDevServerUrl,
                 assetBaseUrl: inertiaConfig.assetBaseUrl,
@@ -60,10 +60,13 @@ async function bootstrap() {
             // process.cwd()-relative reasoning as `assets` above.
             staticDir: path.join(process.cwd(), inertiaConfig.buildOutDir),
             staticPrefix: inertiaConfig.assetBaseUrl,
-            // No auth, no forms that mutate state — a read-only docs viewer
-            // has no need for sessions or CSRF.
-            session: false,
-            csrf: false,
+            // Full CRUD now (create/update/delete docs) — CSRF needs
+            // sessions (see @nyalajs/http's FastifyAdapter: CSRF only
+            // registers when session is also enabled), and Inertia's
+            // client sends the token back automatically once it's present
+            // as a cookie, same as inertia-starter's own auth flows.
+            session: true,
+            csrf: true,
         });
 
         app.setHttpAdapter(httpAdapter);

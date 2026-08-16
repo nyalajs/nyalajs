@@ -7,8 +7,11 @@ import { docsNav, flatNavItems } from "../../app/docs/nav";
  * Real regression test for a real class of bug: nav.ts's slugs are
  * hand-written data (see its own doc comment for why — it mirrors
  * website/docs/.vitepress/config.ts's sidebar rather than importing it
- * directly), so a slug typo or a renamed/deleted doc file would silently
- * 404 in the app without this check. Runs against the real
+ * directly). This data no longer drives the running app's nav (that's
+ * real DB data now — see DocsService.getNav()) but it is still the real
+ * source list database/seeders/doc.seeder.ts reads to populate the docs
+ * table, so a slug typo or a renamed/deleted doc file would silently skip
+ * that doc during seeding without this check. Runs against the real
  * website/docs/*.md tree, not a fixture.
  */
 describe("docsNav", () => {

@@ -37,13 +37,17 @@
             ],
             "@/config/*": [
                 "./config/*"
+            ],
+            "@/database/*": [
+                "./database/*"
             ]
         }
     },
     "include": [
         "app/**/*",
         "bootstrap/**/*",
-        "config/**/*"
+        "config/**/*",
+        "database/**/*"
     ],
     "exclude": [
         "node_modules",

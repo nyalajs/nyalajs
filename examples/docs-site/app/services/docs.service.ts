@@ -1,11 +1,8 @@
-import * as fs from "fs/promises";
-import * as path from "path";
-import { existsSync } from "fs";
 import { Marked } from "marked";
 import type { codeToHtml as CodeToHtml } from "shiki";
 import { Injectable } from "@nyalajs/core";
-import { ConfigService } from "@nyalajs/config";
-import { docsNav, flatNavItems, type NavItem } from "../docs/nav";
+import { DocRepository } from "../repositories/doc.repository";
+import { Doc } from "../models/doc.model";
 
 /**
  * shiki is ESM-only; this package compiles to CommonJS (tsc's default,
@@ -51,27 +48,32 @@ export function __setCodeToHtmlForTests(fn: typeof CodeToHtml | null): void {
     codeToHtmlOverride = fn;
 }
 
-export interface DocPage {
+export interface RenderedDoc {
     title: string;
     html: string;
     headings: { depth: number; text: string; id: string }[];
 }
 
-export interface DocSearchEntry {
+export interface NavItem {
     slug: string;
     title: string;
-    group: string;
-    excerpt: string;
+}
+
+export interface NavGroup {
+    title: string;
+    items: NavItem[];
 }
 
 // Verified against shiki's real bundledLanguages (Object.keys(bundledLanguages)
-// from the installed shiki@1.1.7) — "env" is used as a fence language across
-// website/docs/*.md but isn't a real Shiki grammar (same gap VitePress's own
-// build warns about — "The language 'env' is not loaded, falling back to
-// 'txt'"), so it's remapped to shiki's real "dotenv" grammar instead of
-// passed through. "text"/"txt" are real, but intentionally absent from
-// bundledLanguages — they're Shiki's hard-coded no-grammar-needed plaintext
-// path, not missing languages (see node_modules/shiki/dist/core-unwasm.d.mts).
+// from the installed shiki@1.1.7) — "env" is a fence language used across the
+// original website/docs/*.md source (this content was seeded from those
+// files — see database/seeders/doc.seeder.ts) but isn't a real Shiki grammar
+// (same gap VitePress's own build warns about — "The language 'env' is not
+// loaded, falling back to 'txt'"), so it's remapped to shiki's real "dotenv"
+// grammar instead of passed through. "text"/"txt" are real, but
+// intentionally absent from bundledLanguages — they're Shiki's hard-coded
+// no-grammar-needed plaintext path, not missing languages (see
+// node_modules/shiki/dist/core-unwasm.d.mts).
 const LANG_ALIASES: Record<string, string> = {
     env: "dotenv",
 };
@@ -100,17 +102,20 @@ const SUPPORTED_LANGS = new Set([
 ]);
 
 /**
- * Reads and renders the real website/docs/*.md files at request time — no
- * static build step, no separate copy of the content. This is what makes
- * the docs app "dynamic": editing a file under website/docs/ and reloading
- * the page shows the change immediately, same as any other Nyala
- * controller reading from a real data source.
+ * Renders real doc content stored in the database (app/models/doc.model.ts)
+ * — full CRUD lives on DocRepository/DocsController; this service owns
+ * markdown -> HTML rendering (real marked + shiki, same pipeline as
+ * before) and the read-side composition (nav grouping, prev/next,
+ * search) on top of whatever rows actually exist right now. Unlike the
+ * original file-based version, editing a doc through the app is a real
+ * database write, not a filesystem write — the whole point of making
+ * this "full CRUD."
  */
 @Injectable()
 export class DocsService {
     private readonly marked: Marked;
 
-    constructor(private readonly config: ConfigService) {
+    constructor(private readonly docRepository: DocRepository) {
         this.marked = new Marked();
         this.marked.use({
             renderer: {
@@ -123,10 +128,10 @@ export class DocsService {
                 code(code, infostring) {
                     // Shiki's highlighter is async, but this renderer call
                     // is not — real syntax-highlighted HTML is substituted
-                    // in afterward by renderMarkdown() below, which
-                    // pre-highlights every code block before marked ever
-                    // parses the document, keyed by a sentinel placeholder
-                    // this function just has to emit verbatim.
+                    // in afterward by resolvePlaceholders() below, which
+                    // pre-highlights every code block after marked's
+                    // synchronous pass, keyed by a placeholder this
+                    // function just has to emit verbatim.
                     return codeBlockPlaceholder(code, infostring ?? "");
                 },
                 heading(text, level, raw) {
@@ -145,101 +150,69 @@ export class DocsService {
         });
     }
 
-    private get sourceDir(): string {
-        return this.config.get<string>("docs.sourceDir");
+    /** Renders one real Doc row's markdown content — same pipeline the old file-based render() used. */
+    async renderContent(content: string): Promise<{ html: string; headings: RenderedDoc["headings"] }> {
+        const rawHtml = await this.marked.parse(content);
+        return resolvePlaceholders(rawHtml);
     }
 
-    private resolveFile(slug: string): string {
-        // Reject traversal outside sourceDir — slug is attacker-controlled
-        // (it's a URL param, see docs.controller.ts), not just internal nav
-        // data, so this has to be a real boundary check, not a convenience
-        // one.
-        const resolved = path.resolve(this.sourceDir, `${slug}.md`);
-        if (!resolved.startsWith(this.sourceDir + path.sep) && resolved !== this.sourceDir) {
-            throw new Error("Invalid doc path");
+    async findBySlug(slug: string): Promise<Doc | null> {
+        return this.docRepository.findBySlug(slug);
+    }
+
+    async render(slug: string): Promise<(RenderedDoc & { doc: Doc }) | null> {
+        const doc = await this.docRepository.findBySlug(slug);
+        if (!doc) return null;
+
+        const { html, headings } = await this.renderContent(doc.content);
+        return { title: doc.title, html, headings: headings.filter((h) => h.depth > 1), doc };
+    }
+
+    /** Real nav, grouped from whatever docs actually exist right now — not a hardcoded list. */
+    async getNav(): Promise<NavGroup[]> {
+        const rows = await this.docRepository.findAllOrdered();
+        const groups = new Map<string, NavItem[]>();
+
+        for (const row of rows) {
+            const items = groups.get(row.groupTitle) ?? [];
+            items.push({ slug: row.slug, title: row.title });
+            groups.set(row.groupTitle, items);
         }
-        return resolved;
+
+        return [...groups.entries()].map(([title, items]) => ({ title, items }));
     }
 
-    async exists(slug: string): Promise<boolean> {
-        try {
-            return existsSync(this.resolveFile(slug));
-        } catch {
-            return false;
-        }
-    }
-
-    async render(slug: string): Promise<DocPage> {
-        const filePath = this.resolveFile(slug);
-        const raw = await fs.readFile(filePath, "utf-8");
-
-        // marked's own code()/heading() renderer methods are synchronous
-        // and only receive plain strings (see the constructor's comment),
-        // so real async Shiki highlighting and heading-id assignment both
-        // happen here as a post-process pass over marked's output: every
-        // code()/heading() call above emits a unique HTML-comment
-        // placeholder instead of real markup, and this function resolves
-        // each placeholder to its real content afterward.
-        const rawHtml = await this.marked.parse(raw);
-        const { html, headings } = await resolvePlaceholders(rawHtml);
-
-        const h1 = headings.find((h) => h.depth === 1);
-        const title = h1?.text ?? titleFromSlug(slug);
-
-        return { title, html, headings: headings.filter((h) => h.depth > 1) };
-    }
-
-    getNav() {
-        return docsNav;
-    }
-
-    /**
-     * Previous/next links for the bottom-of-article navigation, in real
-     * nav order — matches the "Next Steps" style already used throughout
-     * website/docs/*.md, but generated from the actual nav table instead
-     * of each file's own hand-written links (which point at specific
-     * related pages, not strictly prev/next).
-     */
-    getAdjacent(slug: string): { prev: NavItem | null; next: NavItem | null } {
-        const index = flatNavItems.findIndex((item) => item.slug === slug);
+    /** Previous/next links for the bottom-of-article navigation, in real DB order. */
+    async getAdjacent(slug: string): Promise<{ prev: NavItem | null; next: NavItem | null }> {
+        const rows = await this.docRepository.findAllOrdered();
+        const index = rows.findIndex((row) => row.slug === slug);
         if (index === -1) return { prev: null, next: null };
         return {
-            prev: index > 0 ? flatNavItems[index - 1] : null,
-            next: index < flatNavItems.length - 1 ? flatNavItems[index + 1] : null,
+            prev: index > 0 ? { slug: rows[index - 1].slug, title: rows[index - 1].title } : null,
+            next: index < rows.length - 1 ? { slug: rows[index + 1].slug, title: rows[index + 1].title } : null,
         };
     }
 
-    /**
-     * Builds the client-side search index — real titles/excerpts pulled
-     * from each real file's first paragraph, not placeholder text. Cached
-     * per-process since the doc set doesn't change while the server is
-     * running; a real edit + restart (or a future file-watcher) picks up
-     * changes, same tradeoff as any in-memory cache.
-     */
-    private searchIndexCache: DocSearchEntry[] | null = null;
+    /** Real search over real rows — title/content/group substring match, no separate index to keep in sync. */
+    async search(query: string): Promise<{ slug: string; title: string; group: string; excerpt: string }[]> {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
 
-    async getSearchIndex(): Promise<DocSearchEntry[]> {
-        if (this.searchIndexCache) return this.searchIndexCache;
-
-        const entries: DocSearchEntry[] = [];
-        for (const group of docsNav) {
-            for (const item of group.items) {
-                try {
-                    const raw = await fs.readFile(this.resolveFile(item.slug), "utf-8");
-                    entries.push({
-                        slug: item.slug,
-                        title: item.title,
-                        group: group.title,
-                        excerpt: firstParagraph(raw),
-                    });
-                } catch {
-                    // Skip a slug whose file went missing rather than failing the whole index.
-                }
-            }
-        }
-
-        this.searchIndexCache = entries;
-        return entries;
+        const rows = await this.docRepository.findAllOrdered();
+        return rows
+            .filter(
+                (row) =>
+                    row.title.toLowerCase().includes(q) ||
+                    row.content.toLowerCase().includes(q) ||
+                    row.groupTitle.toLowerCase().includes(q)
+            )
+            .slice(0, 20)
+            .map((row) => ({
+                slug: row.slug,
+                title: row.title,
+                group: row.groupTitle,
+                excerpt: firstParagraph(row.content),
+            }));
     }
 }
 
@@ -269,10 +242,8 @@ function headingPlaceholder(text: string, level: number, raw: string): string {
     return `<!--nyala-heading:${payload}-->`;
 }
 
-async function resolvePlaceholders(
-    html: string
-): Promise<{ html: string; headings: DocPage["headings"] }> {
-    const headings: DocPage["headings"] = [];
+async function resolvePlaceholders(html: string): Promise<{ html: string; headings: RenderedDoc["headings"] }> {
+    const headings: RenderedDoc["headings"] = [];
     const seenIds = new Map<string, number>();
 
     let resolved = html;
@@ -319,14 +290,6 @@ function slugify(text: string): string {
         .trim()
         .replace(/[^\w\s-]/g, "")
         .replace(/\s+/g, "-");
-}
-
-function titleFromSlug(slug: string): string {
-    const last = slug.split("/").pop() ?? slug;
-    return last
-        .split("-")
-        .map((word) => word[0]?.toUpperCase() + word.slice(1))
-        .join(" ");
 }
 
 function firstParagraph(markdown: string): string {

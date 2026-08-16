@@ -1,6 +1,6 @@
 import { PropsWithChildren, useEffect, useState } from "react";
 import { Link, usePage } from "@nyalajs/inertia/client";
-import { Menu, Search, Sparkles } from "lucide-react";
+import { Menu, Plus, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { DocsNav } from "./docs-nav";
@@ -64,6 +64,12 @@ export function DocsLayout({ children }: PropsWithChildren) {
                         <Search className="h-4 w-4" />
                         <span className="flex-1 text-left">Search docs...</span>
                         <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-xs sm:inline">⌘K</kbd>
+                    </Button>
+
+                    <Button asChild variant="ghost" size="icon" className="shrink-0">
+                        <Link href="/docs/create" aria-label="New doc">
+                            <Plus className="h-4 w-4" />
+                        </Link>
                     </Button>
                 </div>
             </header>
