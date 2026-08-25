@@ -11,9 +11,25 @@ import react from "@vitejs/plugin-react";
  * reads at runtime — its outDir must match config/inertia.ts's
  * `buildOutDir` exactly.
  */
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [react()],
     root: __dirname,
+    // Only for `vite build` — matches config/inertia.ts's assetBaseUrl
+    // ("/build/"), which is also what html-shell.ts's prodScripts()
+    // prepends to the entry script/CSS <link> tags it renders by hand.
+    // Vite's OWN internal dynamic-import machinery (the __vitePreload
+    // helper wrapping every route-level import.meta.glob() chunk — see
+    // resources/js/pages/**/*.tsx) doesn't read assetBaseUrl at all;
+    // without this it hardcodes `"/" + assetPath` (Vite's default base is
+    // "/"), so every lazy-loaded page chunk 404s at /assets/Foo-....js
+    // instead of /build/assets/Foo-....js once there's more than one
+    // route chunk to lazy-load into (confirmed against the same bug, live,
+    // in examples/docs-site — the entry script itself loads fine since
+    // its <script src> is built by hand from assetBaseUrl, but navigating
+    // to any route needing a dynamic import 404s). `command === "serve"`
+    // (`vite dev`) must NOT set this — the dev server serves everything
+    // from its own root, unprefixed.
+    base: command === "build" ? "/build/" : "/",
     // Matches components.json's aliases + tsconfig.frontend.json's "@/*"
     // path mapping — shadcn/ui's generated imports (`@/components/ui/button`,
     // `@/lib/utils`) resolve the same way at both typecheck and build time.
@@ -60,4 +76,21 @@ export default defineConfig({
         // docs/inertia-starter-spec.md §4/Open Question #2's resolution).
         strictPort: true,
     },
-});
+    optimizeDeps: {
+        // Same root cause as build.commonjsOptions.include above, but for
+        // `vite dev`'s esbuild-based pre-bundler instead of `vite build`'s
+        // Rollup: it only scans real node_modules/ contents by default, so
+        // @nyalajs/inertia (symlinked in from packages/inertia within this
+        // monorepo's own workspaces, CJS output) is never pre-bundled into
+        // ESM. The browser then loads its raw `exports.createInertiaApp =
+        // ...` CJS straight off disk via `/@fs/...`, where native ESM
+        // `import { createInertiaApp }` can't see it — "does not provide an
+        // export named 'createInertiaApp'". Listing it explicitly forces
+        // esbuild to pre-bundle (and CJS-interop) it like any other
+        // dependency. Harmless once this template is scaffolded out via
+        // `nyala new` into its own project, where @nyalajs/inertia is a
+        // normal published package physically inside node_modules/ and
+        // Vite's default scanning already covers it.
+        include: ["@nyalajs/inertia/client"],
+    },
+}));

@@ -143,6 +143,28 @@ nyala new my-site --template=cms
 | Type Safety | ✅ | ✅ | ✅ |
 | Documentation | ✅ | ✅ | ✅ |
 
+## Editor Support
+
+**Nyala.js Icons** is a VS Code file icon theme that puts the Nyala antelope logo on framework files — `*.controller.ts`, `*.service.ts`, `*.module.ts`, `*.repository.ts`, `*.model.ts`, `*.dto.ts`, `*.validator.ts`, `*.guard.ts`, `*.middleware.ts`, `*.interceptor.ts`, `*.pipe.ts`, `*.provider.ts`, `*.decorator.ts`, `*.interface.ts`, `*.seeder.ts`, `*.command.ts`, `*.helper.ts`, and `*.manager.ts` — the same idea as NestJS's own file-icon extension.
+
+```bash
+cd tools/vscode-nyala-icons
+npx @vscode/vsce package
+code --install-extension vscode-nyala-icons-0.1.1.vsix
+```
+
+Then **Ctrl/Cmd+Shift+P → "Preferences: File Icon Theme" → "Nyala.js Icons"**. See [`tools/vscode-nyala-icons/README.md`](./tools/vscode-nyala-icons/README.md) for details.
+
+**Nyala.js Theme** is a matching color theme built from the same brand palette — teal green (`#1a4d3e`) and golden yellow (`#f5b847`) — as "Nyala Dark" and "Nyala Light".
+
+```bash
+cd tools/vscode-nyala-theme
+npx @vscode/vsce package
+code --install-extension vscode-nyala-theme-0.1.0.vsix
+```
+
+Then **Ctrl/Cmd+Shift+P → "Preferences: Color Theme" → "Nyala Dark"** (or **"Nyala Light"**). See [`tools/vscode-nyala-theme/README.md`](./tools/vscode-nyala-theme/README.md) for details.
+
 ## AI Assistant
 
 `@nyalajs/ai` adds framework-aware AI commands to the `nyala` CLI — it understands Nyala's actual module graph, routes, and conventions (DI, tenancy, validation) instead of guessing from generic framework patterns.

@@ -5,12 +5,16 @@ import { namespaces } from "../config";
 
 // Controllers
 import { DocsController } from "../app/controllers/docs.controller";
+import { AuthController } from "../app/controllers/auth.controller";
 
 // Services
 import { DocsService } from "../app/services/docs.service";
 
 // Repositories
 import { DocRepository } from "../app/repositories/doc.repository";
+
+// Guards
+import { AdminGuard } from "../app/guards/admin.guard";
 
 /**
  * Application Root Module
@@ -35,8 +39,9 @@ import { DocRepository } from "../app/repositories/doc.repository";
         },
         DocRepository,
         DocsService,
+        AdminGuard,
     ],
-    controllers: [DocsController],
+    controllers: [DocsController, AuthController],
     exports: [ConfigService, Logger],
 })
 export class AppModule {}

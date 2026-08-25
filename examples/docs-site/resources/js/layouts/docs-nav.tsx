@@ -14,8 +14,10 @@ export function DocsNav({ nav, currentUrl, onNavigate }: DocsNavProps) {
         <nav className="flex flex-col gap-6">
             {nav.map((group) => (
                 <div key={group.title}>
-                    <h4 className="mb-2 text-sm font-semibold text-foreground">{group.title}</h4>
-                    <ul className="flex flex-col gap-0.5 border-l">
+                    <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.title}
+                    </h4>
+                    <ul className="flex flex-col gap-0.5">
                         {group.items.map((item) => {
                             const href = `/docs/${item.slug}`;
                             const isActive = currentUrl === href;
@@ -25,10 +27,10 @@ export function DocsNav({ nav, currentUrl, onNavigate }: DocsNavProps) {
                                         href={href}
                                         onClick={onNavigate}
                                         className={cn(
-                                            "-ml-px block border-l pl-3 py-1 text-sm transition-colors",
+                                            "block rounded-md px-3 py-1.5 text-sm transition-colors",
                                             isActive
-                                                ? "border-l-primary font-medium text-primary"
-                                                : "border-l-transparent text-muted-foreground hover:border-l-foreground/30 hover:text-foreground"
+                                                ? "bg-primary/10 font-medium text-primary"
+                                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                         )}
                                     >
                                         {item.title}

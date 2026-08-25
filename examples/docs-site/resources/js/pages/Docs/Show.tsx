@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Head, Link, router } from "@nyalajs/inertia/client";
+import { useRef, useState } from "react";
+import { Head, Link, router, usePage } from "@nyalajs/inertia/client";
 import { ArrowLeft, ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { DocsLayout } from "@/layouts/docs-layout";
 import { DocsOutline } from "@/layouts/docs-outline";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { useCodeBlockCopy } from "@/hooks/use-code-block-copy";
 import {
     Dialog,
     DialogContent,
@@ -35,7 +36,10 @@ interface Props {
  * uses.
  */
 export default function DocsShow({ page, doc, adjacent }: Props) {
+    const { props } = usePage<{ isAdmin: boolean; [key: string]: unknown }>();
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const articleRef = useRef<HTMLDivElement>(null);
+    useCodeBlockCopy(articleRef);
 
     function destroy() {
         router.delete(`/docs/${doc.slug}`, { onFinish: () => setConfirmingDelete(false) });
@@ -43,30 +47,35 @@ export default function DocsShow({ page, doc, adjacent }: Props) {
 
     return (
         <DocsLayout>
-            <Head title={page.title} />
+            <Head title={page.title}>
+                <meta name="description" content={page.excerpt} />
+            </Head>
 
             <div className="flex gap-10 px-4 py-8 sm:px-6 lg:px-8">
                 <article className="min-w-0 max-w-3xl flex-1">
-                    <div className="mb-4 flex justify-end gap-2">
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={`/edit/${doc.slug}`}>
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit
-                            </Link>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setConfirmingDelete(true)}
-                        >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
-                        </Button>
-                    </div>
+                    {props.isAdmin && (
+                        <div className="mb-4 flex justify-end gap-2">
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/edit/${doc.slug}`}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    Edit
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setConfirmingDelete(true)}
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                            </Button>
+                        </div>
+                    )}
 
                     <div
-                        className="prose prose-neutral max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-pre:bg-transparent prose-pre:p-0"
+                        ref={articleRef}
+                        className="prose prose-neutral max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0"
                         dangerouslySetInnerHTML={{ __html: page.html }}
                     />
 

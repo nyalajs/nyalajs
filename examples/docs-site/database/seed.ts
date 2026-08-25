@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { closeConnection } from "./connection";
 
 /**
@@ -8,7 +9,7 @@ import { closeConnection } from "./connection";
 async function main(): Promise<void> {
     const { run: seedDocs } = await import("./seeders/doc.seeder");
     await seedDocs();
-    closeConnection();
+    await closeConnection();
 }
 
 main().catch((error) => {

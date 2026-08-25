@@ -1,5 +1,6 @@
 import { Marked } from "marked";
 import type { codeToHtml as CodeToHtml } from "shiki";
+import sanitizeHtml from "sanitize-html";
 import { Injectable } from "@nyalajs/core";
 import { DocRepository } from "../repositories/doc.repository";
 import { Doc } from "../models/doc.model";
@@ -52,6 +53,8 @@ export interface RenderedDoc {
     title: string;
     html: string;
     headings: { depth: number; text: string; id: string }[];
+    /** Real first paragraph of the doc's raw markdown — used as the page's meta description. */
+    excerpt: string;
 }
 
 export interface NavItem {
@@ -102,6 +105,119 @@ const SUPPORTED_LANGS = new Set([
 ]);
 
 /**
+ * `content` is fully user-writable (DocsController.create()/update(), only
+ * gated by AdminGuard — not by any content restriction) and rendered via
+ * dangerouslySetInnerHTML for every visitor (Docs/Show.tsx), so the final
+ * HTML this pipeline produces must never be trusted verbatim — this is the
+ * one line standing between a malicious doc submission and stored XSS
+ * against every future reader. Allowlist covers exactly what this
+ * pipeline's own renderer + Shiki emit (verified against real Shiki output
+ * — `codeToHtml()` produces `<pre class="shiki ..." style="..." tabindex="0">`,
+ * `<code>`, and per-token `<span style="color:...">`, see this file's own
+ * DocsService constructor for the link()/heading()/code() overrides marked
+ * uses); nothing else survives, so no <script>, <iframe>, event handlers,
+ * or javascript: URLs make it into the response no matter what a doc's
+ * content field contains.
+ */
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+    allowedTags: [
+        "p",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "strong",
+        "em",
+        "b",
+        "i",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "td",
+        "th",
+        "hr",
+        "br",
+        "img",
+        "pre",
+        "code",
+        "span",
+        "div",
+        "button",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        // wrapCodeBlock()'s inline copy/check icons only — `marked`'s
+        // default renderer passes raw block/inline HTML in doc content
+        // straight through unescaped, so a malicious author could still
+        // write a literal <svg> in markdown and have it survive this
+        // allowlist; what actually keeps this safe is the narrow
+        // allowedAttributes below (no onload/onclick/on* on svg/rect/path,
+        // ever), not tag exclusion.
+        "svg",
+        "rect",
+        "path",
+    ],
+    allowedAttributes: {
+        a: ["href", "title", "target", "rel"],
+        img: ["src", "alt", "title"],
+        pre: ["class", "style", "tabindex", "data-lang"],
+        code: ["class", "style"],
+        span: ["class", "style"],
+        // wrapCodeBlock()'s own header-bar wrapper — `type` is fixed to
+        // "button" (never a real user-controllable value) so a copy
+        // button inside a form (e.g. Docs/Create.tsx's own <form>) can
+        // never accidentally submit it.
+        div: ["class", "data-lang", "data-code"],
+        button: ["class", "type", "aria-label"],
+        // "viewbox", not "viewBox" — the underlying htmlparser2 parser
+        // lowercases attribute NAMES by default before sanitize-html's own
+        // allowlist check ever runs (Parser.js's lowerCaseAttributeNames,
+        // on by default in html mode; sanitize-html doesn't expose a way
+        // to turn it off), so an allowlist entry in SVG's real camelCase
+        // spelling never matches the actual (lowercased) attribute key —
+        // verified live: viewBox was silently stripped, leaving every
+        // copy/check icon <svg> with no coordinate system to draw in.
+        svg: ["viewbox", "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "class"],
+        rect: ["x", "y", "width", "height", "rx"],
+        path: ["d"],
+        // One key per tag, not a comma-joined "h1,h2,..." string — verified
+        // against the real installed sanitize-html: it treats each
+        // allowedAttributes key as one literal tag name (each(options.
+        // allowedAttributes, (attributes, tag) => allowedAttributesMap[tag]
+        // = ...) in its own index.js), not a CSS-selector-style list, so a
+        // comma-joined key never matches any real element and silently
+        // stripped `id` off every heading — the real regression this
+        // caused: DocsOutline's "On this page" links all pointed at
+        // #slug-id anchors that no longed existed in the DOM, so clicking
+        // one updated the URL hash but never actually scrolled anywhere.
+        h1: ["id"],
+        h2: ["id"],
+        h3: ["id"],
+        h4: ["id"],
+        h5: ["id"],
+        h6: ["id"],
+    },
+    allowedSchemes: ["http", "https", "mailto"],
+    // Shiki's inline per-token color/background styles (verified above) are
+    // the only legitimate use of a style attribute this pipeline produces —
+    // without this, sanitize-html's default css filter strips them and
+    // every code block loses its syntax highlighting.
+    allowedStyles: {
+        "*": {
+            color: [/^#[0-9a-fA-F]{3,8}$/],
+            "background-color": [/^#[0-9a-fA-F]{3,8}$/],
+            "font-style": [/^italic$/],
+            "font-weight": [/^bold$/],
+        },
+    },
+};
+
+/**
  * Renders real doc content stored in the database (app/models/doc.model.ts)
  * — full CRUD lives on DocRepository/DocsController; this service owns
  * markdown -> HTML rendering (real marked + shiki, same pipeline as
@@ -138,13 +254,28 @@ export class DocsService {
                     return headingPlaceholder(text, level, raw);
                 },
                 link(href, title, text) {
-                    if (!href || /^(https?:)?\/\//.test(href) || href.startsWith("#")) {
-                        const titleAttr = title ? ` title="${title}"` : "";
-                        const external = /^https?:\/\//.test(href ?? "") ? ' target="_blank" rel="noreferrer"' : "";
-                        return `<a href="${href}"${titleAttr}${external}>${text}</a>`;
+                    // Reject anything that isn't a real http(s)/anchor/
+                    // relative link up front — `href`/`title` come straight
+                    // from a doc's user-writable `content` field (only
+                    // gated by AdminGuard, not by any scheme restriction),
+                    // so a bare "falls through to rewriteDocLink()"
+                    // treats "javascript:alert(1)" as just another relative
+                    // path (verified: it silently became
+                    // "/docs/javascript:alert(1)" instead of being
+                    // rejected). resolvePlaceholders()'s final sanitizeHtml()
+                    // pass is the real backstop, but rejecting a dangerous
+                    // scheme here too means a mangled/broken link never
+                    // gets generated as a false sense of "it got
+                    // rewritten safely" in the first place.
+                    if (href && /^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:/i.test(href)) {
+                        return escapeHtml(text);
                     }
-                    const titleAttr = title ? ` title="${title}"` : "";
-                    return `<a href="${rewriteDocLink(href)}"${titleAttr}>${text}</a>`;
+                    const titleAttr = title ? ` title="${escapeAttr(title)}"` : "";
+                    if (!href || /^(https?:)?\/\//.test(href) || href.startsWith("#")) {
+                        const external = /^https?:\/\//.test(href ?? "") ? ' target="_blank" rel="noreferrer"' : "";
+                        return `<a href="${escapeAttr(href ?? "")}"${titleAttr}${external}>${text}</a>`;
+                    }
+                    return `<a href="${escapeAttr(rewriteDocLink(href))}"${titleAttr}>${text}</a>`;
                 },
             },
         });
@@ -165,7 +296,13 @@ export class DocsService {
         if (!doc) return null;
 
         const { html, headings } = await this.renderContent(doc.content);
-        return { title: doc.title, html, headings: headings.filter((h) => h.depth > 1), doc };
+        return {
+            title: doc.title,
+            html,
+            headings: headings.filter((h) => h.depth > 1),
+            excerpt: firstParagraph(doc.content),
+            doc,
+        };
     }
 
     /** Real nav, grouped from whatever docs actually exist right now — not a hardcoded list. */
@@ -258,7 +395,7 @@ async function resolvePlaceholders(html: string): Promise<{ html: string; headin
                 lang: SUPPORTED_LANGS.has(lang) ? lang : "text",
                 theme: "github-dark",
             });
-            resolved = resolved.replace(match[0], highlighted);
+            resolved = resolved.replace(match[0], wrapCodeBlock(highlighted, rawLang || "text", code));
         }
     }
 
@@ -274,7 +411,56 @@ async function resolvePlaceholders(html: string): Promise<{ html: string; headin
         resolved = resolved.replace(match[0], `<h${level} id="${id}">${text}</h${level}>`);
     }
 
-    return { html: resolved, headings };
+    // Sanitize last, over the fully-resolved string — `text`/`raw` above
+    // come from marked's inline rendering of user-authored markdown (a doc's
+    // `content` field, gated only by AdminGuard, not by any HTML
+    // restriction), so any raw HTML a heading or link happened to contain
+    // is still live until this pass. See SANITIZE_OPTIONS's doc comment.
+    return { html: sanitizeHtml(resolved, SANITIZE_OPTIONS), headings };
+}
+
+/**
+ * Wraps Shiki's raw <pre class="shiki">...</pre> output with a header bar
+ * (language label + copy button) — the copy button reads the original,
+ * un-highlighted `code` back out of `data-code` (base64, so newlines/
+ * quotes in real code can't break out of the attribute) rather than
+ * having to strip Shiki's <span> markup back out of the DOM at copy time.
+ * Wiring the actual click handler happens client-side via event
+ * delegation (resources/js/pages/Docs/Show.tsx's useEffect) since this
+ * HTML is injected via dangerouslySetInnerHTML — a real React button
+ * can't live inside it.
+ */
+// Same clipboard/check glyphs as lucide-react's own Copy/Check icons
+// (24x24 viewBox, stroke-based) — inlined rather than imported since this
+// markup is generated server-side as a plain string, not JSX. The two
+// <span> wrappers let useCodeBlockCopy() (resources/js/hooks/
+// use-code-block-copy.ts) toggle a single class on the button to swap
+// which icon shows, instead of replacing textContent — matches how a
+// "Copy" -> "Copied" icon swap looks on Laravel/VitePress-style docs
+// sites, with no visible text label to right-align around.
+const COPY_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const CHECK_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function wrapCodeBlock(highlightedHtml: string, lang: string, code: string): string {
+    const dataCode = Buffer.from(code, "utf-8").toString("base64");
+    return `<div class="code-block" data-lang="${escapeAttr(lang)}" data-code="${dataCode}">` +
+        `<div class="code-block-header">` +
+        `<span class="code-block-lang">${escapeHtml(lang)}</span>` +
+        `<button type="button" class="code-block-copy" aria-label="Copy code">` +
+        `<span class="code-block-copy-icon">${COPY_ICON}</span>` +
+        `<span class="code-block-copy-icon-check">${CHECK_ICON}</span>` +
+        `</button>` +
+        `</div>${highlightedHtml}</div>`;
+}
+
+function escapeHtml(value: string): string {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeAttr(value: string): string {
+    return escapeHtml(value).replace(/"/g, "&quot;");
 }
 
 function rewriteDocLink(href: string): string {

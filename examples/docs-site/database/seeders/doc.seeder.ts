@@ -13,8 +13,12 @@ import { randomUUID } from "crypto";
  * app/docs/nav.ts's own doc comment); this seeder reads each listed
  * file's actual raw markdown as the row's `content`.
  *
- * Idempotent via onConflictDoNothing() on the unique `slug` column, same
- * pattern as inertia-starter's post.seeder.ts — safe to re-run.
+ * Idempotent via .ignore() (MySQL's INSERT IGNORE) on the unique `slug`
+ * column — same idea as inertia-starter's post.seeder.ts
+ * onConflictDoNothing(), but that method doesn't exist on MySQL's insert
+ * builder at all (verified against drizzle-orm/mysql-core's real
+ * .d.ts — no ON CONFLICT in MySQL's dialect, only INSERT IGNORE /
+ * ON DUPLICATE KEY UPDATE). Safe to re-run.
  */
 export async function run(): Promise<void> {
     console.log("Seeding docs from website/docs/...");
@@ -38,8 +42,9 @@ export async function run(): Promise<void> {
                 continue;
             }
 
-            const result = await db
+            const [result] = await db
                 .insert(docs)
+                .ignore()
                 .values({
                     id: randomUUID(),
                     slug: item.slug,
@@ -49,11 +54,9 @@ export async function run(): Promise<void> {
                     content,
                     createdAt: now,
                     updatedAt: now,
-                })
-                .onConflictDoNothing()
-                .returning();
+                });
 
-            if (result.length > 0) seeded++;
+            if ((result as any).affectedRows > 0) seeded++;
         }
     }
 

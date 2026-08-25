@@ -1,27 +1,28 @@
+import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import { db, closeConnection } from "./connection";
 import { sql } from "drizzle-orm";
 
 /**
- * Standalone SQLite migration runner — run directly via `tsx
+ * Standalone MySQL migration runner — run directly via `tsx
  * database/migrate.ts` (see package.json's `db:migrate` script), NOT
  * `nyala db:migrate`. packages/cli/runtime/migration-runner.ts is
  * hardcoded to Postgres (the `postgres` package + a `postgres://`
- * connection string — see its own doc comment), and this starter
- * deliberately uses SQLite/better-sqlite3 instead (see
- * database/connection.ts's "Why SQLite" comment) so it runs with zero
- * external services. Tracks applied migrations in `_nyala_migrations`,
- * same convention as the Postgres runner, just against SQLite's dialect.
+ * connection string — see its own doc comment), and this app connects to
+ * MySQL directly via mysql2/drizzle-orm/mysql2 instead. Tracks applied
+ * migrations in `_nyala_migrations`, same convention as the Postgres
+ * runner, just against MySQL's dialect and async driver (db.execute(),
+ * not better-sqlite3's synchronous db.run()/db.all()).
  */
 async function main(): Promise<void> {
     const migrationsDir = path.join(__dirname, "migrations");
 
-    db.run(sql`
+    await db.execute(sql`
         CREATE TABLE IF NOT EXISTS _nyala_migrations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            executed_at TEXT NOT NULL DEFAULT (datetime('now'))
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) UNIQUE NOT NULL,
+            executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     `);
 
@@ -30,8 +31,8 @@ async function main(): Promise<void> {
         .filter((f) => f.endsWith(".ts"))
         .sort();
 
-    const appliedRows = db.all<{ name: string }>(sql`SELECT name FROM _nyala_migrations`);
-    const applied = new Set(appliedRows.map((r) => r.name));
+    const [appliedRows] = await db.execute<{ name: string }>(sql`SELECT name FROM _nyala_migrations`);
+    const applied = new Set((appliedRows as unknown as { name: string }[]).map((r) => r.name));
     const pending = files.filter((f) => !applied.has(f));
 
     if (pending.length === 0) {
@@ -45,11 +46,11 @@ async function main(): Promise<void> {
             throw new Error(`Migration ${file} has no exported up(db) function`);
         }
         await up(db);
-        db.run(sql`INSERT INTO _nyala_migrations (name) VALUES (${file})`);
+        await db.execute(sql`INSERT INTO _nyala_migrations (name) VALUES (${file})`);
         console.log(`✓ Applied migration: ${file}`);
     }
 
-    closeConnection();
+    await closeConnection();
 }
 
 main().catch((error) => {

@@ -11,9 +11,38 @@ import react from "@vitejs/plugin-react";
  * reads at runtime — its outDir must match config/inertia.ts's
  * `buildOutDir` exactly.
  */
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [react()],
     root: __dirname,
+    // Only for `vite build` — matches config/inertia.ts's assetBaseUrl
+    // ("/build/"), which is also what html-shell.ts's prodScripts()
+    // prepends to the entry script/CSS <link> tags it renders by hand.
+    // Vite's OWN internal dynamic-import machinery (the __vitePreload
+    // helper wrapping every route-level import.meta.glob() chunk — see
+    // Docs/Show.tsx and friends) doesn't read assetBaseUrl at all; without
+    // this it hardcodes `"/" + assetPath` (Vite's default base is "/"),
+    // so every lazy-loaded page chunk 404'd at /assets/Show-....js
+    // instead of /build/assets/Show-....js — confirmed live: the entry
+    // script itself loaded fine (its <script src> is built by hand from
+    // assetBaseUrl), but clicking into any route requiring a dynamic
+    // import 404'd. `command === "serve"` (`vite dev`) must NOT set this
+    // — the dev server serves everything from its own root, unprefixed.
+    base: command === "build" ? "/build/" : "/",
+    define: {
+        // A real compile-time constant tied to Vite's own `command`
+        // ("build" vs "serve"), for the same reason `base` above is keyed
+        // off `command` and not off import.meta.env.DEV/PROD: those track
+        // Vite's *mode* (derived from NODE_ENV), which is a genuinely
+        // separate axis from *command* — this app's own .env sets
+        // NODE_ENV=development for the Node backend's own unrelated
+        // purposes, which also makes import.meta.env.DEV true even
+        // during a real `vite build` (confirmed live: a production build
+        // still emitted a dev-Vite-origin-prefixed asset URL because of
+        // this). __NYALA_IS_VITE_BUILD__ answers "did vite build produce
+        // this bundle," which is the actual question docs-layout.tsx's
+        // dev-mode asset-URL workaround needs answered.
+        __NYALA_IS_VITE_BUILD__: JSON.stringify(command === "build"),
+    },
     // Matches components.json's aliases + tsconfig.frontend.json's "@/*"
     // path mapping — shadcn/ui's generated imports (`@/components/ui/button`,
     // `@/lib/utils`) resolve the same way at both typecheck and build time.
@@ -35,6 +64,29 @@ export default defineConfig({
         manifest: true,
         rollupOptions: {
             input: "resources/js/app.tsx",
+            output: {
+                // Route pages already split into their own chunks for
+                // free via app.tsx's import.meta.glob() (each Docs/*.tsx
+                // is a separate dynamic import — verified in the built
+                // manifest). What's left in the single "app" entry chunk
+                // is everything imported eagerly: React itself, Inertia's
+                // client, and every Radix primitive/lucide icon used
+                // anywhere. Splitting that into a vendor chunk doesn't
+                // shrink total bytes shipped on first load, but it does
+                // mean this rarely-changing vendor code gets a stable
+                // hash/long-lived cache entry independent of this app's
+                // own frequently-changing page code.
+                manualChunks: {
+                    vendor: ["react", "react-dom", "@inertiajs/core", "@inertiajs/react"],
+                    "vendor-radix": [
+                        "@radix-ui/react-checkbox",
+                        "@radix-ui/react-dialog",
+                        "@radix-ui/react-label",
+                        "@radix-ui/react-slot",
+                        "@radix-ui/react-tooltip",
+                    ],
+                },
+            },
         },
         emptyOutDir: true,
         commonjsOptions: {
@@ -60,4 +112,17 @@ export default defineConfig({
         // docs/inertia-starter-spec.md §4/Open Question #2's resolution).
         strictPort: true,
     },
-});
+    optimizeDeps: {
+        // Same root cause as build.commonjsOptions.include above, but for
+        // `vite dev`'s esbuild-based pre-bundler instead of `vite build`'s
+        // Rollup: it only scans real node_modules/ contents by default, so
+        // @nyalajs/inertia (symlinked in from packages/inertia, CJS output)
+        // is never pre-bundled into ESM. The browser then loads its raw
+        // `exports.createInertiaApp = ...` CJS straight off disk via
+        // `/@fs/...`, where native ESM `import { createInertiaApp }` can't
+        // see it — "does not provide an export named 'createInertiaApp'".
+        // Listing it explicitly forces esbuild to pre-bundle (and
+        // CJS-interop) it like any other dependency.
+        include: ["@nyalajs/inertia/client"],
+    },
+}));

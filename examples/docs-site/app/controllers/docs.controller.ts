@@ -1,8 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, Res } from "@nyalajs/core";
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, Res, UseGuards } from "@nyalajs/core";
+import { ConfigService } from "@nyalajs/config";
 import { inertia, flash, flashValidationErrors, zodErrorsToInertia } from "@nyalajs/inertia";
 import { DocsService } from "../services/docs.service";
 import { DocRepository } from "../repositories/doc.repository";
 import { DocValidator } from "../validators/doc.validator";
+import { AdminGuard } from "../guards/admin.guard";
+
+const GITHUB_STARS_CACHE_MS = 10 * 60 * 1000;
+let githubStarsCache: { stars: number; fetchedAt: number } | null = null;
 
 /**
  * Full CRUD over real doc content stored in the database (see
@@ -31,7 +36,8 @@ import { DocValidator } from "../validators/doc.validator";
 export class DocsController {
     constructor(
         private readonly docsService: DocsService,
-        private readonly docRepository: DocRepository
+        private readonly docRepository: DocRepository,
+        private readonly config: ConfigService
     ) {}
 
     @Get("/")
@@ -43,12 +49,23 @@ export class DocsController {
 
     @Get("docs/create")
     async createPage(@Req() req: any, @Res() res: any) {
+        // Checked by hand rather than @UseGuards(AdminGuard) — a guard
+        // failure is a plain JSON 403 (FastifyAdapter's own behavior, see
+        // AdminGuard's doc comment), which would be a broken, non-Inertia
+        // response on this GET page route. A real 303 redirect to the
+        // login page is the correct "you can't do that yet" experience
+        // for a hard navigation.
+        if (req.session?.get("isAdmin") !== true) {
+            return res.redirect(303, "/admin/login");
+        }
+
         return inertia(req, res, "Docs/Create", {
             nav: await this.docsService.getNav(),
         });
     }
 
     @Post("docs")
+    @UseGuards(AdminGuard)
     async create(
         @Body() dto: { slug: string; title: string; groupTitle: string; sortOrder: string; content: string },
         @Req() req: any,
@@ -72,6 +89,12 @@ export class DocsController {
 
     @Get("edit/*")
     async editPage(@Param("*") slug: string, @Req() req: any, @Res() res: any) {
+        // Same "check by hand, redirect to login" reasoning as createPage()
+        // above — see its comment.
+        if (req.session?.get("isAdmin") !== true) {
+            return res.redirect(303, "/admin/login");
+        }
+
         const doc = await this.docsService.findBySlug(slug);
         if (!doc) {
             const response = inertia(req, res, "NotFound", { slug, nav: await this.docsService.getNav() });
@@ -86,6 +109,7 @@ export class DocsController {
     }
 
     @Put("docs/*")
+    @UseGuards(AdminGuard)
     async update(
         @Param("*") slug: string,
         @Body() dto: { slug: string; title: string; groupTitle: string; sortOrder: string; content: string },
@@ -115,6 +139,7 @@ export class DocsController {
     }
 
     @Delete("docs/*")
+    @UseGuards(AdminGuard)
     async destroy(@Param("*") slug: string, @Req() req: any, @Res() res: any) {
         const doc = await this.docsService.findBySlug(slug);
         if (!doc) {
@@ -140,7 +165,12 @@ export class DocsController {
 
         return inertia(req, res, "Docs/Show", {
             slug,
-            page: { title: rendered.title, html: rendered.html, headings: rendered.headings },
+            page: {
+                title: rendered.title,
+                html: rendered.html,
+                headings: rendered.headings,
+                excerpt: rendered.excerpt,
+            },
             doc: rendered.doc,
             adjacent,
             nav: await this.docsService.getNav(),
@@ -151,5 +181,85 @@ export class DocsController {
     async search(@Query("q") query: string | undefined, @Res() res: any) {
         const results = await this.docsService.search(query ?? "");
         return res.send({ results });
+    }
+
+    /**
+     * Proxies github.com/nyalajs/nyalajs's real star count for the
+     * header's GitHub link (resources/js/hooks/use-github-stars.ts) —
+     * not fetched directly from the browser because the production CSP
+     * (packages/http/src/runtime/fastify-adapter.ts's helmet
+     * registration, `helmet: !isDev` in bootstrap/main.ts) has no
+     * connect-src override, so a browser-side fetch() to api.github.com
+     * is silently blocked by the default `defaultSrc: ["'self'"]` in
+     * production (confirmed against that file — it's shared framework
+     * code with no CSP customization hook, not something to work around
+     * per-app). A 10-minute in-memory cache keeps this well under
+     * GitHub's unauthenticated 60 req/hr-per-IP limit regardless of how
+     * many visitors load the page.
+     */
+    @Get("api/github-stars")
+    async githubStars(@Res() res: any) {
+        const now = Date.now();
+        if (githubStarsCache && now - githubStarsCache.fetchedAt < GITHUB_STARS_CACHE_MS) {
+            return res.send({ stars: githubStarsCache.stars });
+        }
+
+        try {
+            const response = await fetch("https://api.github.com/repos/nyalajs/nyalajs");
+            if (!response.ok) return res.send({ stars: githubStarsCache?.stars ?? null });
+
+            const data = (await response.json()) as { stargazers_count?: number };
+            const stars = typeof data.stargazers_count === "number" ? data.stargazers_count : null;
+            if (stars !== null) githubStarsCache = { stars, fetchedAt: now };
+            return res.send({ stars });
+        } catch {
+            return res.send({ stars: githubStarsCache?.stars ?? null });
+        }
+    }
+
+    /** Real sitemap, generated from whatever docs actually exist right now — not a static file. */
+    @Get("sitemap.xml")
+    async sitemap(@Res() res: any) {
+        const rows = await this.docRepository.findAllOrdered();
+        const baseUrl = this.config.get<string>("app.url", "http://localhost:3000").replace(/\/$/, "");
+
+        const urls = [
+            `<url><loc>${baseUrl}/</loc><changefreq>weekly</changefreq></url>`,
+            ...rows.map(
+                (row) =>
+                    `<url><loc>${baseUrl}/docs/${row.slug}</loc><lastmod>${row.updatedAt.toISOString()}</lastmod><changefreq>weekly</changefreq></url>`
+            ),
+        ].join("\n    ");
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    ${urls}
+</urlset>`;
+
+        res.header("Content-Type", "application/xml");
+        return res.send(xml);
+    }
+
+    /**
+     * FastifyAdapter's @fastify/static registration (staticDir/staticPrefix
+     * in bootstrap/main.ts) only serves one root, already used for
+     * public/build/'s hashed Vite assets under /build/ — there's no second
+     * slot for a plain top-level static file, so robots.txt/favicon.svg
+     * are served as real routes instead, same shape as sitemap() above.
+     */
+    @Get("robots.txt")
+    robots(@Res() res: any) {
+        const baseUrl = this.config.get<string>("app.url", "http://localhost:3000").replace(/\/$/, "");
+        res.header("Content-Type", "text/plain");
+        return res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
+    }
+
+    @Get("favicon.svg")
+    favicon(@Res() res: any) {
+        res.header("Content-Type", "image/svg+xml");
+        res.header("Cache-Control", "public, max-age=86400");
+        return res.send(
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z" fill="#0f172a" stroke="#0f172a"/></svg>`
+        );
     }
 }

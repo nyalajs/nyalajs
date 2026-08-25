@@ -27,13 +27,16 @@ export class DocRepository extends BaseRepository<Doc> {
         return db.select().from(docs).orderBy(asc(docs.groupTitle), asc(docs.sortOrder), asc(docs.title));
     }
 
-    /** Same id/timestamp-filling reasoning as inertia-starter's PostRepository.createPost(). */
+    /**
+     * Same id/timestamp-filling reasoning as inertia-starter's
+     * PostRepository.createPost(), adjusted for MySQL: no RETURNING
+     * clause, so the id is generated up front and the row is re-fetched
+     * by it afterward (see BaseRepository.create()'s doc comment).
+     */
     async createDoc(data: Omit<NewDoc, "id" | "createdAt" | "updatedAt">): Promise<Doc> {
         const now = new Date();
-        const [row] = await db
-            .insert(docs)
-            .values({ ...data, id: randomUUID(), createdAt: now, updatedAt: now })
-            .returning();
-        return row;
+        const id = randomUUID();
+        await db.insert(docs).values({ ...data, id, createdAt: now, updatedAt: now });
+        return (await this.findById(id))!;
     }
 }

@@ -1,0 +1,47 @@
+{
+    "name": "vscode-nyala-theme",
+    "displayName": "Nyala.js Theme",
+    "description": "Color theme built from the Nyala.js brand palette (teal green + golden yellow) — Nyala Dark and Nyala Light.",
+    "version": "0.1.0",
+    "publisher": "nyalajs",
+    "license": "MIT",
+    "icon": "icon.png",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Themes"
+    ],
+    "keywords": [
+        "nyala",
+        "nyalajs",
+        "theme",
+        "color-theme",
+        "dark theme",
+        "light theme"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nyalajs/nyalajs.git",
+        "directory": "tools/vscode-nyala-theme"
+    },
+    "homepage": "https://github.com/nyalajs/nyalajs/tree/main/tools/vscode-nyala-theme#readme",
+    "bugs": {
+        "url": "https://github.com/nyalajs/nyalajs/issues"
+    },
+    "author": "Hailemariyam",
+    "contributes": {
+        "themes": [
+            {
+                "label": "Nyala Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/nyala-dark-color-theme.json"
+            },
+            {
+                "label": "Nyala Light",
+                "uiTheme": "vs",
+                "path": "./themes/nyala-light-color-theme.json"
+            }
+        ]
+    }
+}

@@ -1,13 +1,13 @@
 # Nyala Docs Site
 
-Nyala's documentation, served as a real, full-CRUD [`inertia-starter`](../../templates/inertia-starter)-based app. Doc content lives in a real SQLite table (`app/models/doc.model.ts`), seeded from the actual [`website/docs/*.md`](../../website/docs) files — `database/seeders/doc.seeder.ts` reads every real file and inserts it as a real row. From there, every page is created/read/updated/deleted through the app itself: `DocsController` (`app/controllers/docs.controller.ts`) exposes real create/edit/delete forms alongside the read path, and `DocsService` renders whatever markdown is actually stored in the row right now — not a fixed copy of the original file.
+Nyala's documentation, served as a real, full-CRUD [`inertia-starter`](../../templates/inertia-starter)-based app. Doc content lives in a real MySQL table (`app/models/doc.model.ts`), seeded from the actual [`website/docs/*.md`](../../website/docs) files — `database/seeders/doc.seeder.ts` reads every real file and inserts it as a real row. From there, every page is created/read/updated/deleted through the app itself: `DocsController` (`app/controllers/docs.controller.ts`) exposes real create/edit/delete forms (gated behind a single admin login — see [Admin access](#admin-access)) alongside the public read path, and `DocsService` renders whatever markdown is actually stored in the row right now — not a fixed copy of the original file.
 
 ## How it works
 
 1. `database/migrations/0001_create_docs_table.ts` creates the `docs` table (`slug`, `title`, `group_title`, `sort_order`, `content`, timestamps). `npm run db:migrate` runs it directly via `tsx` (not `nyala db:migrate`, which is Postgres-only — see that file's own comment).
 2. `npm run db:seed` runs `database/seed.ts` → `database/seeders/doc.seeder.ts`, which reads every file listed in `app/docs/nav.ts` (a plain-data mirror of the real [VitePress sidebar](../../website/docs/.vitepress/config.ts) — checked against real files by `tests/unit/nav.spec.ts`) and inserts its raw markdown as a real row. Idempotent (`onConflictDoNothing()` on the unique `slug` column) — safe to re-run.
-3. `GET /docs/*` (`app/controllers/docs.controller.ts`) looks the slug up via `DocRepository.findBySlug()`, and `DocsService.render()` runs whatever `content` is actually stored right now through [`marked`](https://marked.js.org) (markdown → HTML) and [`shiki`](https://shiki.style) (real syntax highlighting, the same highlighter VitePress itself uses) — not a naive `<pre>` dump, and not a fixed copy of the seed content once someone's edited it.
-4. `GET /docs/create`, `GET /edit/*`, `POST /docs`, `PUT /docs/*`, `DELETE /docs/*` are real writes against the same table — see [Full CRUD, concretely](#full-crud-concretely) below.
+3. `GET /docs/*` (`app/controllers/docs.controller.ts`) looks the slug up via `DocRepository.findBySlug()`, and `DocsService.render()` runs whatever `content` is actually stored right now through [`marked`](https://marked.js.org) (markdown → HTML) and [`shiki`](https://shiki.style) (real syntax highlighting, the same highlighter VitePress itself uses) — not a naive `<pre>` dump, and not a fixed copy of the seed content once someone's edited it. The final HTML is run through [`sanitize-html`](https://www.npmjs.com/package/sanitize-html) before it's ever sent to a browser — see [Security](#security) below for why that matters.
+4. `GET /docs/create`, `GET /edit/*`, `POST /docs`, `PUT /docs/*`, `DELETE /docs/*` are real writes against the same table, gated behind the admin login — see [Full CRUD, concretely](#full-crud-concretely) and [Admin access](#admin-access) below.
 5. `GET /api/search` filters real rows by title/content/group substring match — no separate search index to keep in sync, no third-party search service.
 
 ## Pages and routes
@@ -34,11 +34,26 @@ Slugs are multi-segment (`building-blocks/controllers`, `deployment/environment`
 1. **Create**: `Docs/Create.tsx` posts to `POST /docs`. `DocValidator` (Zod) checks `slug` (lowercase, `-`/`/` only), `title`, `groupTitle`, `content` are present, and `DocsController.create()` separately checks the slug isn't already taken (`DocRepository.slugExists()`) before inserting — both failure paths flash field-specific errors back to the form via Inertia's `props.errors`, the same pattern as `inertia-starter`'s own forms.
 2. **Read**: covered above — `DocsService.render()` on whatever's in the row right now.
 3. **Update**: `Docs/Edit.tsx` (pre-filled from the real row) `PUT`s to `/docs/*`. Changing the slug is allowed — the uniqueness check excludes the row's own id (`DocRepository.slugExists(newSlug, existingId)`), and a successful update redirects to the *new* slug's URL.
-4. **Delete**: a real confirmation `Dialog` on `Docs/Show.tsx`, then `DELETE /docs/*` — the row is actually gone from SQLite afterward (verified live, not just a 200 response — see [Verified](#verified-not-just-typechecked) below).
+4. **Delete**: a real confirmation `Dialog` on `Docs/Show.tsx`, then `DELETE /docs/*` — the row is actually gone from MySQL afterward (verified live, not just a 200 response — see [Verified](#verified-not-just-typechecked) below).
 
-## Why this app has no auth
+## Admin access
 
-Full CRUD, but no login — anyone who can reach this app can create/edit/delete docs, the same trust model as a wiki. If you want to gate writes, `SessionAuthGuard` (`templates/inertia-starter/app/guards/session-auth.guard.ts`) is the real pattern to copy: add it, register `AuthController`, and `@UseGuards(SessionAuthGuard)` the mutating routes.
+Reads (`/`, `/docs/*`, `/api/search`, `/sitemap.xml`) are public — anyone can browse. Writes (create/update/delete) are gated behind a single admin password, checked against `ADMIN_PASSWORD_HASH` (a bcrypt hash — set it in `.env`, see `.env.example` for how to generate one). This is intentionally a single-password gate, not a full user/registration system: `templates/inertia-starter`'s own `SessionAuthGuard` + `AuthController` (with a real `users` table) is the pattern to copy if this app ever needs more than one admin.
+
+- `app/guards/admin.guard.ts` checks `req.session.get("isAdmin")`, same session-based mechanism as `inertia-starter`'s `SessionAuthGuard` (`@fastify/secure-session`, already wired into `FastifyAdapter`).
+- `POST /docs`, `PUT /docs/*`, `DELETE /docs/*` are gated with `@UseGuards(AdminGuard)` — a failed check there is a plain 403 JSON, which is fine since those routes are only ever reached via a same-origin form submit.
+- `GET /docs/create` and `GET /edit/*` check `isAdmin` by hand instead and issue a real `303` redirect to `/admin/login` — a guard's automatic 403 would be a broken, non-Inertia JSON response on what's otherwise a normal page navigation (see `app/guards/admin.guard.ts`'s own doc comment for why).
+- `bootstrap/main.ts`'s `InertiaShareMiddleware` shares `isAdmin` on every page load, so `docs-layout.tsx` / `Docs/Show.tsx` / `Home.tsx` only render the New doc/Edit/Delete buttons for a logged-in admin — this is a UI convenience, not the actual security boundary (that's the guard + hand-checks above; a logged-out visitor can't perform a write no matter what the client renders).
+
+Log in at `/admin/login`, log out via the header's logout icon (only visible while logged in).
+
+## Security
+
+`content` is fully admin-writable markdown, rendered to raw HTML and injected via `dangerouslySetInnerHTML` for every visitor — so `DocsService`'s rendering pipeline (`app/services/docs.service.ts`) treats it as untrusted input the same way any CMS would, not just "our own admin typed it so it's fine":
+
+- The `marked` renderer's `link()` override rejects any `href` scheme other than `http(s)`/anchor/relative (`javascript:`, `data:`, etc. are stripped to plain text, not linkified) and HTML-escapes `href`/`title` before they're interpolated into the output string.
+- The fully-resolved HTML (after Shiki highlighting and heading-id resolution) is run through `sanitize-html` with an explicit allowlist covering exactly what this pipeline's own renderer + Shiki emit — prose tags, headings with `id` (needed for the "on this page" outline's anchor scrolling), and Shiki's `pre`/`code`/`span` with `class`/`style` (its per-token syntax-highlighting colors). No `<script>`, `<iframe>`, event handlers, or dangerous URL schemes survive, regardless of what a doc's `content` field contains.
+- `tests/unit/docs.service.spec.ts`'s "HTML sanitization" describe block has regression tests asserting a `<script>` tag, an `onerror` handler, and a `javascript:` link all get neutralized end-to-end through the real rendering pipeline.
 
 ## The rendering pipeline, concretely
 
@@ -58,12 +73,15 @@ npm install
 cp .env.example .env
 ```
 
-Generate session values (required — `bootstrap/main.ts` enables sessions, which `flash()`/validation-error round-tripping on the CRUD forms depend on):
+Generate session values (required — `bootstrap/main.ts` enables sessions, which `flash()`/validation-error round-tripping on the CRUD forms depend on) and an admin password hash (required to log in and use the CRUD forms — see [Admin access](#admin-access)):
 
 ```bash
 openssl rand -base64 32                     # SESSION_SECRET
 openssl rand -base64 12 | cut -c1-16        # SESSION_SALT (must be exactly 16 chars)
+node -e "require('bcrypt').hash('yourpassword', 10).then(console.log)"  # ADMIN_PASSWORD_HASH
 ```
+
+Point `DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` (or `DATABASE_URL`) at a real MySQL server — see `.env.example`.
 
 ```bash
 npm run db:migrate
@@ -80,7 +98,7 @@ npm run build   # tsc → dist/, then `vite build` → public/build/ (manifest.j
 npm start        # node dist/bootstrap/main.js
 ```
 
-`storage/database.sqlite` needs to exist and be migrated/seeded before `npm start` — same as `inertia-starter`'s own production notes.
+The MySQL database needs to exist and be migrated/seeded before `npm start` — same as `inertia-starter`'s own production notes.
 
 ## Tests
 
@@ -89,10 +107,10 @@ npm test
 ```
 
 - `tests/unit/nav.spec.ts` — every slug in `app/docs/nav.ts` resolves to a real file under `website/docs/`, checked against the real directory (not a fixture), so a typo'd or renamed slug fails CI instead of silently being skipped by the seeder.
-- `tests/unit/doc.seeder.spec.ts` — runs the real seeder against a real SQLite table and the real `website/docs/*.md` tree: asserts it actually inserts real, non-trivial content (not just that it doesn't crash), and that re-running it doesn't duplicate rows.
-- `tests/unit/docs.service.spec.ts` — real `DocRepository` CRUD (create/update/delete/slug-collision-detection) against a real SQLite table, plus `DocsService`'s rendering logic (placeholder substitution, the `env`→`dotenv` language alias, heading-id de-duplication, relative-link rewriting, nav grouping, prev/next, search). Shiki's own highlighter is swapped for a lightweight stand-in via `__setCodeToHtmlForTests()` — Vitest's module runner can't execute this app's real dynamic `import("shiki")` (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`, a `vite-node` VM-sandbox limitation, not a bug: the same code runs correctly under plain Node, see below).
+- `tests/unit/doc.seeder.spec.ts` — runs the real seeder against a real MySQL table and the real `website/docs/*.md` tree: asserts it actually inserts real, non-trivial content (not just that it doesn't crash), and that re-running it doesn't duplicate rows.
+- `tests/unit/docs.service.spec.ts` — real `DocRepository` CRUD (create/update/delete/slug-collision-detection) against a real MySQL table, `DocsService`'s rendering logic (placeholder substitution, the `env`→`dotenv` language alias, heading-id de-duplication, relative-link rewriting, nav grouping, prev/next, search), and the HTML-sanitization regression tests described in [Security](#security). Shiki's own highlighter is swapped for a lightweight stand-in via `__setCodeToHtmlForTests()` — Vitest's module runner can't execute this app's real dynamic `import("shiki")` (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`, a `vite-node` VM-sandbox limitation, not a bug: the same code runs correctly under plain Node, see below).
 
-`vitest.config.ts` points every test at one shared SQLite file (`storage/test.sqlite`, gitignored) via `test.env.DB_PATH` — `database/connection.ts` reads `DB_PATH` in a module-top-level `new Database(...)` call, and under ESM semantics all of a spec file's `import`s run before the rest of that file's own code, so a spec-local `process.env.DB_PATH = ...` assignment (even written textually first) actually loses the race and silently points at this app's real `storage/database.sqlite`. Each DB-touching spec file drops and recreates the table itself in `beforeAll` for real isolation regardless of run order; `fileParallelism: false` keeps them from racing each other over the one shared file.
+`vitest.config.ts` points every test at a dedicated `nyaladocs_test` MySQL database (separate from this app's real `nyaladocs` one, so a test run can never touch real seeded content) via `test.env` — Vitest's own mechanism for env vars guaranteed to apply before any test module's code runs at all, since `database/connection.ts` reads `process.env.DB_*` in a module-top-level `mysql.createPool(...)` call, and under ESM semantics a spec file's own top-level env assignment would otherwise lose the race against that import. Each DB-touching spec file drops and recreates the table itself in `beforeAll` for real isolation regardless of run order; `fileParallelism: false` keeps them from racing each other over the one shared database.
 
 ## Verified, not just typechecked
 

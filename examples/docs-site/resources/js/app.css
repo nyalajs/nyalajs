@@ -4,6 +4,21 @@
 
 @layer base {
     :root {
+        /*
+         * Nyala brand palette, sampled directly from assets/image.png (the
+         * kudu-head brand mark) rather than derived from any other source
+         * — flat mid-tone pixels off each horn (avoiding both the bright
+         * specular-highlight streak and the near-black shadow edge) came
+         * out to teal #01ac8b and gold #febe00, real vivid values, more
+         * saturated than website/docs/.vitepress/theme/custom.css's own
+         * muted #1a4d3e/#f5b847 (that file's colors are a toned-down
+         * derivative for VitePress's own UI, not what's actually in the
+         * image). Only --primary/--ring/--accent-brand and the sidebar
+         * active-state tokens below pick up brand color;
+         * background/foreground/muted/border/destructive stay neutral —
+         * a full brand-color takeover of every token would hurt
+         * readability for body text and form inputs.
+         */
         --background: 0 0% 100%;
         --foreground: 222.2 84% 4.9%;
 
@@ -13,7 +28,10 @@
         --popover: 0 0% 100%;
         --popover-foreground: 222.2 84% 4.9%;
 
-        --primary: 222.2 47.4% 11.2%;
+        /* #017861 — the image's own teal (#01ac8b) is only 2.9:1 against
+         * white (verified), short of WCAG AA for white button text; this
+         * darker step off the same hue/saturation clears 5.4:1. */
+        --primary: 168.4 98.3% 23.7%;
         --primary-foreground: 210 40% 98%;
 
         --secondary: 210 40% 96.1%;
@@ -25,23 +43,33 @@
         --accent: 210 40% 96.1%;
         --accent-foreground: 222.2 47.4% 11.2%;
 
+        /* #febe00 — the image's own gold, used sparingly (hero gradient,
+         * "coming soon" affordances) via bg-accent-brand/text-accent-brand,
+         * not a shadcn token any primitive reads from by default. */
+        --accent-brand: 44.9 100% 49.8%;
+        --accent-brand-foreground: 168.4 98.3% 12%;
+
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 210 40% 98%;
 
         --border: 214.3 31.8% 91.4%;
         --input: 214.3 31.8% 91.4%;
-        --ring: 222.2 84% 4.9%;
+        /* #017861 — focus rings read as brand teal, not generic near-black */
+        --ring: 168.4 98.3% 23.7%;
 
         --radius: 0.6rem;
 
         --sidebar-background: 0 0% 98%;
         --sidebar-foreground: 240 5.3% 26.1%;
-        --sidebar-primary: 222.2 47.4% 11.2%;
+        --sidebar-primary: 168.4 98.3% 23.7%;
         --sidebar-primary-foreground: 0 0% 98%;
-        --sidebar-accent: 210 40% 94%;
-        --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+        /* Subtle brand-teal tint behind the active sidebar link
+         * (docs-nav.tsx's isActive state), not a color swap of every
+         * inactive hover state. */
+        --sidebar-accent: 168.4 40% 92%;
+        --sidebar-accent-foreground: 168.4 98.3% 20%;
         --sidebar-border: 220 13% 91%;
-        --sidebar-ring: 222.2 84% 4.9%;
+        --sidebar-ring: 168.4 98.3% 23.7%;
     }
 
     .dark {
@@ -54,7 +82,10 @@
         --popover: 222.2 84% 4.9%;
         --popover-foreground: 210 40% 98%;
 
-        --primary: 210 40% 98%;
+        /* #02e8bb — a lighter step off the same image-sampled teal hue;
+         * #017861 (light mode's --primary) is only 2.4:1 against this dark
+         * background (verified) — this lighter step clears 11.9:1. */
+        --primary: 168.3 98.3% 45.9%;
         --primary-foreground: 222.2 47.4% 11.2%;
 
         --secondary: 217.2 32.6% 17.5%;
@@ -66,21 +97,25 @@
         --accent: 217.2 32.6% 17.5%;
         --accent-foreground: 210 40% 98%;
 
+        /* #febe00 unchanged — already 11.3:1 against this background */
+        --accent-brand: 44.9 100% 49.8%;
+        --accent-brand-foreground: 168.4 98.3% 12%;
+
         --destructive: 0 62.8% 30.6%;
         --destructive-foreground: 210 40% 98%;
 
         --border: 217.2 32.6% 17.5%;
         --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
+        --ring: 168.3 98.3% 45.9%;
 
         --sidebar-background: 222.2 84% 4.9%;
         --sidebar-foreground: 210 40% 90%;
-        --sidebar-primary: 210 40% 98%;
+        --sidebar-primary: 168.3 98.3% 45.9%;
         --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-        --sidebar-accent: 217.2 32.6% 17.5%;
-        --sidebar-accent-foreground: 210 40% 98%;
+        --sidebar-accent: 168.3 35% 20%;
+        --sidebar-accent-foreground: 168.3 70% 75%;
         --sidebar-border: 217.2 32.6% 17.5%;
-        --sidebar-ring: 212.7 26.8% 83.9%;
+        --sidebar-ring: 168.3 98.3% 45.9%;
     }
 }
 
@@ -91,5 +126,86 @@
     body {
         @apply bg-background text-foreground;
         font-feature-settings: "rlig" 1, "calt" 1;
+    }
+}
+
+@layer components {
+    /*
+     * DocsService.wrapCodeBlock() (app/services/docs.service.ts) emits
+     * this shape server-side: a header bar (language label + copy
+     * button) wrapping Shiki's own <pre class="shiki">. Shiki's
+     * `github-dark` theme sets its own background-color inline
+     * regardless of the app's light/dark mode (same choice VitePress
+     * makes — a dark code block reads fine against either page theme),
+     * so this wrapper's border/header bar are themed to match Shiki's
+     * fixed dark background rather than the app's --card/--border
+     * tokens.
+     */
+    .code-block {
+        /* #24292e matches Shiki's github-dark theme's own background
+         * (verified against its real codeToHtml() output — inline
+         * background-color:#24292e on <pre>). Without this, the wrapper
+         * itself is fully transparent, so .code-block-header's
+         * bg-white/[0.03] tint has nothing dark to sit against at the
+         * very top of the block (before Shiki's own <pre> background
+         * begins) and renders as invisible white-on-white — confirmed
+         * live via pixel-sampling a screenshot: (255,255,255) at the
+         * header's own coordinates instead of a visible dark strip. */
+        @apply my-4 overflow-hidden rounded-lg border border-white/10 bg-[#24292e];
+    }
+    .code-block-header {
+        @apply flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-1.5;
+    }
+    .code-block-lang {
+        @apply font-mono text-xs font-medium uppercase tracking-wide text-white/50;
+    }
+    /* An icon-only button, right-aligned in the header bar for free by
+     * .code-block-header's own justify-between (lang label sits left).
+     * Shows the copy icon by default; useCodeBlockCopy()
+     * (resources/js/hooks/use-code-block-copy.ts) toggles
+     * .code-block-copy--copied on click to swap which of the two
+     * absolutely-stacked icon <span>s is visible, matching a standard
+     * Laravel/VitePress-style copy-to-clipboard affordance. */
+    .code-block-copy {
+        @apply relative flex h-6 w-6 items-center justify-center rounded text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:text-emerald-400;
+    }
+    .code-block-copy-icon,
+    .code-block-copy-icon-check {
+        @apply absolute inset-0 flex items-center justify-center transition-opacity;
+    }
+    .code-block-copy-icon svg,
+    .code-block-copy-icon-check svg {
+        @apply h-3.5 w-3.5;
+    }
+    .code-block-copy-icon-check {
+        @apply opacity-0;
+    }
+    .code-block-copy--copied .code-block-copy-icon {
+        @apply opacity-0;
+    }
+    .code-block-copy--copied .code-block-copy-icon-check {
+        @apply opacity-100;
+    }
+    .code-block pre {
+        /* Shiki's raw codeToHtml() output carries no padding of its own
+         * (verified against the real installed shiki package's output) —
+         * Docs/Show.tsx's prose-pre:p-0 zeroes it out for the wrapper to
+         * own instead, so this is the one place it's actually restored. */
+        @apply !my-0 !rounded-none !px-4 !py-3.5;
+    }
+    .code-block code {
+        @apply block overflow-x-auto;
+    }
+
+    /* Same teal->gold sweep as assets/image.png's own kudu-head mark
+     * (left horn teal, right horn gold), using the same image-sampled
+     * stops as :root's --primary/--accent-brand above (#017861 dark-teal
+     * -> #01ac8b image teal -> #febe00 image gold) rather than a separate
+     * set of colors. Applied to Home.tsx's <h1>. */
+    .nyala-hero-gradient {
+        background: linear-gradient(135deg, #017861 0%, #01ac8b 50%, #febe00 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 }

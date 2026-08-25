@@ -1,26 +1,39 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import mysql from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
 import * as schema from "../app/models";
 
 /**
- * Database Connection
- *
- * better-sqlite3, same as templates/inertia-starter/database/connection.ts
- * — a single on-disk file, zero external services to run this. `nyala
- * db:migrate`/`nyala db:seed` are hardcoded to Postgres (see
- * packages/cli/runtime/migration-runner.ts), so this app runs
- * database/migrate.ts / database/seed.ts directly instead (see those
- * files and package.json's db:migrate/db:seed scripts).
+ * Database Connection — MySQL (mysql2), same real
+ * mysql.createPool({ uri }) + drizzle(pool) pattern
+ * @nyalajs/database's own DatabaseService uses for its "mysql2" driver
+ * (packages/database/src/database.service.ts) — this app doesn't use
+ * DatabaseService itself (same reasoning as inertia-starter's SQLite
+ * setup: one direct Drizzle connection is simpler for a single-model
+ * app), just the same real driver/config shape.
  */
 
-const dbPath = process.env.DB_PATH || "./storage/database.sqlite";
+const pool = mysql.createPool({
+    uri: process.env.DATABASE_URL || buildUriFromParts(),
+    connectionLimit: 10,
+});
 
-const sqlite = new Database(dbPath);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+function buildUriFromParts(): string {
+    const host = process.env.DB_HOST || "127.0.0.1";
+    const port = process.env.DB_PORT || "3306";
+    const user = process.env.DB_USER || "root";
+    const password = process.env.DB_PASSWORD || "";
+    const database = process.env.DB_NAME || "nyaladocs";
+    return `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+}
 
-export const db = drizzle(sqlite, { schema });
+// mysql2/promise's Pool type only declares 'connection'/'acquire'/'release'/
+// 'enqueue' event overloads (verified against its real .d.ts) — no 'error',
+// unlike the plain callback-style mysql2 API @nyalajs/database's own
+// DatabaseService uses. Nothing here to listen for without dropping to an
+// untyped `(pool as any).on(...)`, which isn't worth it for logging alone.
 
-export function closeConnection(): void {
-    sqlite.close();
+export const db = drizzle(pool, { schema, mode: "default" });
+
+export async function closeConnection(): Promise<void> {
+    await pool.end();
 }

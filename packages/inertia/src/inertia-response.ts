@@ -211,6 +211,14 @@ export class InertiaResponse implements RenderableResponse {
         const page = await this.buildPage();
 
         if (this.isInertiaRequest()) {
+            // @inertiajs/core@2.3.27's isInertiaResponse() (its client-side
+            // guard for "did I actually get a real Inertia response back")
+            // requires this response header, not just a JSON body shaped
+            // like a page object — without it the client throws "All
+            // Inertia requests must receive a valid Inertia response,
+            // however a plain JSON response was received." on every
+            // client-side navigation.
+            this.options.reply?.header(INERTIA_HEADER, "true");
             return JSON.stringify(page);
         }
 

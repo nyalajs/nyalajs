@@ -1,0 +1,41 @@
+{
+    "name": "vscode-nyala-icons",
+    "displayName": "Nyala.js Icons",
+    "description": "File icon theme that shows the Nyala.js antelope logo on Nyala.js framework files (controllers, services, modules, repositories, models, and more) — the same idea as vscode-nestjs-files, for Nyala.js.",
+    "version": "0.1.1",
+    "publisher": "nyalajs",
+    "license": "MIT",
+    "icon": "icon.png",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Themes"
+    ],
+    "keywords": [
+        "nyala",
+        "nyalajs",
+        "icons",
+        "icon-theme",
+        "file-icons"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nyalajs/nyalajs.git",
+        "directory": "tools/vscode-nyala-icons"
+    },
+    "homepage": "https://github.com/nyalajs/nyalajs/tree/main/tools/vscode-nyala-icons#readme",
+    "bugs": {
+        "url": "https://github.com/nyalajs/nyalajs/issues"
+    },
+    "author": "Hailemariyam",
+    "contributes": {
+        "iconThemes": [
+            {
+                "id": "nyala-icons",
+                "label": "Nyala.js Icons",
+                "path": "./nyala-icon-theme.json"
+            }
+        ]
+    }
+}

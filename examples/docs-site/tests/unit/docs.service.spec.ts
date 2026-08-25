@@ -5,14 +5,16 @@ import { DocRepository } from "../../app/repositories/doc.repository";
 import { DocsService, __setCodeToHtmlForTests } from "../../app/services/docs.service";
 
 /**
- * Runs against a real SQLite file (vitest.config.ts's test.env.DB_PATH) —
- * not mocked queries — since DocsService/DocRepository's whole job is
- * reading/writing real rows. Mocking the repository here would just be
- * testing that the mocks return what they were told to return. Drops and
- * recreates the docs table itself in beforeAll (rather than assuming a
- * fresh file) for real isolation regardless of what other spec files ran
- * against this same shared test DB — see vitest.config.ts's comment for
- * why it's shared instead of a true per-file temp file.
+ * Runs against a real MySQL database (vitest.config.ts's test.env points
+ * DB_NAME at a dedicated nyaladocs_test database, separate from this app's
+ * real nyaladocs one) — not mocked queries — since
+ * DocsService/DocRepository's whole job is reading/writing real rows.
+ * Mocking the repository here would just be testing that the mocks return
+ * what they were told to return. Drops and recreates the docs table
+ * itself in beforeAll (rather than assuming a clean database) for real
+ * isolation regardless of what other spec files ran against this same
+ * shared test database — see vitest.config.ts's comment for why it's
+ * shared instead of a true per-file isolated database.
  *
  * shiki itself is swapped for a lightweight real function via
  * __setCodeToHtmlForTests(), not mocked away entirely — Vitest's module
@@ -36,17 +38,17 @@ describe("DocsService + DocRepository", () => {
             );
         });
 
-        db.run(sql`DROP TABLE IF EXISTS docs`);
-        db.run(sql`
+        await db.execute(sql`DROP TABLE IF EXISTS docs`);
+        await db.execute(sql`
             CREATE TABLE docs (
-                id TEXT PRIMARY KEY,
-                slug TEXT NOT NULL UNIQUE,
-                title TEXT NOT NULL,
-                group_title TEXT NOT NULL,
-                sort_order INTEGER NOT NULL DEFAULT 0,
+                id VARCHAR(36) PRIMARY KEY,
+                slug VARCHAR(255) NOT NULL UNIQUE,
+                title VARCHAR(255) NOT NULL,
+                group_title VARCHAR(255) NOT NULL,
+                sort_order INT NOT NULL DEFAULT 0,
                 content TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
         `);
 
@@ -158,13 +160,16 @@ describe("DocsService + DocRepository", () => {
             // website/docs/*.md source (seeded into this table by
             // database/seeders/doc.seeder.ts) fences plenty of blocks as
             // ```env — rendering one used to throw ShikiError before the
-            // LANG_ALIASES fix. Asserting on data-lang (not just that
-            // rendering succeeded) proves the alias actually reaches
+            // LANG_ALIASES fix. Checking the fake highlighter's own
+            // <pre data-lang="..."> (not wrapCodeBlock()'s outer
+            // <div data-lang="...">, which intentionally carries the
+            // original un-aliased fence language for display — see that
+            // function's doc comment) proves the alias actually reaches
             // codeToHtml's options, not just that some fallback silently
             // avoided the error.
             const rendered = await service.render("installation");
-            expect(rendered?.html).toContain('data-lang="dotenv"');
-            expect(rendered?.html).not.toContain('data-lang="env"');
+            expect(rendered?.html).toContain('<pre class="shiki fake-test-highlighter" data-lang="dotenv">');
+            expect(rendered?.html).not.toContain('<pre class="shiki fake-test-highlighter" data-lang="env">');
             expect(rendered?.html).toContain("SESSION_SECRET");
         });
 
@@ -181,9 +186,156 @@ describe("DocsService + DocRepository", () => {
             expect(new Set(ids).size).toBe(ids.length);
         });
 
+        it("keeps the id attribute on rendered heading tags after sanitizing", async () => {
+            // Regression test for a real bug: the `headings` array
+            // (asserted above) is built straight from marked's own
+            // tokenizer, independent of SANITIZE_OPTIONS — it stayed
+            // correct even when a broken allowedAttributes key
+            // ("h1,h2,h3,h4,h5,h6" as one literal object key, which
+            // sanitize-html's real index.js treats as a single tag name
+            // that matches nothing, not a comma-separated list of six
+            // tags) silently stripped `id` off every actual <h2>/<h3> in
+            // the rendered `html` string. DocsOutline's "On this page"
+            // links point at #<id> anchors built from that `headings`
+            // array — when the id was missing from the real DOM, clicking
+            // one updated the URL hash but scrolled nowhere (no element
+            // to jump to). Asserting on the rendered HTML itself, not
+            // just the parallel `headings` data, is what actually catches
+            // that gap.
+            const rendered = await service.render("introduction");
+            expect(rendered?.html).toContain('<h2 id="installation">');
+        });
+
         it("rewrites a relative markdown link to a /docs/:slug route", async () => {
             const rendered = await service.render("introduction");
             expect(rendered?.html).toContain('href="/docs/installation"');
+        });
+    });
+
+    describe("DocsService.render — HTML sanitization", () => {
+        // Regression test: `content` is fully user-writable (only gated by
+        // AdminGuard, not by any content restriction — see
+        // DocsController.create()/update()) and rendered via
+        // dangerouslySetInnerHTML for every visitor (Docs/Show.tsx), so a
+        // malicious doc submission must never be able to inject a live
+        // <script> or event handler into the page other visitors load.
+        it("strips a raw <script> tag embedded in doc content", async () => {
+            await repo.createDoc({
+                slug: "xss-script-test",
+                title: "XSS Script Test",
+                groupTitle: "Testing",
+                sortOrder: 0,
+                content: [
+                    "# XSS Script Test",
+                    "",
+                    "Before.",
+                    "",
+                    '<script>window.__xss = "pwned";</script>',
+                    "",
+                    "After.",
+                ].join("\n"),
+            });
+
+            const rendered = await service.render("xss-script-test");
+            expect(rendered?.html).not.toContain("<script");
+            expect(rendered?.html).not.toContain("__xss");
+            expect(rendered?.html).toContain("Before.");
+            expect(rendered?.html).toContain("After.");
+        });
+
+        it("strips an onerror handler off an <img> tag embedded in doc content", async () => {
+            // Slug/title deliberately avoid the substring "onerror" —
+            // the heading-id fix above means the H1's real id="..." is
+            // derived from this doc's own title/slug (see docs.service.ts's
+            // slugify()), so a slug like "xss-onerror-test" would make
+            // this test's own not.toContain("onerror") check trip on the
+            // id itself, not the (correctly stripped) attack payload.
+            await repo.createDoc({
+                slug: "xss-event-handler-test",
+                title: "XSS Event Handler Test",
+                groupTitle: "Testing",
+                sortOrder: 0,
+                content: ["# XSS Event Handler Test", "", '<img src="x" onerror="alert(1)">'].join("\n"),
+            });
+
+            const rendered = await service.render("xss-event-handler-test");
+            expect(rendered?.html).not.toContain("onerror");
+            expect(rendered?.html).not.toContain("alert(1)");
+        });
+
+        it("strips a javascript: URL from a markdown link", async () => {
+            await repo.createDoc({
+                slug: "xss-link-test",
+                title: "XSS Link Test",
+                groupTitle: "Testing",
+                sortOrder: 0,
+                content: ["# XSS Link Test", "", "[click me](javascript:alert(1))"].join("\n"),
+            });
+
+            const rendered = await service.render("xss-link-test");
+            expect(rendered?.html).not.toContain("javascript:");
+        });
+
+        it("keeps a highlighter's inline token-color styles intact after sanitizing", async () => {
+            // Simulates Shiki's real output shape (verified separately
+            // against the installed shiki package: codeToHtml() emits
+            // per-token `<span style="color:#RRGGBB">`) via the same
+            // __setCodeToHtmlForTests() seam every other test in this file
+            // uses — a genuine dynamic import("shiki") call can't run
+            // under Vitest's VM sandbox (see this describe block's own
+            // beforeAll comment), so this proves the sanitizer's style
+            // allowlist specifically, not Shiki's rendering.
+            __setCodeToHtmlForTests(() =>
+                Promise.resolve('<pre class="shiki" style="background-color:#24292e"><code>' +
+                    '<span class="line"><span style="color:#F97583">const</span></span></code></pre>')
+            );
+            try {
+                await repo.createDoc({
+                    slug: "highlight-style-test",
+                    title: "Highlight Style Test",
+                    groupTitle: "Testing",
+                    sortOrder: 0,
+                    content: ["# Highlight Style Test", "", "```typescript", "const x = 1;", "```"].join("\n"),
+                });
+
+                const rendered = await service.render("highlight-style-test");
+                expect(rendered?.html).toContain("shiki");
+                expect(rendered?.html).toMatch(/style="[^"]*color:\s*#F97583/);
+            } finally {
+                __setCodeToHtmlForTests((code, options) => {
+                    const lang = typeof options?.lang === "string" ? options.lang : "text";
+                    return Promise.resolve(
+                        `<pre class="shiki fake-test-highlighter" data-lang="${lang}"><code>${code}</code></pre>`
+                    );
+                });
+            }
+        });
+
+        it("keeps the copy button's icon <svg> tags intact, including viewbox, after sanitizing", async () => {
+            // Regression test for a real bug: sanitize-html's underlying
+            // htmlparser2 parser lowercases attribute NAMES by default
+            // (SVG's real spelling is camelCase "viewBox") before the
+            // allowlist check ever runs, so an allowlist entry written as
+            // "viewBox" silently never matched the actual (lowercased)
+            // "viewbox" key — every code block's copy-icon <svg> lost its
+            // viewBox and rendered with no usable coordinate system.
+            // wrapCodeBlock() (app/services/docs.service.ts) emits this
+            // markup on every fenced code block, so any doc with one
+            // exercises it — verified against the real rendered html here,
+            // not just that sanitization didn't crash.
+            await repo.createDoc({
+                slug: "copy-icon-svg-test",
+                title: "Copy Icon SVG Test",
+                groupTitle: "Testing",
+                sortOrder: 0,
+                content: ["# Copy Icon SVG Test", "", "```bash", "echo hi", "```"].join("\n"),
+            });
+
+            const rendered = await service.render("copy-icon-svg-test");
+            expect(rendered?.html).toContain("code-block-copy");
+            expect(rendered?.html).toMatch(/<svg[^>]*viewbox="0 0 24 24"/i);
+            expect(rendered?.html).toContain("<rect");
+            expect(rendered?.html).toContain("<path");
         });
     });
 

@@ -1,0 +1,42 @@
+{
+    "iconDefinitions": {
+        "_nyala_file": {
+            "iconPath": "./icons/nyala-file.png"
+        },
+        "_default_file": {
+            "iconPath": "./icons/default-file.png"
+        },
+        "_default_folder": {
+            "iconPath": "./icons/default-folder.png"
+        },
+        "_default_folder_open": {
+            "iconPath": "./icons/default-folder-open.png"
+        }
+    },
+    "file": "_default_file",
+    "folder": "_default_folder",
+    "folderExpanded": "_default_folder_open",
+    "rootFolder": "_default_folder",
+    "rootFolderExpanded": "_default_folder_open",
+    "fileExtensions": {
+        "controller.ts": "_nyala_file",
+        "controller.tsx": "_nyala_file",
+        "service.ts": "_nyala_file",
+        "module.ts": "_nyala_file",
+        "repository.ts": "_nyala_file",
+        "model.ts": "_nyala_file",
+        "dto.ts": "_nyala_file",
+        "validator.ts": "_nyala_file",
+        "guard.ts": "_nyala_file",
+        "middleware.ts": "_nyala_file",
+        "interceptor.ts": "_nyala_file",
+        "pipe.ts": "_nyala_file",
+        "provider.ts": "_nyala_file",
+        "decorator.ts": "_nyala_file",
+        "interface.ts": "_nyala_file",
+        "seeder.ts": "_nyala_file",
+        "command.ts": "_nyala_file",
+        "helper.ts": "_nyala_file",
+        "manager.ts": "_nyala_file"
+    }
+}

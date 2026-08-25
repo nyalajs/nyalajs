@@ -28,6 +28,21 @@ describe("InertiaResponse — contentType / X-Inertia branching", () => {
         expect(res.contentType).toBe("application/json");
     });
 
+    it("sets the X-Inertia response header on a genuine Inertia request, via the reply", async () => {
+        // Regression: @inertiajs/core's client-side isInertiaResponse() guard
+        // requires this header on the response — a JSON body shaped like a
+        // page object isn't enough on its own. Without it every client-side
+        // navigation throws "All Inertia requests must receive a valid
+        // Inertia response, however a plain JSON response was received."
+        const req = fakeRequest({ headers: { "x-inertia": "true" } });
+        const reply = fakeReply();
+        const res = new InertiaResponse("Home", {}, req, { version: null, html: baseHtmlOptions(), reply });
+
+        await res.render();
+
+        expect(reply.headers["x-inertia"]).toBe("true");
+    });
+
     it("renders a full HTML document (starting with <!DOCTYPE html>) for a hard navigation", async () => {
         const req = fakeRequest({ headers: {} });
         const res = new InertiaResponse("Home", { greeting: "hi" }, req, {

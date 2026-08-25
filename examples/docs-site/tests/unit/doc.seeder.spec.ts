@@ -5,39 +5,40 @@ import { docs } from "../../app/models/doc.model";
 import { run as seedDocs } from "../../database/seeders/doc.seeder";
 
 /**
- * Runs the real seeder against a real SQLite file (vitest.config.ts's
- * test.env.DB_PATH — see that file's comment for why it's a shared test
- * DB, reset per spec file, rather than a true per-file temp file) and the
- * real website/docs/*.md tree — the same files database/seed.ts reads in
+ * Runs the real seeder against a real MySQL database (vitest.config.ts's
+ * test.env points DB_NAME at a dedicated nyaladocs_test database — see
+ * that file's comment for why it's shared across spec files, reset per
+ * file, rather than a true per-file isolated database) and the real
+ * website/docs/*.md tree — the same files database/seed.ts reads in
  * production. Not a fixture: this proves the seeder actually produces
  * genuine, non-empty documentation content, not just that it doesn't
  * crash.
  */
 describe("doc.seeder", () => {
-    beforeAll(() => {
-        db.run(sql`DROP TABLE IF EXISTS docs`);
-        db.run(sql`
+    beforeAll(async () => {
+        await db.execute(sql`DROP TABLE IF EXISTS docs`);
+        await db.execute(sql`
             CREATE TABLE docs (
-                id TEXT PRIMARY KEY,
-                slug TEXT NOT NULL UNIQUE,
-                title TEXT NOT NULL,
-                group_title TEXT NOT NULL,
-                sort_order INTEGER NOT NULL DEFAULT 0,
+                id VARCHAR(36) PRIMARY KEY,
+                slug VARCHAR(255) NOT NULL UNIQUE,
+                title VARCHAR(255) NOT NULL,
+                group_title VARCHAR(255) NOT NULL,
+                sort_order INT NOT NULL DEFAULT 0,
                 content TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
         `);
     });
 
-    afterAll(() => {
-        db.run(sql`DELETE FROM docs`);
+    afterAll(async () => {
+        await db.execute(sql`DELETE FROM docs`);
     });
 
     it("seeds real rows from the real website/docs/*.md files", async () => {
         await seedDocs();
 
-        const rows = db.select().from(docs).all();
+        const rows = await db.select().from(docs);
         expect(rows.length).toBeGreaterThan(40); // 52 real files as of this writing — >40 tolerates future additions/removals without being a brittle exact match
 
         const intro = rows.find((row) => row.slug === "introduction");
@@ -47,9 +48,9 @@ describe("doc.seeder", () => {
     });
 
     it("is idempotent — re-running doesn't duplicate rows", async () => {
-        const before = db.select().from(docs).all().length;
+        const before = (await db.select().from(docs)).length;
         await seedDocs();
-        const after = db.select().from(docs).all().length;
+        const after = (await db.select().from(docs)).length;
         expect(after).toBe(before);
     });
 });

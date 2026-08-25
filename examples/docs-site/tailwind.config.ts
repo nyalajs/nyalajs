@@ -8,6 +8,26 @@ import type { Config } from "tailwindcss";
 export default {
     darkMode: ["class"],
     content: ["./resources/js/**/*.{ts,tsx}"],
+    // wrapCodeBlock() (app/services/docs.service.ts) emits these class
+    // names as literal strings server-side, in a Shiki-rendered markdown
+    // pipeline — outside this content glob entirely, since that file is
+    // backend TypeScript, not resources/js/. Tailwind's scanner only sees
+    // class names referenced somewhere the content glob covers, so these
+    // silently got purged as "unused" (confirmed live: .code-block-header
+    // and .code-block-lang were entirely missing from the built CSS,
+    // leaving the header bar with no background). @Show.tsx's own
+    // useCodeBlockCopy() hook referencing ".code-block"/".code-block-copy"
+    // as JS selector strings is what accidentally saved those two from
+    // the same fate — not a reliable mechanism to depend on.
+    safelist: [
+        "code-block",
+        "code-block-header",
+        "code-block-lang",
+        "code-block-copy",
+        "code-block-copy-icon",
+        "code-block-copy-icon-check",
+        "code-block-copy--copied",
+    ],
     theme: {
         container: {
             center: true,
@@ -56,6 +76,15 @@ export default {
                     DEFAULT: "hsl(var(--accent))",
                     foreground: "hsl(var(--accent-foreground))",
                 },
+                // Nyala brand gold (#f5b847) — a separate token from
+                // shadcn's own `accent` (a neutral gray hover-state color
+                // every primitive already reads from), used explicitly via
+                // bg-accent-brand/text-accent-brand where real brand color
+                // is wanted (hero gradient, "coming soon" badges).
+                "accent-brand": {
+                    DEFAULT: "hsl(var(--accent-brand))",
+                    foreground: "hsl(var(--accent-brand-foreground))",
+                },
                 popover: {
                     DEFAULT: "hsl(var(--popover))",
                     foreground: "hsl(var(--popover-foreground))",
@@ -93,6 +122,42 @@ export default {
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",
                 "accordion-up": "accordion-up 0.2s ease-out",
+            },
+            typography: {
+                // Tunes @tailwindcss/typography's own defaults for a
+                // Laravel/VitePress-docs reading rhythm — Docs/Show.tsx's
+                // `prose prose-neutral dark:prose-invert` was otherwise
+                // left at the plugin's out-of-the-box spacing. Code block
+                // styling itself is handled by app.css's .code-block rules
+                // (DocsService.wrapCodeBlock()'s own markup), not here —
+                // `prose-pre:*` on the article element only reaches
+                // Shiki's inner <pre>, so this just removes the default
+                // pseudo-content backtick styling from *inline* code
+                // (`code:not(pre code)`) in favor of a subtle background
+                // pill, closer to how Laravel's docs render inline code.
+                DEFAULT: {
+                    css: {
+                        "--tw-prose-body": "hsl(var(--foreground) / 0.85)",
+                        maxWidth: "none",
+                        lineHeight: "1.75",
+                        "h1, h2, h3, h4": {
+                            fontWeight: "600",
+                            letterSpacing: "-0.01em",
+                        },
+                        h2: { marginTop: "2.5em", marginBottom: "1em" },
+                        h3: { marginTop: "2em", marginBottom: "0.75em" },
+                        "code:not(pre code)": {
+                            backgroundColor: "hsl(var(--muted))",
+                            borderRadius: "0.3em",
+                            padding: "0.15em 0.4em",
+                            fontWeight: "500",
+                            fontSize: "0.875em",
+                        },
+                        "code:not(pre code)::before": { content: "none" },
+                        "code:not(pre code)::after": { content: "none" },
+                        a: { fontWeight: "500", textUnderlineOffset: "3px" },
+                    },
+                },
             },
         },
     },

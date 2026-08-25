@@ -1,38 +1,37 @@
 import { Injectable } from "@nyalajs/core";
 import { eq, SQL } from "drizzle-orm";
-import { SQLiteTable } from "drizzle-orm/sqlite-core";
+import { MySqlTable } from "drizzle-orm/mysql-core";
 import { db } from "../../database/connection";
 
 /**
- * Base Repository (SQLite variant)
+ * Base Repository (MySQL variant)
  *
- * Same shape as templates/basic-starter's BaseRepository<T>, adjusted for
- * drizzle-orm/sqlite-core's SQLiteTable type instead of pg-core's PgTable —
- * the query builder API (select/insert/update/delete/.returning()) is
- * otherwise identical, verified against the installed better-sqlite3
- * driver.
+ * Same shape as templates/inertia-starter's SQLite BaseRepository<T>, but
+ * MySQL's INSERT/UPDATE/DELETE don't support a RETURNING clause at all
+ * (unlike Postgres/SQLite, which is what that starter's version relies
+ * on) — every write here re-SELECTs the affected row by id afterward
+ * instead. Callers must always include an `id` in the data passed to
+ * create() (this app's repositories generate a real UUID client-side —
+ * see DocRepository.createDoc() — since there's no RETURNING to read an
+ * auto-generated id back from).
  *
  * Extend this class to create model-specific repositories.
  *
  * @example
- * export class PostRepository extends BaseRepository<Post> {
+ * export class DocRepository extends BaseRepository<Doc> {
  *     constructor() {
- *         super(posts);
+ *         super(docs);
  *     }
  * }
  */
 @Injectable()
 export abstract class BaseRepository<T> {
-    constructor(protected readonly table: SQLiteTable) { }
+    constructor(protected readonly table: MySqlTable) {}
 
     /**
      * Find all records
      */
-    async findAll(options?: {
-        limit?: number;
-        offset?: number;
-        where?: SQL;
-    }): Promise<T[]> {
+    async findAll(options?: { limit?: number; offset?: number; where?: SQL }): Promise<T[]> {
         let query = db.select().from(this.table);
 
         if (options?.where) {
@@ -67,50 +66,38 @@ export abstract class BaseRepository<T> {
      * Find one record matching conditions
      */
     async findOne(where: SQL): Promise<T | null> {
-        const results = await db
-            .select()
-            .from(this.table)
-            .where(where)
-            .limit(1);
+        const results = await db.select().from(this.table).where(where).limit(1);
 
         return (results[0] as T) || null;
     }
 
     /**
-     * Create a new record
+     * Create a new record — `data` must include `id`, since MySQL has no
+     * RETURNING to read a server-generated one back from.
      */
-    async create(data: Partial<T>): Promise<T> {
-        const results = await db
-            .insert(this.table)
-            .values(data as any)
-            .returning();
-
-        return results[0] as T;
+    async create(data: Partial<T> & { id: string }): Promise<T> {
+        await db.insert(this.table).values(data as any);
+        return (await this.findById(data.id)) as T;
     }
 
     /**
      * Update record by ID
      */
     async update(id: string, data: Partial<T>): Promise<T | null> {
-        const results = await db
+        await db
             .update(this.table)
             .set({ ...data, updatedAt: new Date() } as any)
-            .where(eq((this.table as any).id, id))
-            .returning();
+            .where(eq((this.table as any).id, id));
 
-        return (results[0] as T) || null;
+        return this.findById(id);
     }
 
     /**
      * Delete record by ID
      */
     async delete(id: string): Promise<boolean> {
-        const result = await db
-            .delete(this.table)
-            .where(eq((this.table as any).id, id))
-            .returning();
-
-        return result.length > 0;
+        const [result] = await db.delete(this.table).where(eq((this.table as any).id, id));
+        return (result as any).affectedRows > 0;
     }
 
     /**

@@ -18,6 +18,7 @@ export interface DocPage {
     title: string;
     html: string;
     headings: DocHeading[];
+    excerpt: string;
 }
 
 /** A real row from the docs table (app/models/doc.model.ts) — the raw, editable record behind a rendered DocPage. */

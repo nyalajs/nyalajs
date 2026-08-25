@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { mysqlTable, varchar, int, text, timestamp } from "drizzle-orm/mysql-core";
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
@@ -11,16 +11,22 @@ import { InferSelectModel, InferInsertModel } from "drizzle-orm";
  * file-based version's `${slug}.md` convention. `groupTitle`/`sortOrder`
  * reproduce the grouped-sidebar-nav structure the old app/docs/nav.ts data
  * file hardcoded, but as real per-row data instead.
+ *
+ * MySQL dialect (drizzle-orm/mysql-core) — `slug` is `varchar(255)`, not
+ * `text`, because MySQL can't put a unique index on an unbounded TEXT
+ * column without an explicit key-length prefix; every other string column
+ * that isn't uniquely indexed stays `text` for real, unbounded markdown
+ * content.
  */
-export const docs = sqliteTable("docs", {
-    id: text("id").primaryKey(),
-    slug: text("slug").notNull().unique(),
-    title: text("title").notNull(),
-    groupTitle: text("group_title").notNull(),
-    sortOrder: integer("sort_order").notNull().default(0),
+export const docs = mysqlTable("docs", {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    slug: varchar("slug", { length: 255 }).notNull().unique(),
+    title: varchar("title", { length: 255 }).notNull(),
+    groupTitle: varchar("group_title", { length: 255 }).notNull(),
+    sortOrder: int("sort_order").notNull().default(0),
     content: text("content").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
 });
 
 export type Doc = InferSelectModel<typeof docs>;
