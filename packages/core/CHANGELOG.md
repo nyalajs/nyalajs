@@ -1,5 +1,45 @@
 # @nyalajs/core
 
+## 2.3.1
+
+### Patch Changes
+
+- Add WebSocket gateways, streaming (SSE/file/LLM-token-bridge), and Cloudflare R2 support.
+
+  **`@nyalajs/http`**
+  - `@WebSocketGateway()`/`@SubscribeMessage()`/`@BinaryMessage()`/`@OnConnect()`/`@OnDisconnect()`/`@MessageBody()`/`@ConnectedSocket()` — real-time bidirectional WebSocket gateways resolved through the same DI container as HTTP controllers, backed by `@fastify/websocket`. Opt-in via `websocket: true` on `FastifyAdapterOptions`. Includes room support (`socket.join()`/`.broadcast()`) and native binary frame handling (`@BinaryMessage()`, `socket.emitBinary()`), routed by `ws`'s own binary-frame flag, not JSON-in-base64.
+  - `SseStream`/`StreamableResponse` — a handler can now return a streamed response (Server-Sent Events, or any raw `Readable`) instead of a plain object; the adapter pipes it and logs completion on actual stream end.
+  - `asyncIterableToSse()` — bridges any `AsyncIterable<string>` (e.g. `@nyalajs/ai`'s `AiService.stream()`) onto an `SseStream`, for streaming an LLM reply to a browser token-by-token.
+  - Fixed a Fastify bug where an `async` route handler that `await`s anything before `reply.send(readableStream)` silently truncated the response to its first chunk — every route now registers with a synchronous outer handler internally, with no change in behavior for non-streamed responses.
+  - Added a README (previously missing despite being referenced in `package.json`).
+
+  **`@nyalajs/storage`**
+  - `StorageDisk.stream()`/`.putStream()` — streamed read/write on every disk (`LocalDisk`, `S3Disk`, now `R2Disk`), so large files are never fully buffered in memory. S3-compatible `putStream()` uses `@aws-sdk/lib-storage`'s multipart `Upload` (a raw `PutObjectCommand` can't accept a stream of unknown length).
+  - `R2Disk` — Cloudflare R2 support, a thin config wrapper over `S3Disk`. Auto-builds the account-scoped endpoint and sets `region: "auto"` / `forcePathStyle: true`. `url()` requires an explicit `publicUrl` (R2 has no bucket-derivable public URL) and throws a clear, actionable error if omitted.
+  - Added a README (previously missing despite being referenced in `package.json`).
+
+  **`@nyalajs/core`**
+  - `NyalaApplication.bindRoutes()` is now `async` (backward compatible — existing unawaited calls still work; `listen()` and `TestingModule` both now await it) and gained a duck-typed hook so an HTTP adapter can register WebSocket gateway routes at the right point in the boot sequence, without core knowing anything about WebSockets.
+  - Added a README (previously missing despite being referenced in `package.json`).
+
+  **`@nyalajs/testing`**
+  - `TestingModuleBuilder.compile()` now awaits `app.bindRoutes()`, matching its new async signature.
+  - Added a README (previously missing despite being referenced in `package.json`).
+
+## 2.3.0
+
+### Minor Changes
+
+- Add built-in microservice support via a new `@nyalajs/microservices` package.
+
+  - `@MessagePattern()`/`@EventPattern()` decorators on ordinary `@Controller()` classes, resolved through the same DI container/module graph as HTTP routes.
+  - Five transports: TCP, Redis, gRPC, NATS, Kafka — all implementing the same `Transporter`/`ClientProxy` contract, so switching transports is a config change.
+  - `MicroserviceFactory.create()` for standalone microservice processes, and `connectMicroservice()`/`startMicroservices()` to attach a transport to an existing HTTP `NyalaApplication` for hybrid apps.
+  - `ClientProvider(token, config)` registers a `ClientProxy` as an ordinary DI provider, injected with `@Inject(token)`.
+  - Production features: reconnection with backoff, graceful drain shutdown, `@UseGuards`/`@UseInterceptors`/`@UseFilters`+`@Catch` parity with HTTP on message patterns, distributed trace propagation through `LogContext`/`TenantContext`, `@ValidatePayload()`, and health-check integration.
+
+  `@nyalajs/core` gains two new exports (`ModuleGraph`, `Kernel`) that `@nyalajs/microservices` needs to bind pattern handlers against the same module graph HTTP routes use.
+
 ## 2.2.0
 
 ### Minor Changes

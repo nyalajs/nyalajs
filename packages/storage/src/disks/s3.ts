@@ -1,3 +1,4 @@
+import { Readable } from "stream";
 import { StorageDisk } from "../storage.interface";
 
 export interface S3Config {
@@ -52,10 +53,50 @@ export class S3Disk implements StorageDisk {
     }
 
     async get(filePath: string): Promise<Buffer> {
+        const stream = await this.stream(filePath);
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(chunk as Buffer);
+        }
+        return Buffer.concat(chunks);
+    }
+
+    async putStream(filePath: string, contents: Readable): Promise<void> {
+        const client = await this.getClient();
+
+        // PutObjectCommand needs a known Content-Length up front — a raw
+        // Readable's length isn't known ahead of time, so sending it
+        // through PutObjectCommand directly throws (confirmed against a
+        // real S3-compatible backend, not theoretical). @aws-sdk/lib-storage's
+        // Upload class is the SDK's own answer to this: it multipart-uploads
+        // in bounded-size parts, so the source stream is only ever buffered
+        // one part at a time, never fully in memory.
+        let Upload: any;
+        try {
+            // @ts-ignore
+            ({ Upload } = await import("@aws-sdk/lib-storage"));
+        } catch {
+            throw new Error(
+                "[nyala/storage] @aws-sdk/lib-storage is required for putStream() (S3 needs it to upload a stream of unknown length). Run: npm install @aws-sdk/lib-storage"
+            );
+        }
+
+        const upload = new Upload({
+            client,
+            params: {
+                Bucket: this.config.bucket,
+                Key: filePath,
+                Body: contents,
+            },
+        });
+        await upload.done();
+    }
+
+    async stream(filePath: string): Promise<Readable> {
         const client = await this.getClient();
         // @ts-ignore
         const { GetObjectCommand } = await import("@aws-sdk/client-s3");
-        
+
         const response = await client.send(
             new GetObjectCommand({
                 Bucket: this.config.bucket,
@@ -67,12 +108,10 @@ export class S3Disk implements StorageDisk {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        // Convert Node.js Readable to Buffer
-        const chunks = [];
-        for await (const chunk of response.Body as any) {
-            chunks.push(chunk);
-        }
-        return Buffer.concat(chunks);
+        // response.Body is a Node Readable when the SDK's default Node HTTP
+        // handler is in use (true for @aws-sdk/client-s3 in a Node
+        // environment, which is the only environment this package targets).
+        return response.Body as Readable;
     }
 
     async delete(filePath: string): Promise<void> {

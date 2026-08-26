@@ -8,11 +8,13 @@ async function bootstrap() {
 
     const httpAdapter = new FastifyAdapter(app.getKernel().getContainer(), {
         session: false,
+        websocket: true,
     });
     app.setHttpAdapter(httpAdapter);
 
     await app.listen(3000);
     console.log("Server running at http://0.0.0.0:3000");
+    console.log("Chat gateway at ws://0.0.0.0:3000/ws/chat");
 }
 
 bootstrap();

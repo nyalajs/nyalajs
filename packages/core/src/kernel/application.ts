@@ -70,8 +70,13 @@ export class NyalaApplication {
      * `listen()` calls this before starting the server; `TestingModule`
      * calls it too, so routes are bound before tests run — without it,
      * `HttpTestClient` requests 404 against an adapter with zero routes.
+     *
+     * Async for forward compatibility with adapter hooks that need to await
+     * something here — nothing currently does, so `await`ing this call is
+     * optional today, but keep doing it (as `listen()` and `TestingModule`
+     * both do) rather than relying on that staying true.
      */
-    bindRoutes(): void {
+    async bindRoutes(): Promise<void> {
         if (!this.httpAdapter) {
             throw new Error("HTTP adapter not configured");
         }
@@ -88,6 +93,18 @@ export class NyalaApplication {
 
         if (typeof this.httpAdapter.registerResolvedRoutes === "function") {
             this.httpAdapter.registerResolvedRoutes(resolvedRoutes);
+        }
+
+        // Same duck-typed opt-in as registerResolvedRoutes() above: core has
+        // no notion of WebSocket gateways (that's @nyalajs/http's
+        // FastifyAdapter-specific concern), so this only fires for adapters
+        // that actually implement it — a no-op for any adapter that doesn't.
+        // Must run before the adapter's listen()/ready() call — the adapter
+        // queues gateway route registration at construction time and this
+        // only unblocks it (see FastifyAdapter's constructor for why routes
+        // can't simply be added here directly).
+        if (typeof (this.httpAdapter as any).registerWebSocketGateways === "function") {
+            (this.httpAdapter as any).registerWebSocketGateways(this.kernel);
         }
 
         // Auto-register global middleware from ConfigService if available
@@ -111,7 +128,7 @@ export class NyalaApplication {
             throw new Error("HTTP adapter not configured");
         }
 
-        this.bindRoutes();
+        await this.bindRoutes();
 
         // Boot plugins just before listening, so all modules are ready
         await this.bootPlugins();

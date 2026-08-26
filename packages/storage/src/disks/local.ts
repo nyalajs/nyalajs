@@ -1,5 +1,7 @@
 import * as fs from "fs-extra";
 import * as path from "path";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import { StorageDisk } from "../storage.interface";
 
 export class LocalDisk implements StorageDisk {
@@ -25,6 +27,19 @@ export class LocalDisk implements StorageDisk {
 
     async get(filePath: string): Promise<Buffer> {
         return fs.readFile(this.getFullPath(filePath));
+    }
+
+    async putStream(filePath: string, contents: Readable): Promise<void> {
+        const fullPath = this.getFullPath(filePath);
+        await fs.ensureDir(path.dirname(fullPath));
+        // pipeline() (not .pipe()) so a source error or premature close
+        // propagates as a rejected promise instead of an unhandled "error"
+        // event, and the destination file descriptor is always cleaned up.
+        await pipeline(contents, fs.createWriteStream(fullPath));
+    }
+
+    async stream(filePath: string): Promise<Readable> {
+        return fs.createReadStream(this.getFullPath(filePath));
     }
 
     async delete(filePath: string): Promise<void> {

@@ -1,12 +1,15 @@
 import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { Container, getParamMetadata, ParamType, TenantContext, LogContext, getCatchTypes } from "@nyalajs/core";
+import { Container, Kernel, getParamMetadata, ParamType, TenantContext, LogContext, getCatchTypes } from "@nyalajs/core";
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
 import { ExceptionHandler, ErrorViewRenderer, UnprocessableEntityException } from "../errors/exception-handler";
 import { Middleware } from "../middleware/middleware.interface";
 import { isRenderable } from "../response/renderable.interface";
+import { isStreamable, StreamableResponse } from "../response/streamable.interface";
 import { randomUUID } from "crypto";
+import { GatewayResolver } from "../websocket/runtime/gateway-resolver";
+import { registerWebSocketGateways } from "../websocket/runtime/websocket-adapter";
 
 export interface FastifyAdapterOptions {
     cors?: boolean;
@@ -43,6 +46,15 @@ export interface FastifyAdapterOptions {
      * built-in generic page is used instead of a JSON error blob.
      */
     errorView?: ErrorViewRenderer;
+    /**
+     * Enable @WebSocketGateway()/@SubscribeMessage() support via
+     * @fastify/websocket. Off by default — most apps don't need real-time,
+     * and the plugin isn't worth registering (and its `ws`/duplexify
+     * dependency chain isn't worth requiring) unless a gateway is actually
+     * declared. Set true to opt in; gateways are then discovered from the
+     * module graph automatically, same as HTTP controllers.
+     */
+    websocket?: boolean;
 }
 
 type HttpMethod = "get" | "post" | "put" | "delete" | "patch" | "options" | "head";
@@ -52,6 +64,11 @@ export class FastifyAdapter {
     private routeRegistry: RouteRegistry;
     private exceptionHandler: ExceptionHandler;
     private globalMiddleware: Middleware[] = [];
+    private readonly websocketEnabled: boolean;
+    // Resolved by registerWebSocketGateways(kernel) — see the nested
+    // app.register() callback in the constructor for why this exists.
+    private readonly gatewaysReady!: Promise<Kernel>;
+    private resolveGatewaysReady!: (kernel: Kernel) => void;
 
     constructor(
         private readonly container: Container,
@@ -65,6 +82,10 @@ export class FastifyAdapter {
 
         this.routeRegistry = new RouteRegistry();
         this.exceptionHandler = new ExceptionHandler(options.errorView);
+        this.websocketEnabled = options.websocket ?? false;
+        this.gatewaysReady = new Promise<Kernel>((resolve) => {
+            this.resolveGatewaysReady = resolve;
+        });
 
         this.setupSecurityDefaults(options);
 
@@ -94,11 +115,55 @@ export class FastifyAdapter {
                 prefix: options.staticPrefix ?? "/public",
             });
         }
+
+        if (options.websocket) {
+            this.app.register(require("@fastify/websocket"));
+
+            // Gateway routes MUST be added as ordinary routes before the
+            // instance is ready()/listen()-ed — Fastify permanently locks
+            // route registration once ready() resolves (FST_ERR_INSTANCE_ALREADY_LISTENING),
+            // so "await app.ready() then app.get(...)" is not legal, only
+            // "app.get(...) then await app.ready()" is. But they also can't
+            // be added HERE directly: @fastify/websocket's onRoute hook
+            // (which makes {websocket:true} routes actually work) only
+            // attaches once that plugin's own async registration has run,
+            // and plain top-level app.get() calls in this constructor are
+            // not guaranteed to run after it.
+            //
+            // The fix is a nested app.register(): Fastify's plugin queue
+            // guarantees any nested register() body starts only after the
+            // plugin registered immediately before it (here, @fastify/websocket)
+            // has finished — the standard way @fastify/websocket's own docs
+            // show routes being added. `kernel` isn't known yet at
+            // construction time (this constructor only receives a Container),
+            // so this callback awaits `this.gatewaysReady`, resolved later by
+            // registerWebSocketGateways(kernel) — which itself must be called
+            // before app.ready()/listen(), not after.
+            this.app.register(async (instance) => {
+                const kernel = await this.gatewaysReady;
+                const resolver = new GatewayResolver(kernel.getContainer(), kernel.getModuleGraph());
+                registerWebSocketGateways(instance, kernel.getContainer(), resolver);
+            });
+        }
     }
 
     /** Register a global middleware instance (runs before every route handler). */
     addMiddleware(middleware: Middleware): void {
         this.globalMiddleware.push(middleware);
+    }
+
+    /**
+     * Supplies the Kernel that the nested plugin registered in the
+     * constructor (see the `options.websocket` branch above) is waiting on
+     * to actually bind @WebSocketGateway()s. Called automatically by
+     * NyalaApplication.bindRoutes() (duck-typed — see application.ts) when
+     * `websocket: true` was passed to this adapter's constructor; a no-op
+     * if it wasn't. Must be called before app.ready()/listen() — Fastify
+     * permanently locks route registration once the instance is ready.
+     */
+    registerWebSocketGateways(kernel: Kernel): void {
+        if (!this.websocketEnabled) return;
+        this.resolveGatewaysReady(kernel);
     }
 
     private setupSwagger(): void {
@@ -305,8 +370,40 @@ export class FastifyAdapter {
 
             const schema = this.buildRouteSchema(route);
 
-            this.app[method](route.path, { schema }, async (request: FastifyRequest, reply: FastifyReply) => {
-                await this.handleRequest(request, reply, route);
+            // Deliberately NOT an async handler, and handleRequest()'s
+            // promise is deliberately not returned/awaited here — a real
+            // Fastify quirk (confirmed via isolated repro, unrelated to
+            // this framework's own code) truncates any streamed response
+            // sent from inside an async route handler: once that handler
+            // has crossed even one microtask tick (any `await`) before
+            // calling reply.send() on a stream, Fastify's own
+            // handler-return-value machinery races the manual send and
+            // ends the response after only the first chunk. A synchronous
+            // outer handler with a detached, .catch()-guarded promise
+            // sidesteps that machinery entirely, for every route — not just
+            // streamed ones — with no change in behavior for ordinary
+            // (non-streamed) responses, since handleRequestInScope() already
+            // catches everything itself (tryExceptionFilters/ExceptionHandler)
+            // and never lets an error reach this .catch() in practice; it's
+            // a last-resort net, not the primary error path.
+            this.app[method](route.path, { schema }, (request: FastifyRequest, reply: FastifyReply) => {
+                this.handleRequest(request, reply, route).catch((error) => {
+                    if (!reply.sent) {
+                        reply.status(500).send({
+                            statusCode: 500,
+                            error: "Internal Server Error",
+                            message: (error as Error).message,
+                        });
+                    } else {
+                        console.error(
+                            JSON.stringify({
+                                level: "error",
+                                message: "Unhandled error after response was already sent",
+                                error: (error as Error).message,
+                            })
+                        );
+                    }
+                });
             });
 
         }
@@ -437,6 +534,15 @@ export class FastifyAdapter {
             // would throw/warn "reply already sent". Nothing left to do.
             if (reply.sent) {
                 // still fall through to the request-completed log below
+            } else if (isStreamable(result)) {
+                // Streamed responses (SseStream or a raw StreamableResponse)
+                // finish asynchronously, well after this call returns — the
+                // "Request completed" log below would otherwise fire the
+                // instant piping *starts*, with a near-zero duration and no
+                // real statusCode yet. Log on the stream's actual end/close
+                // instead, and stop there so it isn't logged twice.
+                this.sendStream(reply, result, request, context, startTime);
+                return;
             } else if (isRenderable(result)) {
                 const body = await result.render();
                 reply
@@ -468,6 +574,83 @@ export class FastifyAdapter {
                 await this.exceptionHandler.handle(error as Error, executionContext, reply);
             }
         }
+    }
+
+    /**
+     * Pipes a StreamableResponse (an SseStream, or any raw Readable a
+     * handler returns) to the client. Sets headers up front — once any data
+     * is written, headers can no longer change, so status/content-type/
+     * custom headers must all be applied before the stream starts flowing.
+     *
+     * Logs "Request completed" when the stream actually ends, not when
+     * `reply.send()` returns (which happens the instant piping *starts* —
+     * see the caller). Also listens for the client disconnecting mid-stream
+     * (`request.raw` "close") and destroys the stream so a handler pushing
+     * into an abandoned SseStream doesn't leak — a long-poll/SSE connection
+     * with no client on the other end otherwise runs forever.
+     */
+    private sendStream(
+        reply: FastifyReply,
+        streamable: StreamableResponse,
+        request: FastifyRequest,
+        context: RequestContext,
+        startTime: number
+    ): void {
+        reply.status(streamable.statusCode ?? 200);
+        reply.type(streamable.contentType ?? "application/octet-stream");
+        for (const [key, value] of Object.entries(streamable.headers ?? {})) {
+            reply.header(key, value);
+        }
+
+        // reply.raw's "close" fires whenever the underlying connection ends
+        // — a normal, fully-sent response closes its connection too, not
+        // just a client hanging up mid-stream — so only actually destroy
+        // the source stream if the response was NOT cleanly finished when
+        // this fired. Otherwise a long-lived SSE stream that outlives the
+        // client (browser closed, network dropped) would keep running
+        // forever with nothing pushing data anywhere.
+        const onClientDisconnect = () => {
+            if (!reply.raw.writableEnded && !streamable.stream.destroyed) {
+                streamable.stream.destroy();
+            }
+        };
+        reply.raw.once("close", onClientDisconnect);
+
+        let logged = false;
+        const logCompletion = () => {
+            if (logged) return; // "end" and "close" can both fire for the same stream
+            logged = true;
+            reply.raw.removeListener("close", onClientDisconnect);
+            console.log(
+                JSON.stringify({
+                    level: "info",
+                    message: "Request completed",
+                    requestId: context.requestId,
+                    traceId: context.traceId,
+                    method: request.method,
+                    path: request.url,
+                    statusCode: reply.statusCode,
+                    duration: Date.now() - startTime,
+                    streamed: true,
+                    timestamp: new Date().toISOString(),
+                })
+            );
+        };
+
+        streamable.stream.once("end", logCompletion);
+        streamable.stream.once("close", logCompletion);
+        streamable.stream.once("error", (error: Error) => {
+            console.error(
+                JSON.stringify({
+                    level: "error",
+                    message: "Stream error",
+                    requestId: context.requestId,
+                    error: error.message,
+                })
+            );
+        });
+
+        reply.send(streamable.stream);
     }
 
     /**

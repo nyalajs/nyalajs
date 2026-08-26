@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/http",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -28,11 +28,13 @@
         "@fastify/static": "^6.12.0",
         "@fastify/swagger": "^8.13.0",
         "@fastify/swagger-ui": "^2.1.0",
+        "@fastify/websocket": "^10.0.1",
         "@nyalajs/core": "*",
         "fastify": "^4.25.2"
     },
     "devDependencies": {
         "@types/node": "^20.10.6",
+        "@types/ws": "^8.5.10",
         "typescript": "^5.3.3",
         "vitest": "^1.0.4"
     },

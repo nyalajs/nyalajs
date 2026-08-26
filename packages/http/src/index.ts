@@ -8,5 +8,17 @@ export * from "./interceptors/interceptor.interface";
 export * from "./filters/exception-filter.interface";
 export * from "./response/api-response";
 export * from "./response/renderable.interface";
+export * from "./response/streamable.interface";
+export * from "./response/sse-stream";
+export * from "./response/async-iterable-to-sse";
 export * from "./middleware/middleware.interface";
 export * from "./decorators/api";
+
+export * from "./websocket/decorators/gateway";
+export * from "./websocket/decorators/subscribe-message";
+export * from "./websocket/decorators/lifecycle";
+export * from "./websocket/decorators/params";
+export * from "./websocket/runtime/nyala-socket";
+export * from "./websocket/runtime/room-registry";
+export * from "./websocket/runtime/ws-protocol";
+export * from "./websocket/runtime/gateway-resolver";

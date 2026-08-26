@@ -1,3 +1,4 @@
+import { Readable } from "stream";
 import { Injectable } from "@nyalajs/core";
 import { StorageDisk } from "./storage.interface";
 import { LocalDisk } from "./disks/local";
@@ -46,6 +47,14 @@ export class StorageService implements StorageDisk {
 
     async get(path: string): Promise<Buffer> {
         return this.disk().get(path);
+    }
+
+    async putStream(path: string, contents: Readable): Promise<void> {
+        return this.disk().putStream(path, contents);
+    }
+
+    async stream(path: string): Promise<Readable> {
+        return this.disk().stream(path);
     }
 
     async delete(path: string): Promise<void> {

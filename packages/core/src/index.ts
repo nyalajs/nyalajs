@@ -8,6 +8,8 @@ export * from "./types/lifecycle";
 export * from "./kernel/application";
 export * from "./kernel/crash-handlers";
 export * from "./di/container";
+export * from "./module/module-graph";
+export * from "./kernel/kernel";
 export * from "./plugins/plugin.interface";
 export * from "./plugins/plugin.manager";
 export * from "./routing/route-resolver";

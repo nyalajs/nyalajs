@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
+import { Readable } from "stream";
 import { LocalDisk } from "../disks/local";
+
+async function readAll(stream: Readable): Promise<string> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    return Buffer.concat(chunks).toString();
+}
 
 describe("LocalDisk", () => {
     let root: string;
@@ -65,5 +72,30 @@ describe("LocalDisk", () => {
     it("supports writing a Buffer", async () => {
         await disk.put("binary.dat", Buffer.from([1, 2, 3]));
         expect(await disk.get("binary.dat")).toEqual(Buffer.from([1, 2, 3]));
+    });
+
+    it("stream() reads back a file written with put(), incrementally", async () => {
+        await disk.put("large.txt", "streamed content");
+
+        const readable = await disk.stream("large.txt");
+        expect(await readAll(readable)).toBe("streamed content");
+    });
+
+    it("putStream() writes a file from a Readable without buffering it in the caller", async () => {
+        const source = Readable.from(["chunk-1", "chunk-2", "chunk-3"]);
+
+        await disk.putStream("from-stream.txt", source);
+
+        expect((await disk.get("from-stream.txt")).toString()).toBe("chunk-1chunk-2chunk-3");
+    });
+
+    it("putStream() then stream() round-trips a real multi-chunk write without ever fully buffering it", async () => {
+        const chunks = Array.from({ length: 50 }, (_, i) => `line-${i}\n`);
+        const source = Readable.from(chunks);
+
+        await disk.putStream("big.log", source);
+
+        const readBack = await readAll(await disk.stream("big.log"));
+        expect(readBack).toBe(chunks.join(""));
     });
 });

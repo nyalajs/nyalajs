@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/storage",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Storage abstraction for NyalaJS",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -22,6 +22,7 @@
     },
     "peerDependencies": {
         "@aws-sdk/client-s3": "^3.0.0",
+        "@aws-sdk/lib-storage": "^3.0.0",
         "@aws-sdk/s3-request-presigner": "^3.0.0",
         "reflect-metadata": ">=0.1.13"
     },
@@ -29,11 +30,16 @@
         "@aws-sdk/client-s3": {
             "optional": true
         },
+        "@aws-sdk/lib-storage": {
+            "optional": true
+        },
         "@aws-sdk/s3-request-presigner": {
             "optional": true
         }
     },
     "devDependencies": {
+        "@aws-sdk/client-s3": "^3.0.0",
+        "@aws-sdk/lib-storage": "^3.0.0",
         "@types/fs-extra": "^11.0.4",
         "typescript": "^5.3.3",
         "vitest": "^1.0.4"

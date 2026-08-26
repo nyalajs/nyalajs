@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
+import { Readable } from "stream";
 import { StorageService } from "../storage.service";
 import { StorageDisk } from "../storage.interface";
 
 function fakeDisk(label: string): StorageDisk {
     return {
         put: vi.fn().mockResolvedValue(undefined),
+        putStream: vi.fn().mockResolvedValue(undefined),
         get: vi.fn().mockResolvedValue(Buffer.from(label)),
+        stream: vi.fn().mockResolvedValue(Readable.from([label])),
         delete: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(true),
         url: vi.fn().mockResolvedValue(`https://${label}/x`),
