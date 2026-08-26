@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/microservices",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Message-pattern microservice transports (TCP, Redis, gRPC, NATS, Kafka) for NyalaJS",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

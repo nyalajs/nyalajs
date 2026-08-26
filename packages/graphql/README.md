@@ -122,10 +122,12 @@ Unset by default — matching graphql-yoga's own safe default, an unexpected res
 
 ## Peer dependencies
 
-`graphql` is a direct dependency. `graphql-yoga` is an optional peer dependency — only required if you call `mountGraphqlServer()`. Pin `graphql-yoga` to the `^5.x` line.
+`graphql` is a **required** peer dependency (install it alongside this package) — deliberately not bundled as a direct dependency, because a direct dependency lets npm install a second, separately-hoisted copy of `graphql` alongside whatever copy `graphql-yoga` (or your app) already has. `graphql-js`'s own runtime identity checks (`assertSchema`, `instanceof GraphQLSchema`) then reject a real schema built against one copy when executed against the other, reporting it as "from another module or realm" even though nothing is actually wrong with it. Only one `graphql` in the tree — which a peer dependency guarantees — avoids this entirely.
+
+`graphql-yoga` is an optional peer dependency — only required if you call `mountGraphqlServer()`. Pin both to versions compatible with `graphql-yoga@^5.x` (which itself requires `graphql@^16.x`).
 
 ```bash
-npm install graphql-yoga
+npm install graphql graphql-yoga
 ```
 
 ### A note on graphql-js and Vitest

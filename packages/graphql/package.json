@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/graphql",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Code-first GraphQL (resolvers, guards, interceptors, DataLoader batching, subscriptions) for NyalaJS, sharing the same DI/tenancy pipeline as HTTP and microservices",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -18,12 +18,12 @@
     },
     "dependencies": {
         "@nyalajs/core": "*",
-        "dataloader": "^2.2.3",
-        "graphql": "^16.9.0"
+        "dataloader": "^2.2.3"
     },
     "peerDependencies": {
         "@nyalajs/tenancy": "*",
         "fastify": ">=4.0.0",
+        "graphql": "^16.9.0",
         "graphql-yoga": "^5.0.0",
         "reflect-metadata": ">=0.1.13"
     },
@@ -42,6 +42,7 @@
         "@nyalajs/http": "*",
         "@nyalajs/tenancy": "*",
         "fastify": "^4.29.1",
+        "graphql": "^16.9.0",
         "graphql-yoga": "^5.10.6",
         "typescript": "^5.3.3",
         "vitest": "^1.0.4"

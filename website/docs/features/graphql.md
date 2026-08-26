@@ -162,13 +162,15 @@ Unset by default — matching graphql-yoga's own safe default: an unexpected res
 
 ## Peer dependencies
 
-`graphql` is a direct dependency of `@nyalajs/graphql`. `graphql-yoga` is an optional peer dependency, only required if you call `mountGraphqlServer()`:
+`graphql` is a **required** peer dependency — install it alongside `@nyalajs/graphql` rather than relying on it being pulled in automatically. It's deliberately not bundled as a direct dependency: doing so lets npm hoist a second, separate copy of `graphql` alongside whatever copy `graphql-yoga` (or your app) already has, and `graphql-js`'s own runtime identity checks then reject a real, correctly-built schema as "from another module or realm" when the two copies meet. A single `graphql` in the dependency tree — which a peer dependency guarantees — avoids this.
+
+`graphql-yoga` is an optional peer dependency, only required if you call `mountGraphqlServer()`:
 
 ```bash
-npm install graphql-yoga
+npm install graphql graphql-yoga
 ```
 
-Pin `graphql-yoga` to the `^5.x` line.
+Pin both to versions compatible with `graphql-yoga@^5.x` (which itself requires `graphql@^16.x`).
 
 ## What's NOT Included
 
