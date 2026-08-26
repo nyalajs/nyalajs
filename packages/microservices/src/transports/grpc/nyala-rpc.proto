@@ -1,0 +1,35 @@
+syntax = "proto3";
+package nyala;
+
+// Default service definition shipped with @nyalajs/microservices. One RPC
+// method carries every @MessagePattern/@EventPattern call for a service —
+// `pattern` selects the handler, `payload` is the JSON-encoded argument.
+// This keeps every DTO representable without hand-authoring a protobuf
+// message per pattern; a non-Nyala gRPC client (any language) can still
+// call in by implementing this exact service contract.
+//
+// To interop with an existing external proto instead, pass your own
+// protoPath/package/service in GrpcTransporterOptions — as long as the
+// service exposes a unary "Call(Request) returns (Reply)" RPC shaped like
+// this one, the transport works unchanged.
+service NyalaRpcService {
+  rpc Call (Request) returns (Reply);
+  rpc Emit (Request) returns (Empty);
+}
+
+message Request {
+  string pattern = 1;
+  string payload = 2;
+  string traceId = 3;
+  string requestId = 4;
+  string tenantId = 5;
+}
+
+message Reply {
+  string payload = 1;
+  string errorMessage = 2;
+  string errorName = 3;
+  bool hasError = 4;
+}
+
+message Empty {}

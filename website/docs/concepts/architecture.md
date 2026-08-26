@@ -375,20 +375,72 @@ class UserService {
 
 ### Microservices
 
-Modules can become microservices:
+`@nyalajs/microservices` adds message-pattern RPC handlers alongside your existing controllers, so a module works unchanged whether it's mounted on HTTP, a microservice transport, or both:
 
 ```typescript
-// Monolith
+// Same controller, same DI container — @Get() for HTTP, @MessagePattern() for RPC
+@Controller()
+export class UsersController {
+  constructor(private usersService: UsersService) {}
+
+  @Get(":id")
+  findOne(@Param("id") id: string) {
+    return this.usersService.findOne(id);
+  }
+
+  @MessagePattern("users.findOne")
+  findOneRpc(@Payload() id: string) {
+    return this.usersService.findOne(id);
+  }
+}
+
 @Module({
   controllers: [UsersController],
   providers: [UsersService],
 })
 export class UsersModule {}
 
-// Microservice (same code!)
+// Standalone microservice process (TCP or Redis transport)
 async function bootstrap() {
-  const app = await NyalaFactory.createMicroservice(UsersModule);
+  const app = await MicroserviceFactory.create(UsersModule, {
+    transport: "tcp",
+    options: { port: 4001 },
+  });
   await app.listen();
+}
+```
+
+Or run HTTP and the microservice transport in the same process (a "hybrid app"):
+
+```typescript
+const app = await NyalaFactory.create(UsersModule);
+app.setHttpAdapter(new FastifyAdapter(app.getKernel().getContainer()));
+
+connectMicroservice(app, { transport: "tcp", options: { port: 4001 } });
+await startMicroservices(app);
+
+await app.listen(3000);
+```
+
+Call another service from within a provider using `@Inject()` and a `ClientProvider`:
+
+```typescript
+@Module({
+  providers: [
+    UsersService,
+    ClientProvider("USERS_SERVICE", { transport: "tcp", options: { port: 4001 } }),
+  ],
+})
+export class OrdersModule {}
+
+@Injectable()
+export class OrdersService {
+  constructor(@Inject("USERS_SERVICE") private usersClient: ClientProxy) {}
+
+  async create(dto: CreateOrderDto) {
+    const user = await this.usersClient.send("users.findOne", dto.userId);
+    // ...
+  }
 }
 ```
 

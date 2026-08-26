@@ -39,7 +39,7 @@ export class TestingModuleBuilder {
 
         const app = await NyalaFactory.create(RootTestModule);
         app.setHttpAdapter(new FastifyAdapter(app.getKernel().getContainer(), { session: false }));
-        app.bindRoutes();
+        await app.bindRoutes();
 
         return new TestingModule(app);
     }

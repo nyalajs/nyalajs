@@ -1,0 +1,22 @@
+{
+    "name": "microservices-app",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev:users": "ts-node src/users-service/main.ts",
+        "dev:notifications": "ts-node src/notifications-service/main.ts",
+        "dev:gateway": "ts-node src/gateway/main.ts",
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
+        "@nyalajs/microservices": "*",
+        "nats": "^2.19.0",
+        "reflect-metadata": "^0.2.1"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "ts-node": "^10.9.2"
+    }
+}
