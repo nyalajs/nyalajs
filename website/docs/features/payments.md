@@ -20,18 +20,20 @@ There's no direct adapter for these, and that's deliberate rather than a gap to 
 
 ## Quick start
 
+`createPaymentService()` is the one-call setup path — plain config in, a fully wired service out. No gateway class to import or construct by hand.
+
 ```typescript
-import { PaymentService, StripeGateway, ChapaGateway } from '@nyalajs/payments';
+import { createPaymentService } from '@nyalajs/payments';
 
-const service = new PaymentService(
-  {
-    stripe: new StripeGateway({ secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET }),
-    chapa: new ChapaGateway({ secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET }),
+const payments = createPaymentService({
+  gateways: {
+    stripe: { provider: 'stripe', secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
+    chapa: { provider: 'chapa', secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
   },
-  { default: 'stripe' }
-);
+  default: 'stripe',
+});
 
-const session = await service.createCheckout({
+const session = await payments.createCheckout({
   reference: order.id,
   currency: 'USD',
   amountMinor: 4999, // $49.99, in cents
@@ -39,13 +41,17 @@ const session = await service.createCheckout({
   cancelUrl: 'https://myapp.com/orders/cancelled',
 }); // uses "stripe" (the configured default)
 
-// Route a specific order through a different gateway explicitly:
-await service.createCheckout({ /* ... */ }, 'chapa');
+// Route a specific order through a different configured gateway explicitly:
+await payments.createCheckout({ /* ... */ }, 'chapa');
 
 redirect(session.checkoutUrl);
 ```
 
+Switching or adding a gateway is a config change — add an entry to `gateways`, nothing else in your app needs to change. Each `provider` value takes exactly that gateway's own constructor options alongside it (`secretKey`, `webhookSecret`, and so on — see each gateway's row in the Coverage table above for which options it needs).
+
 Amounts are always **minor units** (cents, kobo, paise, ...) at this layer regardless of which gateway you call — `amountMinor: 4999` for $49.99. Adapters that need major-unit decimal strings (Chapa, Mollie) or major-unit numbers (Xendit) convert internally.
+
+Need something `createPaymentService()` can't express (a hand-built gateway subclass, for instance)? Construct `PaymentService` directly with real gateway instances instead: `new PaymentService({ stripe: new StripeGateway({...}) }, { default: 'stripe' })`.
 
 ## Webhooks
 

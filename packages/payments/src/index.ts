@@ -8,3 +8,5 @@ export * from "./gateways/razorpay/razorpay.gateway";
 export * from "./gateways/xendit/xendit.gateway";
 export * from "./services/payment.service";
 export * from "./webhooks/mount-webhook-route";
+export * from "./payment-gateway.factory";
+export * from "./create-payment-service";

@@ -20,6 +20,40 @@ Multi-region payment gateway abstraction for NyalaJS. One `PaymentGateway` inter
 
 ## Quick start
 
+`createPaymentService()` is the one-call setup path — plain config in, a fully wired service out. No gateway class to import or construct by hand.
+
+```ts
+import { createPaymentService } from "@nyalajs/payments";
+
+const payments = createPaymentService({
+  gateways: {
+    stripe: { provider: "stripe", secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
+    chapa: { provider: "chapa", secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
+  },
+  default: "stripe",
+});
+
+const session = await payments.createCheckout({
+  reference: order.id,
+  currency: "USD",
+  amountMinor: 4999, // $49.99, in cents — every gateway's amount is in minor units at this layer
+  successUrl: "https://myapp.com/orders/success",
+  cancelUrl: "https://myapp.com/orders/cancelled",
+}); // uses "stripe" (the default)
+
+// Route a specific order through a different configured gateway explicitly:
+await payments.createCheckout({ ... }, "chapa");
+
+redirect(session.checkoutUrl);
+```
+
+Switching or adding a gateway is a config change — add an entry to `gateways`, nothing else in your app needs to change. Every `provider` value (`"stripe"`, `"chapa"`, `"paystack"`, `"flutterwave"`, `"mollie"`, `"razorpay"`, `"xendit"`) takes exactly that gateway's own constructor options alongside it — your editor's autocomplete narrows the required fields once you set `provider`.
+
+<details>
+<summary>Constructing gateways directly instead (advanced)</summary>
+
+If you need something `createPaymentService()` can't express — a hand-built gateway subclass, for instance — construct `PaymentService` yourself:
+
 ```ts
 import { PaymentService, StripeGateway, ChapaGateway } from "@nyalajs/payments";
 
@@ -30,20 +64,9 @@ const service = new PaymentService(
   },
   { default: "stripe" }
 );
-
-const session = await service.createCheckout({
-  reference: order.id,
-  currency: "USD",
-  amountMinor: 4999, // $49.99, in cents — every gateway's amount is in minor units at this layer
-  successUrl: "https://myapp.com/orders/success",
-  cancelUrl: "https://myapp.com/orders/cancelled",
-}); // uses "stripe" (the default)
-
-// or route a specific order through Chapa explicitly:
-await service.createCheckout({ ... }, "chapa");
-
-redirect(session.checkoutUrl);
 ```
+
+</details>
 
 ## Webhooks
 
