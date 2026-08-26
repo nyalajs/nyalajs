@@ -30,10 +30,7 @@ export class JwtStrategy {
 
     async authenticate(token: string): Promise<UserIdentity | null> {
         try {
-            const payload = jwt.verify(token, this.options.secret, {
-                issuer: this.options.issuer,
-                audience: this.options.audience,
-            }) as JwtPayload;
+            const payload = jwt.verify(token, this.options.secret, this.verifyOptions()) as JwtPayload;
 
             return {
                 userId: payload.sub,
@@ -50,10 +47,31 @@ export class JwtStrategy {
     sign(payload: JwtPayload, optionsOverride?: Partial<jwt.SignOptions>): string {
         return jwt.sign(payload, this.options.secret, {
             expiresIn: (this.options.expiresIn ?? "1h") as any,
-            issuer: this.options.issuer,
-            audience: this.options.audience,
-            ...optionsOverride
+            ...this.issuerAudienceOptions(),
+            ...optionsOverride,
         });
+    }
+
+    /**
+     * `issuer`/`audience` only when actually configured — jsonwebtoken's
+     * sign() option validator rejects `{ issuer: undefined }` outright
+     * ("issuer" must be a string), so the key must be OMITTED rather than
+     * present-with-undefined when JwtStrategyOptions didn't set one. verify()
+     * is more lenient about this in practice, but omitting consistently
+     * avoids relying on that asymmetry.
+     */
+    private issuerAudienceOptions(): Partial<Pick<jwt.SignOptions, "issuer" | "audience">> {
+        const options: Partial<Pick<jwt.SignOptions, "issuer" | "audience">> = {};
+        if (this.options.issuer !== undefined) options.issuer = this.options.issuer;
+        if (this.options.audience !== undefined) options.audience = this.options.audience;
+        return options;
+    }
+
+    private verifyOptions(): Partial<Pick<jwt.VerifyOptions, "issuer" | "audience">> {
+        const options: Partial<Pick<jwt.VerifyOptions, "issuer" | "audience">> = {};
+        if (this.options.issuer !== undefined) options.issuer = this.options.issuer;
+        if (this.options.audience !== undefined) options.audience = this.options.audience;
+        return options;
     }
 
     verify(token: string): JwtPayload | null {
