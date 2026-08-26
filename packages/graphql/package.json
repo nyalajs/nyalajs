@@ -1,0 +1,56 @@
+{
+    "name": "@nyalajs/graphql",
+    "version": "0.1.0",
+    "description": "Code-first GraphQL (resolvers, guards, interceptors, DataLoader batching, subscriptions) for NyalaJS, sharing the same DI/tenancy pipeline as HTTP and microservices",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@nyalajs/core": "*",
+        "dataloader": "^2.2.3",
+        "graphql": "^16.9.0"
+    },
+    "peerDependencies": {
+        "@nyalajs/tenancy": "*",
+        "fastify": ">=4.0.0",
+        "graphql-yoga": "^5.0.0",
+        "reflect-metadata": ">=0.1.13"
+    },
+    "peerDependenciesMeta": {
+        "@nyalajs/tenancy": {
+            "optional": true
+        },
+        "fastify": {
+            "optional": true
+        },
+        "graphql-yoga": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@nyalajs/http": "*",
+        "@nyalajs/tenancy": "*",
+        "fastify": "^4.29.1",
+        "graphql-yoga": "^5.10.6",
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

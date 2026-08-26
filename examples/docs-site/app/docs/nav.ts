@@ -62,6 +62,12 @@ export const docsNav: NavGroup[] = [
             { title: "Logging", slug: "features/logging" },
             { title: "Caching", slug: "features/caching" },
             { title: "AI Assistant", slug: "features/ai" },
+            { title: "WebSockets", slug: "features/websockets" },
+            { title: "Streaming", slug: "features/streaming" },
+            { title: "Storage", slug: "features/storage" },
+            { title: "Microservices", slug: "features/microservices" },
+            { title: "Queues", slug: "features/queues" },
+            { title: "GraphQL", slug: "features/graphql" },
         ],
     },
     {

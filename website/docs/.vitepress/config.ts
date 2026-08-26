@@ -62,6 +62,12 @@ export default defineConfig({
                     { text: 'Logging', link: '/features/logging' },
                     { text: 'Caching', link: '/features/caching' },
                     { text: 'AI Assistant', link: '/features/ai' },
+                    { text: 'WebSockets', link: '/features/websockets' },
+                    { text: 'Streaming', link: '/features/streaming' },
+                    { text: 'Storage', link: '/features/storage' },
+                    { text: 'Microservices', link: '/features/microservices' },
+                    { text: 'Queues', link: '/features/queues' },
+                    { text: 'GraphQL', link: '/features/graphql' },
                 ]
             },
             {
