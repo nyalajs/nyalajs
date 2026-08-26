@@ -58,6 +58,7 @@ export const docsNav: NavGroup[] = [
             { title: "Authentication", slug: "features/authentication" },
             { title: "Authorization", slug: "features/authorization" },
             { title: "Permissions", slug: "features/permissions" },
+            { title: "Payments", slug: "features/payments" },
             { title: "Validation", slug: "features/validation" },
             { title: "Error Handling", slug: "features/error-handling" },
             { title: "Logging", slug: "features/logging" },

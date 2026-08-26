@@ -58,6 +58,7 @@ export default defineConfig({
                     { text: 'Authentication', link: '/features/authentication' },
                     { text: 'Authorization', link: '/features/authorization' },
                     { text: 'Permissions', link: '/features/permissions' },
+                    { text: 'Payments', link: '/features/payments' },
                     { text: 'Validation', link: '/features/validation' },
                     { text: 'Error Handling', link: '/features/error-handling' },
                     { text: 'Logging', link: '/features/logging' },

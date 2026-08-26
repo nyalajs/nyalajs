@@ -1,0 +1,73 @@
+{
+    "name": "@nyalajs/payments",
+    "version": "0.1.0",
+    "description": "Multi-region payment gateway abstraction for NyalaJS — Stripe, Chapa, Paystack, Flutterwave, Mollie, Razorpay, Xendit behind one provider-agnostic PaymentGateway interface, with normalized webhook verification and hosted checkout.",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@nyalajs/core": "*"
+    },
+    "peerDependencies": {
+        "@mollie/api-client": "^4.6.0",
+        "@nyalajs/http": "*",
+        "chapa-nodejs": "^2.1.1",
+        "flutterwave-node-v3": "^1.4.1",
+        "razorpay": "^2.9.8",
+        "stripe": "^22.0.0",
+        "xendit-node": "^7.0.0"
+    },
+    "peerDependenciesMeta": {
+        "@nyalajs/http": {
+            "optional": true
+        },
+        "stripe": {
+            "optional": true
+        },
+        "chapa-nodejs": {
+            "optional": true
+        },
+        "flutterwave-node-v3": {
+            "optional": true
+        },
+        "@mollie/api-client": {
+            "optional": true
+        },
+        "razorpay": {
+            "optional": true
+        },
+        "xendit-node": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@mollie/api-client": "^4.6.0",
+        "@nyalajs/http": "*",
+        "chapa-nodejs": "^2.1.1",
+        "fastify": "^4.29.1",
+        "flutterwave-node-v3": "^1.4.1",
+        "razorpay": "^2.9.8",
+        "stripe": "^22.5.0",
+        "typescript": "^5.3.3",
+        "vitest": "^1.0.4",
+        "xendit-node": "^7.0.0"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}
