@@ -8,3 +8,6 @@ export * from "./traits/soft-deletes";
 export * from "./tenancy/tenant-scope";
 export * from "./seeders/seeder";
 export * from "./factories/factory";
+export * from "./relations/decorators";
+export * from "./relations/query-builder";
+export * from "./relations/relation-loader";

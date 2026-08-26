@@ -1,483 +1,332 @@
 # Models
 
-Models define your database schema and structure using Drizzle ORM. They provide type-safe database definitions.
+`@nyalajs/database` gives you an Active Record-style `Model` base class over Drizzle ORM — `@Table()`/`@Column()` decorators define the schema, `Model` provides `create()`/`find()`/`all()`/`save()`/`delete()`, and `@HasMany()`/`@BelongsTo()`/`@HasOne()`/`@BelongsToMany()` add relations with eager loading. The same model works unchanged across Postgres, MySQL, and SQLite — `SchemaRegistry` builds the right Drizzle table for whichever dialect is connected.
 
 ## Basic Model
 
-Define a model using Drizzle ORM:
-
 ```typescript
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { Model, Table, Primary, StringColumn, BooleanColumn, TimestampColumn } from '@nyalajs/database';
 
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  name: varchar('name', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+@Table('users')
+export class User extends Model {
+  @Primary()
+  @StringColumn()
+  id!: string;
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-```
+  @StringColumn()
+  email!: string;
 
-## Column Types
+  @StringColumn()
+  name!: string;
 
-### Text Types
+  @BooleanColumn()
+  active!: boolean;
 
-```typescript
-import { pgTable, varchar, text, char } from 'drizzle-orm/pg-core';
-
-export const content = pgTable('content', {
-  // Fixed length
-  code: char('code', { length: 10 }),
-
-  // Variable length with limit
-  title: varchar('title', { length: 255 }),
-
-  // Unlimited text
-  body: text('body'),
-
-  // Text with enum
-  status: varchar('status', { length: 20, enum: ['draft', 'published'] }),
-});
-```
-
-### Numeric Types
-
-```typescript
-import { pgTable, integer, real, doublePrecision, decimal } from 'drizzle-orm/pg-core';
-
-export const products = pgTable('products', {
-  // Integers
-  quantity: integer('quantity'),
-
-  // Floating point
-  weight: real('weight'),
-  rating: doublePrecision('rating'),
-
-  // Precise decimal for money
-  price: decimal('price', { precision: 10, scale: 2 }),
-});
-```
-
-### Boolean Type
-
-```typescript
-import { pgTable, boolean } from 'drizzle-orm/pg-core';
-
-export const users = pgTable('users', {
-  active: boolean('active').default(true),
-  emailVerified: boolean('email_verified').default(false),
-});
-```
-
-### Date/Time Types
-
-```typescript
-import { pgTable, timestamp, date, time } from 'drizzle-orm/pg-core';
-
-export const events = pgTable('events', {
-  // Timestamp with timezone
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-
-  // Date only
-  eventDate: date('event_date'),
-
-  // Time only
-  startTime: time('start_time'),
-});
-```
-
-### JSON Types
-
-```typescript
-import { pgTable, json, jsonb } from 'drizzle-orm/pg-core';
-
-export const settings = pgTable('settings', {
-  // JSON (stored as text)
-  config: json('config'),
-
-  // JSONB (binary JSON, faster queries)
-  metadata: jsonb('metadata'),
-});
-```
-
-### UUID Type
-
-```typescript
-import { pgTable, uuid } from 'drizzle-orm/pg-core';
-
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  organizationId: uuid('organization_id').notNull(),
-});
-```
-
-## Constraints
-
-### Primary Key
-
-```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-
-  // Or composite primary key
-  userId: uuid('user_id'),
-  roleId: uuid('role_id'),
-}, (table) => ({
-  pk: primaryKey(table.userId, table.roleId),
-}));
-```
-
-### Foreign Keys
-
-```typescript
-export const posts = pgTable('posts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  authorId: uuid('author_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  categoryId: uuid('category_id')
-    .references(() => categories.id, { onDelete: 'set  10, scale: 2 }),
-  quantity: integer('quantity'),
-}, (table) => ({
-  priceCheck: check('price_positive', sql`${table.price} >= 0`),
-  quantityCheck: check('quantity_positive', sql`${table.quantity} >= 0`),
-}));
-```
-
-### Not Null
-
-```typescript
-export const users = pgTable('users', {
-  email: varchar('email', { length: 255 }).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  bio: text('bio'),  // Nullable by default
-});
-```
-
-## Default Values
-
-```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom(),
-  active: boolean('active').default(true),
-  role: varchar('role', { length: 20 }).default('user'),
-  createdAt: timestamp('created_at').defaultNow(),
-  credits: integer('credits').default(0),
-});
-```
-
-## Indexes
-
-```typescript
-import { index } from 'drizzle-orm/pg-core';
-
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
-  name: varchar('name', { length: 255 }),
-  createdAt: timestamp('created_at'),
-}, (table) => ({
-  emailIdx: index('email_idx').on(table.email),
-  nameIdx: index('name_idx').on(table.name),
-  createdAtIdx: index('created_at_idx').on(table.createdAt),
-
-  // Composite index
-  emailNameIdx: index('email_name_idx').on(table.email, table.name),
-
-  // Unique index
-  uniqueEmailIdx: uniqueIndex('unique_email_idx').on(table.email),
-}));
-```
-
-## Relationships
-
-### One-to-Many
-
-```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }),
-});
-
-export const posts = pgTable('posts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  title: varchar('title', { length: 255 }),
-  authorId: uuid('author_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-});
-
-// Define relations
-export const usersRelations = relations(users, ({ many }) => ({
-  posts: many(posts),
-}));
-
-export const postsRelations = relations(posts, ({ one }) => ({
-  author: one(users, {
-    fields: [posts.authorId],
-    references: [users.id],
-  }),
-}));
-```
-
-### Many-to-Many
-
-```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }),
-});
-
-export const roles = pgTable('roles', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 50 }),
-});
-
-// Junction table
-export const userRoles = pgTable('user_roles', {
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  roleId: uuid('role_id')
-    .notNull()
-    .references(() => roles.id, { onDelete: 'cascade' }),
-}, (table) => ({
-  pk: primaryKey(table.userId, table.roleId),
-}));
-
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  userRoles: many(userRoles),
-}));
-
-export const rolesRelations = relations(roles, ({ many }) => ({
-  userRoles: many(userRoles),
-}));
-
-export const userRolesRelations = relations(userRoles, ({ one }) => ({
-  user: one(users, {
-    fields: [userRoles.userId],
-    references: [users.id],
-  }),
-  role: one(roles, {
-    fields: [userRoles.roleId],
-    references: [roles.id],
-  }),
-}));
-```
-
-## Enums
-
-```typescript
-import { pgEnum } from 'drizzle-orm/pg-core';
-
-export const userRoleEnum = pgEnum('user_role', ['admin', 'user', 'moderator']);
-export const orderStatusEnum = pgEnum('order_status', ['pending', 'processing', 'completed', 'cancelled']);
-
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey(),
-  role: userRoleEnum('role').default('user'),
-});
-
-export const orders = pgTable('orders', {
-  id: uuid('id').primaryKey(),
-  status: orderStatusEnum('status').default('pending'),
-});
-```
-
-## Complete Example
-
-```typescript
-// database/schema/users.schema.ts
-import { pgTable, uuid, varchar, text, boolean, timestamp } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
-
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  password: varchar('password', { length: 255 }).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  bio: text('bio'),
-  avatar: varchar('avatar', { length: 500 }),
-  active: boolean('active').default(true),
-  emailVerified: boolean('email_verified').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  deletedAt: timestamp('deleted_at'),
-}, (table) => ({
-  emailIdx: index('users_email_idx').on(table.email),
-  activeIdx: index('users_active_idx').on(table.active),
-}));
-
-export const usersRelations = relations(users, ({ many }) => ({
-  posts: many(posts),
-  comments: many(comments),
-}));
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-```
-
-## Type Inference
-
-Use type inference for type safety:
-
-```typescript
-// Select type (what you get from database)
-type User = typeof users.$inferSelect;
-// {
-//   id: string;
-//   email: string;
-//   name: string;
-//   createdAt: Date;
-//   ...
-// }
-
-// Insert type (what you send to database)
-type NewUser = typeof users.$inferInsert;
-// {
-//   id?: string;  // Optional with default
-//   email: string;
-//   name: string;
-//   createdAt?: Date;  // Optional with default
-//   ...
-// }
-
-// Use in functions
-function createUser(data: NewUser): Promise<User> {
-  return db.insert(users).values(data).returning();
+  @TimestampColumn()
+  createdAt!: Date;
 }
+```
+
+Column property names map directly to database column names — `email` is column `email`, not `snake_case`d automatically. Use `@Column({ name: '...' })` (below) when you want a different DB column name than the property name.
+
+## Column Decorators
+
+```typescript
+@Primary()              // marks the primary key
+@StringColumn(length?)  // VARCHAR(length) — or TEXT if no length given
+@IntColumn()            // INTEGER
+@BooleanColumn()        // BOOLEAN (or INTEGER 0/1 on SQLite, handled transparently)
+@TimestampColumn()      // TIMESTAMP / Date
+@Column(options?)       // the general form — set type/name/isNullable/default/length directly
+```
+
+```typescript
+interface ColumnDefinition {
+  name: string;                                            // DB column name; defaults to the property key
+  type: 'string' | 'number' | 'boolean' | 'timestamp' | 'json';
+  isPrimary?: boolean;
+  isNullable?: boolean;
+  default?: any;
+  length?: number;
+}
+```
+
+```typescript
+@Table('posts')
+export class Post extends Model {
+  @Primary() @StringColumn() id!: string;
+
+  @StringColumn(500) title!: string;
+
+  // Custom DB column name, nullable
+  @Column({ type: 'string', name: 'author_id', isNullable: true })
+  authorId?: string;
+
+  @Column({ type: 'json' })
+  metadata!: Record<string, any>;
+}
+```
+
+## CRUD
+
+```typescript
+// Create
+const user = await User.create({ id: 'u1', email: 'ada@example.com', name: 'Ada', active: true });
+
+// Find by primary key
+const found = await User.find('u1'); // User | null
+
+// Find all
+const users = await User.all();
+
+// Update — mutate and save()
+const user = await User.find('u1');
+user!.name = 'Ada Lovelace';
+await user!.save();
+
+// save() also inserts when the instance has no id yet
+const draft = new User();
+draft.email = 'grace@example.com';
+await draft.save();
+
+// Delete
+const user = await User.find('u1');
+await user!.delete();
+```
+
+## Relations
+
+### `@HasMany()` / `@HasOne()`
+
+The foreign key lives on the *related* table, pointing back at this model:
+
+```typescript
+import { Model, Table, Primary, StringColumn, HasMany, HasOne } from '@nyalajs/database';
+
+@Table('authors')
+export class Author extends Model {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() name!: string;
+
+  @HasMany(() => Post, 'authorId') // Post.authorId references Author.id
+  posts?: Post[];
+
+  @HasOne(() => Profile, 'authorId') // one Profile per Author
+  profile?: Profile;
+}
+
+@Table('posts')
+export class Post extends Model {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() authorId!: string;
+  @StringColumn() title!: string;
+}
+```
+
+### `@BelongsTo()`
+
+The inverse — the foreign key lives on *this* table, pointing at the related model:
+
+```typescript
+@Table('posts')
+export class Post extends Model {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() authorId!: string;
+  @StringColumn() title!: string;
+
+  @BelongsTo(() => Author, 'authorId')
+  author?: Author;
+}
+```
+
+### `@BelongsToMany()`
+
+Many-to-many, via a pivot table:
+
+```typescript
+@Table('authors')
+export class Author extends Model {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() name!: string;
+
+  @BelongsToMany(() => Tag, {
+    pivotTable: 'author_tags',
+    foreignKey: 'authorId',      // column on author_tags pointing at Author
+    relatedPivotKey: 'tagId',    // column on author_tags pointing at Tag
+  })
+  tags?: Tag[];
+}
+
+@Table('tags')
+export class Tag extends Model {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() name!: string;
+}
+```
+
+Relation decorators take a *thunk* (`() => RelatedModel`) rather than the class directly — this lets two models reference each other (e.g. `Author` ↔ `Post`) without an import-order cycle breaking things at module load time.
+
+## Eager Loading
+
+Pass `{ with: [...] }` to `all()`/`find()`, or use the fluent query builder's `.with()` — both run one extra query per relation across the whole result set, never one query per row (no N+1):
+
+```typescript
+// Shorthand
+const authors = await Author.all({ with: ['posts'] });
+const author = await Author.find('a1', { with: ['posts', 'profile'] });
+
+// Fluent query builder
+const authors = await Author.query().with('posts', 'tags').get();
+```
+
+```typescript
+const authors = await Author.all({ with: ['posts'] });
+authors[0].posts; // Post[], already loaded — no extra query when you access it
+```
+
+### Lazy Loading
+
+If a relation wasn't eager-loaded, load it on demand from an instance:
+
+```typescript
+const author = await Author.find('a1');
+const posts = await author!.load<Post[]>('posts'); // queries now
+author!.posts; // also attached onto the instance
+```
+
+## Query Builder
+
+`Model.query()` returns a fluent builder — `.where()`, `.orderBy()`, `.limit()`/`.offset()`, `.with()`, `.get()`/`.first()`:
+
+```typescript
+const publishedPosts = await Post.query()
+  .where('published', true)
+  .with('author')
+  .orderBy('createdAt', 'desc')
+  .limit(10)
+  .get();
+
+const firstMatch = await Post.query().where('authorId', 'a1').first(); // Post | null
+```
+
+```typescript
+.where(column, value)                 // shorthand for equality
+.where(column, operator, value)       // "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "in" | "notIn" | "isNull" | "isNotNull"
+.whereIn(column, values)
+.whereNull(column) / .whereNotNull(column)
+.orderBy(column, 'asc' | 'desc')
+.limit(n) / .offset(n)
+.with(...relationNames)
+.get()   // Promise<T[]>
+.first() // Promise<T | null>
 ```
 
 ## Multi-Tenancy
 
-Add tenant isolation:
+Give a model a `tenant_id` column and tenant scoping is automatic and mandatory — every read/write goes through the active tenant from `TenantContext`, and an operation on a tenant-scoped model with no active tenant throws rather than silently returning unscoped data:
 
 ```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenants.id, { onDelete: 'cascade' }),
-  email: varchar('email', { length: 255 }).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => ({
-  tenantIdx: index('users_tenant_idx').on(table.tenantId),
-  uniqueEmailPerTenant: unique('unique_email_per_tenant').on(table.tenantId, table.email),
-}));
+import { Column } from '@nyalajs/database';
+
+@Table('projects')
+export class Project extends Model {
+  @Primary() @StringColumn() id!: string;
+
+  @Column({ name: 'tenant_id' })
+  tenantId!: string;
+
+  @StringColumn() name!: string;
+
+  @HasMany(() => Task, 'projectId')
+  tasks?: Task[];
+}
 ```
+
+```typescript
+await TenantContext.run(async () => {
+  TenantContext.set('tenant-a');
+  await Project.all();        // only tenant-a's projects
+  await Project.create({ name: 'New' } as any); // tenant_id stamped automatically
+});
+
+await Project.all(); // throws: "Tenant context required" — no tenant active
+```
+
+Eager-loaded relations are scoped the same way: a tenant-scoped parent's `@HasMany`/`@HasOne`/`@BelongsTo`/`@BelongsToMany` relation only ever loads that tenant's related rows, even if a related row elsewhere shares the same foreign key value under a different tenant. See [Multi-Tenancy](../multi-tenancy/overview) for the full picture (tenant resolution, isolation guarantees).
 
 ## Soft Deletes
 
-Implement soft delete pattern:
+Mix in `SoftDeletes` to turn `delete()` into setting a `deletedAt` timestamp instead of removing the row:
 
 ```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  deletedAt: timestamp('deleted_at'),  // Null = not deleted
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => ({
-  deletedAtIdx: index('users_deleted_at_idx').on(table.deletedAt),
-}));
+import { Model, SoftDeletes, Table, Primary, StringColumn } from '@nyalajs/database';
+
+@Table('users')
+export class User extends SoftDeletes(Model) {
+  @Primary() @StringColumn() id!: string;
+  @StringColumn() name!: string;
+}
 ```
 
-## Timestamps
+```typescript
+const user = await User.find('u1');
+await user!.delete();      // sets deletedAt, doesn't remove the row
+await user!.restore();     // clears deletedAt
+await user!.forceDelete(); // actually removes the row
+```
 
-Automatic timestamp management:
+## Transactions
+
+`Model` calls made inside `DatabaseService.transaction()` automatically run against that transaction's connection — no need to thread it through manually:
 
 ```typescript
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
-
-  // Automatically set on create
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-
-  // Must be updated manually in repository
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+await db.transaction(async () => {
+  const author = await Author.create({ id: 'a1', name: 'Ada' } as any);
+  await Post.create({ id: 'p1', authorId: author.id, title: 'Hello' } as any);
+  // both commit together, or both roll back if anything throws
 });
-
-// In repository
-async update(id: string, data: Partial<User>) {
-  return db
-    .update(users)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(users.id, id));
-}
 ```
 
 ## Best Practices
 
-### 1. Use UUIDs for IDs
+### 1. Declare the inverse relation on both sides when you'll query from either direction
 
 ```typescript
-// ✅ Good: UUID primary key
-id: uuid('id').defaultRandom().primaryKey()
-
-// ❌ Avoid: Auto-increment (predictable)
-id: serial('id').primaryKey()
+// ✅ Good: both directions declared, .with() works from either model
+@Table('authors')
+class Author extends Model {
+  @HasMany(() => Post, 'authorId') posts?: Post[];
+}
+@Table('posts')
+class Post extends Model {
+  @BelongsTo(() => Author, 'authorId') author?: Author;
+}
 ```
 
-### 2. Index Foreign Keys
+### 2. Prefer eager loading (`.with()`) over `.load()` in a loop
 
 ```typescript
-// ✅ Good: Indexed foreign key
-export const posts = pgTable('posts', {
-  authorId: uuid('author_id').notNull().references(() => users.id),
-}, (table) => ({
-  authorIdx: index('posts_author_idx').on(table.authorId),
-}));
+// ✅ Good: one extra query total
+const authors = await Author.all({ with: ['posts'] });
+
+// ❌ Bad: one query per author
+const authors = await Author.all();
+for (const author of authors) {
+  await author.load('posts');
+}
 ```
 
-### 3. Timestamps on Every Table
+### 3. Give every tenant-scoped table a `tenant_id` column, not an app-level filter
 
 ```typescript
-// ✅ Good: Timestamps for auditing
-export const posts = pgTable('posts', {
-  id: uuid('id').primaryKey(),
-  title: varchar('title', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-```
+// ✅ Good: scoping is enforced by Model itself, can't be forgotten
+@Column({ name: 'tenant_id' }) tenantId!: string;
 
-### 4. Use Enums for Fixed Values
-
-```typescript
-// ✅ Good: Type-safe enum
-export const statusEnum = pgEnum('status', ['active', 'inactive']);
-export const users = pgTable('users', {
-  status: statusEnum('status').default('active'),
-});
-
-// ❌ Bad: String without constraint
-status: varchar('status', { length: 20 }),
-```
-
-### 5. Descriptive Column Names
-
-```typescript
-// ✅ Good: Clear names
-createdAt: timestamp('created_at')
-isActive: boolean('is_active')
-userEmail: varchar('user_email')
-
-// ❌ Bad: Unclear names
-created: timestamp('created')
-flag: boolean('flag')
-val: varchar('val')
+// ❌ Bad: relying on every call site to remember to filter manually
+await Project.query().where('tenantId', currentTenantId).get();
 ```
 
 ## Next Steps
 
 - [Repositories](./repositories) - Data access layer
-- [Migrations](../database/migrations) - Schema migrations
-- [Seeders](../database/seeders) - Test data
+- [Multi-Tenancy](../multi-tenancy/overview) - Tenant isolation

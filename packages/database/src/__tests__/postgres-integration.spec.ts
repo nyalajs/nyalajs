@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { DatabaseService } from "../database.service";
 import { Model } from "../model";
 import { Table, Primary, StringColumn, IntColumn } from "../schema/decorators";
+import { BelongsToMany } from "../relations/decorators";
 
 /**
  * Real, unmocked exercise of both Postgres drivers ("pg" and "postgres")
@@ -39,6 +40,27 @@ function runSuite(driver: "pg" | "postgres", tableName: string) {
         const db = new DatabaseService();
         const Account = accountModel(tableName);
 
+        // belongsToMany's tables — separate per driver run (same suffix
+        // scheme as `tableName`) since both drivers share one live database.
+        const usersTable = `bm_users_${driver}`;
+        const rolesTable = `bm_roles_${driver}`;
+        const pivotTable = `bm_user_roles_${driver}`;
+
+        @Table(usersTable)
+        class BmUser extends Model {
+            @Primary() @StringColumn() id!: string;
+            @StringColumn() name!: string;
+
+            @BelongsToMany(() => BmRole, { pivotTable, foreignKey: "userId", relatedPivotKey: "roleId" })
+            roles?: BmRole[];
+        }
+
+        @Table(rolesTable)
+        class BmRole extends Model {
+            @Primary() @StringColumn() id!: string;
+            @StringColumn() name!: string;
+        }
+
         beforeAll(async () => {
             await db.connect({ driver, connectionString: POSTGRES_TEST_URL! });
             Model.setDatabase(db.getDb());
@@ -46,6 +68,25 @@ function runSuite(driver: "pg" | "postgres", tableName: string) {
             await (db.getDb() as any).execute(
                 `CREATE TABLE ${tableName} (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL, balance INTEGER NOT NULL)`
             );
+
+            await (db.getDb() as any).execute(`DROP TABLE IF EXISTS ${pivotTable}`);
+            await (db.getDb() as any).execute(`DROP TABLE IF EXISTS ${usersTable}`);
+            await (db.getDb() as any).execute(`DROP TABLE IF EXISTS ${rolesTable}`);
+            await (db.getDb() as any).execute(
+                `CREATE TABLE ${usersTable} (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL)`
+            );
+            await (db.getDb() as any).execute(
+                `CREATE TABLE ${rolesTable} (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL)`
+            );
+            await (db.getDb() as any).execute(
+                `CREATE TABLE ${pivotTable} ("userId" VARCHAR(255) NOT NULL, "roleId" VARCHAR(255) NOT NULL)`
+            );
+
+            await BmUser.create({ id: "u1", name: "Ada" } as any);
+            await BmRole.create({ id: "r1", name: "admin" } as any);
+            await BmRole.create({ id: "r2", name: "editor" } as any);
+            await (db.getDb() as any).execute(`INSERT INTO ${pivotTable} VALUES ('u1', 'r1')`);
+            await (db.getDb() as any).execute(`INSERT INTO ${pivotTable} VALUES ('u1', 'r2')`);
         });
 
         afterAll(async () => {
@@ -102,6 +143,11 @@ function runSuite(driver: "pg" | "postgres", tableName: string) {
             ).rejects.toThrow("boom");
 
             expect(await Account.find("acc-5")).toBeNull();
+        });
+
+        it("belongsToMany eager-loads through the pivot table via a raw parameterized query (RelationLoader.execRaw)", async () => {
+            const user = await BmUser.find("u1", { with: ["roles"] });
+            expect(user?.roles?.map((r) => r.name).sort()).toEqual(["admin", "editor"]);
         });
     });
 }

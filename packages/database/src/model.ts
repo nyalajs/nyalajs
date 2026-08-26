@@ -4,6 +4,8 @@ import { TransactionContext } from "./transaction-context";
 import { AnyDatabase } from "./dialect";
 import { and, eq, SQL } from "drizzle-orm";
 import { TenantContext } from "@nyalajs/core";
+import { QueryBuilder } from "./relations/query-builder";
+import { RelationLoader } from "./relations/relation-loader";
 
 export abstract class Model {
     /**
@@ -101,21 +103,46 @@ export abstract class Model {
     }
 
     /**
-     * Find all records.
+     * A fluent QueryBuilder for this model — `.where()`, `.orderBy()`,
+     * `.limit()`/`.offset()`, `.with()` for eager-loading @HasMany/@HasOne/
+     * @BelongsTo/@BelongsToMany relations, `.get()`/`.first()` to run it.
+     *
+     * @example
+     *   const users = await User.query().where("active", true).with("posts").get();
      */
-    static async all<T extends Model>(this: new () => T): Promise<T[]> {
+    static query<T extends Model>(this: new () => T): QueryBuilder<new () => T> {
+        return new QueryBuilder(this);
+    }
+
+    /**
+     * Find all records. Pass `{ with: [...] }` to eager-load relations —
+     * equivalent to `Model.query().with(...).get()`, kept as a shorthand
+     * since it's the most common case and reads slightly lighter without
+     * the builder for a plain "give me everything, plus these relations".
+     */
+    static async all<T extends Model>(this: new () => T, options?: { with?: string[] }): Promise<T[]> {
         const table = SchemaRegistry.getTable(this);
         const scope = Model.requireTenantScope(this);
         let query = Model.connection(this).select().from(table);
         if (scope) query = query.where(scope);
         const results = await query;
-        return results.map((row: any) => Object.assign(new this(), row));
+        const instances = results.map((row: any) => Object.assign(new this(), row));
+
+        if (options?.with?.length) {
+            await Model.eagerLoad(this, instances, options.with);
+        }
+
+        return instances;
     }
 
     /**
-     * Find a record by its primary key.
+     * Find a record by its primary key. Pass `{ with: [...] }` to eager-load relations.
      */
-    static async find<T extends Model>(this: new () => T, id: string | number): Promise<T | null> {
+    static async find<T extends Model>(
+        this: new () => T,
+        id: string | number,
+        options?: { with?: string[] }
+    ): Promise<T | null> {
         const table = SchemaRegistry.getTable(this);
         // Assuming "id" is the primary key column for simplicity in this V1 implementation.
         // A robust version would introspect the @Primary metadata.
@@ -123,7 +150,35 @@ export abstract class Model {
         const where = scope ? and(eq(table.id, id), scope) : eq(table.id, id);
         const results = await Model.connection(this).select().from(table).where(where).limit(1);
         if (results.length === 0) return null;
-        return Object.assign(new this(), results[0]);
+
+        const instance = Object.assign(new this(), results[0]);
+        if (options?.with?.length) {
+            await Model.eagerLoad(this, [instance], options.with);
+        }
+        return instance;
+    }
+
+    private static async eagerLoad(modelClass: any, instances: any[], relations: string[]): Promise<void> {
+        const loader = new RelationLoader(Model.connection(modelClass));
+        for (const relationName of relations) {
+            await loader.load(modelClass, instances, relationName);
+        }
+    }
+
+    /**
+     * Lazily loads one relation onto this instance and returns the loaded
+     * value — for the case where a relation wasn't eager-loaded up front
+     * (e.g. it's only needed conditionally, deep in some branch of logic).
+     *
+     * @example
+     *   const user = await User.find(id);
+     *   const posts = await user.load("posts"); // queries now, not at find() time
+     */
+    async load<K = any>(relationName: string): Promise<K> {
+        const constructor = this.constructor as typeof Model;
+        const loader = new RelationLoader(Model.connection(constructor));
+        await loader.load(constructor, [this], relationName);
+        return (this as any)[relationName];
     }
 
     /**

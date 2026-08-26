@@ -1,5 +1,18 @@
 # @nyalajs/database
 
+## 2.1.0
+
+### Minor Changes
+
+- Add ORM relations and a fluent query builder to `Model`.
+
+  - `@HasMany()`, `@HasOne()`, `@BelongsTo()`, `@BelongsToMany()` relation decorators — declared on model properties with a thunk (`() => RelatedModel`) so two models can reference each other without an import-order cycle.
+  - `Model.query()` — a fluent `QueryBuilder`: `.where()`, `.whereIn()`, `.whereNull()`/`.whereNotNull()`, `.orderBy()`, `.limit()`/`.offset()`, `.with()` for eager loading, `.get()`/`.first()`.
+  - Eager loading (`Model.all({ with: [...] })`, `Model.find(id, { with: [...] })`, or `.query().with(...)`) always batches into one extra query per relation across the whole result set — never one query per parent row.
+  - `instance.load(relationName)` for lazy-loading a relation on demand.
+  - Eager-loaded relations are tenant-scoped the same way the main query already is — a tenant-scoped parent's relation only ever loads that tenant's related rows, even when a related row under a different tenant shares the same foreign key value.
+  - `belongsToMany` reads the pivot table via a parameterized raw query (it has no `@Table()`-backed Model of its own), with result-shape detection that's correct across all four supported drivers (better-sqlite3, node-postgres, postgres-js, mysql2) — each returns a differently-shaped result from a raw query, verified against live instances of all four, not assumed from types.
+
 ## 2.0.0
 
 ### Major Changes

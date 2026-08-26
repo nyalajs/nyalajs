@@ -2,13 +2,21 @@
 
 Repositories handle data access and database operations. They provide a clean abstraction over the database layer.
 
+::: tip Repository vs. Model
+This is one of two data-access styles Nyala supports, not the only one. `@nyalajs/database`'s [`Model`](./models) is an Active-Record base class you import directly from the package (`@HasMany()`/`@BelongsTo()`, a fluent query builder, automatic tenant scoping) — reach for it first for a straightforward CRUD model.
+
+`BaseRepository`, documented on this page, is a **scaffolded pattern**, not a package export — `nyala new` generates `app/repositories/base.repository.ts` into your project (tailored to your chosen database dialect and multi-tenancy setup), and you extend it per entity. There's no `import { BaseRepository } from '@nyalajs/database'`; the class lives in your own codebase, which is exactly the point — it's yours to modify, not a black box from the framework. Reach for this style when you want the Repository pattern's separation between data access and domain logic, or when a query is complex enough that hand-writing it against Drizzle directly (as shown throughout this page) is clearer than expressing it through `Model`.
+
+Every official starter template (`basic-starter`, `inertia-starter`, `cms-starter`, `saas-starter`) ships a working `BaseRepository` in `app/repositories/` — the examples below match the shape of the real, generated file, not a hypothetical API.
+:::
+
 ## Basic Repository
 
-Extend the `BaseRepository` class:
+Extend the generated `BaseRepository` class:
 
 ```typescript
 import { Injectable } from '@nyalajs/core';
-import { BaseRepository } from './base.repository';
+import { BaseRepository } from './base.repository'; // scaffolded into your project by `nyala new`
 import { users, User } from '../../database/schema/users.schema';
 
 @Injectable()
@@ -432,42 +440,61 @@ export class UsersRepository extends BaseRepository<User> {
 
 ## Multi-Tenancy
 
-Tenant-aware repository:
+`saas-starter`'s generated `BaseRepository` builds tenant scoping in at the base, not as a separate wrapper class — every method (`findAll`/`findById`/`create`/`update`/`delete`/`count`) is tenant-scoped automatically:
 
 ```typescript
-import { TenantContext } from '@nyalajs/tenancy';
+import { Injectable, TenantContext } from '@nyalajs/core';
+import { eq, and, SQL } from 'drizzle-orm';
+import { PgTable } from 'drizzle-orm/pg-core';
+import { db } from '../../database/connection';
 
 @Injectable()
-export class TenantRepository<T> extends BaseRepository<T> {
+export abstract class BaseRepository<T> {
   constructor(
-    table: PgTable,
-    private tenantContext: TenantContext
-  ) {
-    super(table);
+    protected readonly table: PgTable,
+    protected readonly isTenantAware: boolean = true
+  ) {}
+
+  protected requireTenantFilter(): SQL | undefined {
+    if (!this.isTenantAware) return undefined;
+
+    // TenantContext.get() reads the request-scoped active tenant — not a
+    // constructor-injected value, since this repository is a DI singleton;
+    // storing the tenant on `this` would leak one request's tenant into
+    // concurrent requests. Fails closed: throws if no tenant is active,
+    // rather than silently returning every tenant's rows.
+    const tenantId = TenantContext.get();
+    if (!tenantId) {
+      throw new Error('Tenant context required: no tenant is active for the current request.');
+    }
+    return eq((this.table as any).tenantId, tenantId);
   }
 
-  async findAll(options?: any): Promise<T[]> {
-    const tenantId = this.tenantContext.getCurrentTenantId();
+  async findAll(options?: { where?: SQL }): Promise<T[]> {
+    const tenantFilter = this.requireTenantFilter();
+    const where = tenantFilter
+      ? (options?.where ? and(tenantFilter, options.where) : tenantFilter)
+      : options?.where;
 
-    return super.findAll({
-      ...options,
-      where: and(
-        options?.where,
-        eq((this.table as any).tenantId, tenantId)
-      ),
-    });
+    let query = db.select().from(this.table);
+    if (where) query = query.where(where) as any;
+    return query as Promise<T[]>;
   }
 
   async create(data: Partial<T>): Promise<T> {
-    const tenantId = this.tenantContext.getCurrentTenantId();
+    this.requireTenantFilter(); // throws if tenant-aware with no active tenant
+    const tenantId = this.isTenantAware ? TenantContext.get() : undefined;
 
-    return super.create({
-      ...data,
-      tenantId,
-    } as Partial<T>);
+    const results = await db
+      .insert(this.table)
+      .values(this.isTenantAware ? { ...data, tenantId } : data as any)
+      .returning();
+    return results[0] as T;
   }
 
-  // Override all methods to include tenant filtering
+  // findById/findOne/update/delete/count/exists follow the same pattern —
+  // see the real generated file in app/repositories/base.repository.ts
+  // for the full implementation.
 }
 ```
 
@@ -594,6 +621,6 @@ async findWithOrders(userId: string) {
 
 ## Next Steps
 
-- [Models](./models) - Database schemas
+- [Models](./models) - The Model/Active-Record alternative to Repositories, with relations and a query builder
 - [Services](./services) - Business logic
-- [Database](../database/overview) - Database guide
+- [Multi-Tenancy](../multi-tenancy/overview) - Tenant isolation

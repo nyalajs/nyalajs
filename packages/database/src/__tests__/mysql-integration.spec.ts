@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { DatabaseService } from "../database.service";
 import { Model } from "../model";
 import { Table, Primary, StringColumn, IntColumn } from "../schema/decorators";
+import { BelongsToMany } from "../relations/decorators";
 
 /**
  * Real, unmocked exercise of the "mysql2" driver end to end — including the
@@ -29,6 +30,21 @@ class Account extends Model {
     balance!: number;
 }
 
+@Table("bm_users")
+class BmUser extends Model {
+    @Primary() @StringColumn() id!: string;
+    @StringColumn() name!: string;
+
+    @BelongsToMany(() => BmRole, { pivotTable: "bm_user_roles", foreignKey: "userId", relatedPivotKey: "roleId" })
+    roles?: BmRole[];
+}
+
+@Table("bm_roles")
+class BmRole extends Model {
+    @Primary() @StringColumn() id!: string;
+    @StringColumn() name!: string;
+}
+
 describe.skipIf(!MYSQL_TEST_URL)("DatabaseService — mysql2 driver (live)", () => {
     const db = new DatabaseService();
 
@@ -39,6 +55,21 @@ describe.skipIf(!MYSQL_TEST_URL)("DatabaseService — mysql2 driver (live)", () 
         await (db.getDb() as any).execute(
             "CREATE TABLE accounts (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL, balance INT NOT NULL)"
         );
+
+        await (db.getDb() as any).execute("DROP TABLE IF EXISTS bm_user_roles");
+        await (db.getDb() as any).execute("DROP TABLE IF EXISTS bm_users");
+        await (db.getDb() as any).execute("DROP TABLE IF EXISTS bm_roles");
+        await (db.getDb() as any).execute("CREATE TABLE bm_users (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL)");
+        await (db.getDb() as any).execute("CREATE TABLE bm_roles (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL)");
+        await (db.getDb() as any).execute(
+            "CREATE TABLE bm_user_roles (userId VARCHAR(255) NOT NULL, roleId VARCHAR(255) NOT NULL)"
+        );
+
+        await BmUser.create({ id: "u1", name: "Ada" } as any);
+        await BmRole.create({ id: "r1", name: "admin" } as any);
+        await BmRole.create({ id: "r2", name: "editor" } as any);
+        await (db.getDb() as any).execute("INSERT INTO bm_user_roles VALUES ('u1', 'r1')");
+        await (db.getDb() as any).execute("INSERT INTO bm_user_roles VALUES ('u1', 'r2')");
     });
 
     afterAll(async () => {
@@ -95,5 +126,10 @@ describe.skipIf(!MYSQL_TEST_URL)("DatabaseService — mysql2 driver (live)", () 
         ).rejects.toThrow("boom");
 
         expect(await Account.find("acc-5")).toBeNull();
+    });
+
+    it("belongsToMany eager-loads through the pivot table via a raw parameterized query (RelationLoader.execRaw)", async () => {
+        const user = await BmUser.find("u1", { with: ["roles"] });
+        expect(user?.roles?.map((r) => r.name).sort()).toEqual(["admin", "editor"]);
     });
 });
