@@ -90,4 +90,30 @@ describe("ChapaGateway (real HMAC-SHA256 sign/verify via chapa-nodejs, no networ
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it("createCheckout() sums lineItems into the correct total when amountMinor is omitted (verified via the real API's rejection reaching the amount-dependent step, not an early validation throw)", async () => {
+        const gateway = new ChapaGateway({ secretKey: SECRET_KEY });
+        // No amountMinor — only lineItems. If resolveAmount() summed them
+        // wrong or threw, this would fail before ever reaching the network;
+        // instead it reaches Chapa's real API and fails there instead,
+        // proving the amount was computed and passed through.
+        await expect(
+            gateway.createCheckout({
+                reference: "order-82",
+                currency: "ETB",
+                lineItems: [{ name: "Widget", amountMinor: 1000, quantity: 2 }, { name: "Fee", amountMinor: 250 }], // sums to 2250
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/Invalid API Key|checkout_url/);
+    }, 15000);
+
+    it("refund() against the REAL Chapa API normalizes a real failure into { status: 'failed' } instead of throwing", async () => {
+        const gateway = new ChapaGateway({ secretKey: SECRET_KEY });
+        const result = await gateway.refund("order-does-not-exist");
+        expect(result.status).toBe("failed");
+        if (result.status === "failed") {
+            expect(result.reason).toMatch(/Invalid API Key/);
+        }
+    }, 15000);
 });

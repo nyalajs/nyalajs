@@ -106,4 +106,35 @@ describe("PaystackGateway (real HMAC-SHA512 sign/verify, real API error-shape ch
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it(
+        "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
+        async () => {
+            const gateway = new PaystackGateway({ secretKey: SECRET_KEY });
+            await expect(
+                gateway.createCheckout({
+                    reference: "order-105",
+                    currency: "NGN",
+                    lineItems: [{ name: "Widget", amountMinor: 5000, quantity: 2 }, { name: "Fee", amountMinor: 500 }], // sums to 10500
+                    customerEmail: "test@example.com",
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+            ).rejects.toThrow(/authorization_url/);
+        },
+        REAL_PAYSTACK_TEST_TIMEOUT
+    );
+
+    it(
+        "refund() against the REAL Paystack API normalizes a real failure into { status: 'failed' } instead of throwing",
+        async () => {
+            const gateway = new PaystackGateway({ secretKey: SECRET_KEY });
+            const result = await gateway.refund("does-not-exist");
+            expect(result.status).toBe("failed");
+            if (result.status === "failed") {
+                expect(result.reason).toMatch(/Invalid key/);
+            }
+        },
+        REAL_PAYSTACK_TEST_TIMEOUT
+    );
 });

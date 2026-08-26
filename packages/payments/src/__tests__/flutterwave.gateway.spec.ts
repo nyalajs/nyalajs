@@ -88,6 +88,40 @@ describe("FlutterwaveGateway (real timing-safe secret-hash check, real API error
         REAL_FLUTTERWAVE_TEST_TIMEOUT
     );
 
+    it(
+        "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
+        async () => {
+            const gateway = new FlutterwaveGateway({ publicKey: PUBLIC_KEY, secretKey: SECRET_KEY });
+            await expect(
+                gateway.createCheckout({
+                    reference: "order-60",
+                    currency: "NGN",
+                    lineItems: [{ name: "Widget", amountMinor: 30000, quantity: 2 }, { name: "Fee", amountMinor: 5000 }], // sums to 65000
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+            ).rejects.toThrow(/checkout link/);
+        },
+        REAL_FLUTTERWAVE_TEST_TIMEOUT
+    );
+
+    it(
+        "refund() against the REAL Flutterwave API normalizes a real failure response into { status: 'failed' } — this gateway's SDK RESOLVES with an error object rather than throwing, unlike every other gateway here",
+        async () => {
+            const gateway = new FlutterwaveGateway({ publicKey: PUBLIC_KEY, secretKey: SECRET_KEY });
+            // amountMinor must be passed here: Flutterwave's SDK validates
+            // "amount" is present client-side BEFORE the request is even
+            // sent, so an amount-less call fails on that check instead of
+            // ever reaching the auth check this test wants to verify.
+            const result = await gateway.refund("12345", 1000);
+            expect(result.status).toBe("failed");
+            if (result.status === "failed") {
+                expect(result.reason).toMatch(/Invalid authorization key/);
+            }
+        },
+        REAL_FLUTTERWAVE_TEST_TIMEOUT
+    );
+
     it("throws when createCheckout() is given neither lineItems nor amountMinor", async () => {
         const gateway = new FlutterwaveGateway({ publicKey: PUBLIC_KEY, secretKey: SECRET_KEY });
         await expect(

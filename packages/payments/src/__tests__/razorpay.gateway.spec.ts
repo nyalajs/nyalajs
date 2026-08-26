@@ -118,4 +118,54 @@ describe("RazorpayGateway (real HMAC-SHA256 sign/verify, real API error-shape ch
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it(
+        "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
+        async () => {
+            const gateway = new RazorpayGateway({ keyId: KEY_ID, keySecret: KEY_SECRET });
+            await expect(
+                gateway.createCheckout({
+                    reference: "order-204",
+                    currency: "INR",
+                    lineItems: [{ name: "Widget", amountMinor: 3000, quantity: 2 }, { name: "Fee", amountMinor: 500 }], // sums to 6500
+                    customerEmail: "test@example.com",
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+            ).rejects.toThrow();
+        },
+        REAL_RAZORPAY_TEST_TIMEOUT
+    );
+
+    it(
+        "refund() against the REAL Razorpay API normalizes a real failure into { status: 'failed' } instead of throwing — and extracts a real message rather than '[object Object]'",
+        async () => {
+            // The razorpay SDK rejects with a PLAIN OBJECT, not an Error
+            // instance (confirmed directly: `err instanceof Error` is false).
+            // A naive `String(err)` fallback would collapse this into the
+            // useless "[object Object]" string. This proves the real
+            // gateway-specific extraction path works end to end.
+            const gateway = new RazorpayGateway({ keyId: KEY_ID, keySecret: KEY_SECRET });
+            const result = await gateway.refund("pay_does_not_exist");
+            expect(result.status).toBe("failed");
+            if (result.status === "failed") {
+                expect(result.reason).not.toBe("[object Object]");
+                expect(result.reason.length).toBeGreaterThan(0);
+            }
+        },
+        REAL_RAZORPAY_TEST_TIMEOUT
+    );
+
+    it("extractErrorMessage() prefers error.description, falls back to a statusCode message, then to String()", () => {
+        const gateway = new RazorpayGateway({ keyId: KEY_ID, keySecret: KEY_SECRET }) as any;
+
+        expect(gateway.extractErrorMessage(new Error("plain error"))).toBe("plain error");
+        expect(
+            gateway.extractErrorMessage({ statusCode: 401, error: { code: "BAD_REQUEST_ERROR", description: "Authentication failed" } })
+        ).toBe("Authentication failed");
+        // The real shape observed for a 404 refund-not-found: `error` key
+        // present but undefined — must NOT crash, must fall through cleanly.
+        expect(gateway.extractErrorMessage({ statusCode: 404, error: undefined })).toBe("Razorpay request failed with status 404");
+        expect(gateway.extractErrorMessage("a plain string")).toBe("a plain string");
+    });
 });

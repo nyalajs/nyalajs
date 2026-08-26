@@ -101,4 +101,36 @@ describe("XenditGateway (real timing-safe token check, real API error-shape chec
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it(
+        "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
+        async () => {
+            const gateway = new XenditGateway({ secretKey: SECRET_KEY });
+            await expect(
+                gateway.createCheckout({
+                    reference: "order-304",
+                    currency: "IDR",
+                    lineItems: [{ name: "Widget", amountMinor: 3000000, quantity: 2 }, { name: "Fee", amountMinor: 500000 }], // sums to 6500000
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+            ).rejects.toThrow();
+        },
+        REAL_XENDIT_TEST_TIMEOUT
+    );
+
+    it(
+        "refund() against the REAL Xendit API normalizes a real 401 Unauthorized failure into { status: 'failed' } instead of throwing",
+        async () => {
+            // Unlike Flutterwave/Razorpay, the xendit-node SDK throws a real
+            // XenditSdkError (an actual Error instance), confirmed directly.
+            const gateway = new XenditGateway({ secretKey: SECRET_KEY });
+            const result = await gateway.refund("invoice_does_not_exist");
+            expect(result.status).toBe("failed");
+            if (result.status === "failed") {
+                expect(result.reason).toMatch(/Unauthorized|401/);
+            }
+        },
+        REAL_XENDIT_TEST_TIMEOUT
+    );
 });

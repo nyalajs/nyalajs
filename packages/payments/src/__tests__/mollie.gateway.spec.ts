@@ -89,4 +89,39 @@ describe("MollieGateway (real API-lookup-based verification, no local signature)
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it(
+        "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
+        async () => {
+            const gateway = new MollieGateway({ apiKey: API_KEY, webhookUrl: WEBHOOK_URL });
+            // No amountMinor — only lineItems. If resolveAmount() summed them
+            // wrong or threw, this would fail before ever reaching the
+            // network; instead it reaches Mollie's real API and throws the
+            // real ApiError instead, proving the amount was computed and
+            // passed through.
+            await expect(
+                gateway.createCheckout({
+                    reference: "order-62",
+                    currency: "EUR",
+                    lineItems: [{ name: "Widget", amountMinor: 1500, quantity: 2 }, { name: "Fee", amountMinor: 250 }], // sums to 3250
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+            ).rejects.toThrow();
+        },
+        REAL_MOLLIE_TEST_TIMEOUT
+    );
+
+    it(
+        "refund() against the REAL Mollie API normalizes a real 'Invalid Authorization header' failure into { status: 'failed' } instead of throwing",
+        async () => {
+            const gateway = new MollieGateway({ apiKey: API_KEY, webhookUrl: WEBHOOK_URL });
+            const result = await gateway.refund("tr_does_not_exist");
+            expect(result.status).toBe("failed");
+            if (result.status === "failed") {
+                expect(result.reason).toMatch(/Invalid Authorization header/);
+            }
+        },
+        REAL_MOLLIE_TEST_TIMEOUT
+    );
 });

@@ -127,8 +127,28 @@ export class RazorpayGateway implements PaymentGateway {
             }
             return { status: "pending", gatewayRefundId: refund.id };
         } catch (err) {
-            return { status: "failed", reason: err instanceof Error ? err.message : String(err) };
+            return { status: "failed", reason: this.extractErrorMessage(err) };
         }
+    }
+
+    /**
+     * The razorpay SDK does NOT throw real Error instances — it rejects with
+     * a plain object shaped like `{ statusCode, error: { code, description } }`
+     * (confirmed directly against the real API). `err instanceof Error` is
+     * therefore always false for these, so a naive `String(err)` fallback
+     * collapses every failure into the useless "[object Object]". This pulls
+     * the real message out of Razorpay's actual error shape first.
+     */
+    private extractErrorMessage(err: unknown): string {
+        if (err instanceof Error) return err.message;
+        if (err && typeof err === "object" && "error" in err) {
+            const inner = (err as { error?: { description?: string } }).error;
+            if (inner?.description) return inner.description;
+        }
+        if (err && typeof err === "object" && "statusCode" in err) {
+            return `Razorpay request failed with status ${(err as { statusCode: unknown }).statusCode}`;
+        }
+        return String(err);
     }
 
     private resolveAmount(options: CreateCheckoutOptions): number {
