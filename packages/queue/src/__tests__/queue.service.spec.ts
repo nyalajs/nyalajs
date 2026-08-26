@@ -16,16 +16,35 @@ describe("QueueService", () => {
     });
 
     describe("connect() with a url but bullmq not installed", () => {
+        // bullmq is a real devDependency of this package (needed for the
+        // dashboard e2e tests to run against actual BullMQ/Redis), so it IS
+        // resolvable in this test environment. To exercise the "not
+        // installed" code path for real, we make the dynamic `import("bullmq")`
+        // inside QueueService.connect() actually reject, the same way it
+        // would in a consuming app that never ran `npm install bullmq`.
         it("throws instead of silently degrading to the in-memory queue", async () => {
-            const queue = new QueueService();
+            vi.resetModules();
+            vi.doMock("bullmq", () => {
+                throw new Error("Cannot find module 'bullmq'");
+            });
+            const { QueueService: IsolatedQueueService } = await import("../queue.service");
+            const queue = new IsolatedQueueService();
 
             await expect(queue.connect({ url: "redis://localhost:6379" })).rejects.toThrow(
                 /bullmq.*not installed/
             );
+
+            vi.doUnmock("bullmq");
+            vi.resetModules();
         });
 
         it("does not leave the service half-configured after the failed connect", async () => {
-            const queue = new QueueService();
+            vi.resetModules();
+            vi.doMock("bullmq", () => {
+                throw new Error("Cannot find module 'bullmq'");
+            });
+            const { QueueService: IsolatedQueueService } = await import("../queue.service");
+            const queue = new IsolatedQueueService();
             await expect(queue.connect({ url: "redis://localhost:6379" })).rejects.toThrow();
 
             // Falls through to in-memory dispatch/process, not a BullMQ call
@@ -35,6 +54,9 @@ describe("QueueService", () => {
             await queue.dispatch("mail", "send-welcome", { userId: 1 });
 
             expect(handler).toHaveBeenCalledWith({ name: "send-welcome", data: { userId: 1 } });
+
+            vi.doUnmock("bullmq");
+            vi.resetModules();
         });
     });
 

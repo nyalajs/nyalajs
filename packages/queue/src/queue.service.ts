@@ -108,6 +108,11 @@ export class QueueService {
                 },
             });
             this.bullWorkers.set(queueName, worker);
+            // Ensure a Queue object exists for this name too, even if nothing
+            // has dispatch()ed to it yet — getQueues() (and anything built on
+            // it, e.g. the dashboard) should see every queue that has a
+            // consumer, not only ones that have already sent a job.
+            await this.getBullQueue(queueName);
         } else {
             this.inMemory.registerWorker(queueName, handler);
         }
@@ -120,6 +125,31 @@ export class QueueService {
         } else {
             await this.inMemory.close();
         }
+    }
+
+    /**
+     * Whether this service is backed by real BullMQ/Redis (vs. the in-memory
+     * fallback). Dashboards and other introspection tooling should check this
+     * before calling getQueues() — the in-memory mode has no BullMQ Queue
+     * instances to expose.
+     */
+    isDurable(): boolean {
+        return this.useBullMQ;
+    }
+
+    /**
+     * The live BullMQ `Queue` instances this service has created so far (one
+     * per distinct queue name passed to dispatch()/process()). Exposed so
+     * tooling — e.g. @nyalajs/queue's dashboard integration — can attach to
+     * them directly instead of QueueService needing to know about every
+     * possible consumer.
+     *
+     * Only ever populated in durable (BullMQ) mode; empty in in-memory mode.
+     * A queue only appears once something has actually dispatched to it or
+     * registered a processor for it — there is no eager pre-creation.
+     */
+    getQueues(): Map<string, any> {
+        return this.bullQueues;
     }
 
     private async getBullQueue(name: string): Promise<any> {
