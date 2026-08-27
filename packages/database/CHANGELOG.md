@@ -1,5 +1,16 @@
 # @nyalajs/database
 
+## 2.2.0
+
+### Minor Changes
+
+- Add `ConnectionContext` — the connection-routing primitive dedicated-per-tenant databases need, plus a real bug fix in the existing multi-connection path.
+
+  - New `ConnectionContext` (`AsyncLocalStorage`-based, mirrors `TransactionContext`'s exact shape/lifecycle): lets request-scoped code point every `Model` call at a specific connection instead of the global default, with zero call-site changes. `Model.connection()`'s resolution order is now: active transaction → active `ConnectionContext` → the global pool. This is the mechanism `@nyalajs/tenancy`'s dedicated-per-tenant-database support is built on, but it's independently useful anywhere a request needs to run against a non-default connection.
+  - New `openConnection()` — the same real, 4-driver (`pg`/`postgres`/`mysql2`/`better-sqlite3`) connection-opening logic `DatabaseService.connect()` already had, extracted into a standalone function that returns a plain, disposable `{ db, dialect, close }` instead of mutating process-global state. `DatabaseService.connect()` is now a thin wrapper around it. Useful for opening any number of additional, independently-managed connections (e.g. one per dedicated tenant) without them fighting over `SchemaRegistry`'s single process-wide dialect.
+  - New `execRaw()` — the cross-dialect raw-query-result-shape detection previously private to `RelationLoader`'s pivot-table queries, extracted so other code (e.g. schema-provisioning in `@nyalajs/tenancy`) can run a raw query and get back a plain row array regardless of driver.
+  - **Bug fix**: `QueryBuilder` (`Model.query()...get()`) had its own private copy of connection resolution that had drifted out of sync with `Model`'s — it never consulted `ConnectionContext` even before this release's changes reached it, meaning `Model.query()` results could silently come from the wrong connection in any multi-connection scenario while `Model.all()`/`Model.find()` behaved correctly. Fixed to share the same resolution order as `Model` itself.
+
 ## 2.1.0
 
 ### Minor Changes

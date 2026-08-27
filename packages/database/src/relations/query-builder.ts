@@ -3,6 +3,7 @@ import { TenantContext } from "@nyalajs/core";
 import { SchemaRegistry } from "../schema/registry";
 import { TenantScope } from "../tenancy/tenant-scope";
 import { TransactionContext } from "../transaction-context";
+import { ConnectionContext } from "../connection-context";
 import { RelationLoader } from "./relation-loader";
 
 type WhereOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "in" | "notIn" | "isNull" | "isNotNull";
@@ -151,11 +152,13 @@ export class QueryBuilder<T extends { new (): any }> {
     }
 
     private connection(): any {
-        // Mirrors Model's own private connection() — the active transaction
-        // if one is open, otherwise the global pool. Duplicated rather than
-        // reused directly since Model's version is private; both read the
-        // same TransactionContext/`.db` static, so they can't drift.
-        return TransactionContext.get() ?? (this.modelClass as any).db;
+        // Mirrors Model's own private connection() — active transaction,
+        // then the active dedicated-tenant connection (ConnectionContext),
+        // then the global pool. Duplicated rather than reused directly since
+        // Model's version is private; all three read the same
+        // TransactionContext/ConnectionContext/`.db` static, so they can't
+        // drift out of sync with each other.
+        return TransactionContext.get() ?? ConnectionContext.get() ?? (this.modelClass as any).db;
     }
 
     private tenantScope(): SQL | undefined {

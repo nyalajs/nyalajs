@@ -2,6 +2,7 @@ import { and, inArray, sql, SQL } from "drizzle-orm";
 import { TenantContext } from "@nyalajs/core";
 import { SchemaRegistry } from "../schema/registry";
 import { TenantScope } from "../tenancy/tenant-scope";
+import { execRaw } from "../exec-raw";
 import { RelationDefinition, getRelation } from "./decorators";
 
 /**
@@ -146,7 +147,7 @@ export class RelationLoader {
         );
         const pivotQuery = sql`SELECT * FROM ${sql.identifier(pivotTable)} WHERE ${sql.identifier(relation.foreignKey)} IN (${idList})`;
 
-        const pivotRows: any[] = await this.execRaw(pivotQuery);
+        const pivotRows: any[] = await execRaw(this.connection, pivotQuery);
 
         const relatedIds = [...new Set(pivotRows.map((row: any) => row[relatedPivotKey]))];
         if (relatedIds.length === 0) {
@@ -200,37 +201,5 @@ export class RelationLoader {
             );
         }
         return TenantScope.getScope(relatedModelClass, tenantId);
-    }
-
-    /**
-     * Executes a raw parameterized `sql` tagged-template query and returns
-     * its rows as plain objects. Every driver this package supports shapes
-     * its raw-query result differently — verified empirically against live
-     * connections for all four, not assumed from types:
-     *   - better-sqlite3: no `.execute()` at all; `.all(query)` returns the
-     *     row array directly.
-     *   - node-postgres ("pg"): `.execute()` resolves an object with a
-     *     `.rows` array (plus driver metadata alongside it).
-     *   - postgres-js ("postgres"): `.execute()` resolves the row array
-     *     itself at the top level.
-     *   - mysql2: `.execute()` resolves a 2-element tuple `[rows, fields]`.
-     * `dialect` alone ("postgres" covers both pg and postgres-js, which
-     * shape their result differently) isn't enough to disambiguate, so this
-     * detects the shape at runtime instead of trusting the driver name.
-     */
-    private async execRaw(query: any): Promise<any[]> {
-        if (SchemaRegistry.getDialect() === "sqlite") {
-            return this.connection.all(query);
-        }
-
-        const result = await this.connection.execute(query);
-
-        if (Array.isArray(result)) {
-            // mysql2's [rows, fields] vs postgres-js's row array itself:
-            // only mysql2 nests a second array (the row array) as element 0.
-            return Array.isArray(result[0]) ? result[0] : result;
-        }
-
-        return result.rows ?? result;
     }
 }

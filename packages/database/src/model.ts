@@ -1,6 +1,7 @@
 import { SchemaRegistry } from "./schema/registry";
 import { TenantScope } from "./tenancy/tenant-scope";
 import { TransactionContext } from "./transaction-context";
+import { ConnectionContext } from "./connection-context";
 import { AnyDatabase } from "./dialect";
 import { and, eq, SQL } from "drizzle-orm";
 import { TenantContext } from "@nyalajs/core";
@@ -19,11 +20,17 @@ export abstract class Model {
     }
 
     /**
-     * The connection to run queries against: the active transaction if one
-     * is open (via DatabaseService.transaction()), otherwise the global pool.
+     * The connection to run queries against, in priority order:
+     *   1. The active transaction, if one is open (DatabaseService.transaction()) —
+     *      a transaction must never be silently re-targeted mid-flight.
+     *   2. The active dedicated-tenant connection, if one is set (populated by
+     *      @nyalajs/tenancy's TenantMiddleware via ConnectionContext, for
+     *      tenants whose isolationMode is "dedicated").
+     *   3. The global shared pool (modelClass.db) — unchanged default
+     *      behavior for shared-DB tenants and every non-multi-tenant app.
      */
     private static connection(modelClass: any): any {
-        return TransactionContext.get() ?? modelClass.db;
+        return TransactionContext.get() ?? ConnectionContext.get() ?? modelClass.db;
     }
 
     /**
