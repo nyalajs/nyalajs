@@ -5,6 +5,7 @@ import {
     PaymentEvent,
     RefundResult,
 } from "../../gateway.interface";
+import { resolveAmount } from "../../resolve-amount";
 
 export interface ChapaGatewayOptions {
     secretKey: string;
@@ -42,7 +43,7 @@ export class ChapaGateway implements PaymentGateway {
     }
 
     async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSession> {
-        const amountMinor = this.resolveAmount(options);
+        const amountMinor = resolveAmount(options);
 
         const response = await this.client.initialize({
             amount: this.toMajorUnitString(amountMinor),
@@ -143,14 +144,6 @@ export class ChapaGateway implements PaymentGateway {
 
     private toMajorUnitString(amountMinor: number): string {
         return (amountMinor / 100).toFixed(2);
-    }
-
-    private resolveAmount(options: CreateCheckoutOptions): number {
-        if (options.amountMinor !== undefined) return options.amountMinor;
-        if (options.lineItems) {
-            return options.lineItems.reduce((total, item) => total + item.amountMinor * (item.quantity ?? 1), 0);
-        }
-        throw new Error("[nyala/payments] createCheckout() needs either lineItems or amountMinor.");
     }
 
     private firstHeader(value: string | string[] | undefined): string | undefined {

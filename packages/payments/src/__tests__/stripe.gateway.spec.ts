@@ -123,6 +123,19 @@ describe("StripeGateway (real HMAC-SHA256 sign/verify, no network calls)", () =>
         ).rejects.toThrow(/disagree/);
     });
 
+    it("createCheckout() throws (never reaches the network) when given a negative amountMinor", async () => {
+        const gateway = new StripeGateway({ secretKey: FAKE_SECRET_KEY });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-3",
+                currency: "USD",
+                amountMinor: -500,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it("refund() against the REAL Stripe API normalizes a real 'invalid API key' failure into { status: 'failed' } instead of throwing", async () => {
         const gateway = new StripeGateway({ secretKey: FAKE_SECRET_KEY });
         const result = await gateway.refund("pi_does_not_exist");

@@ -102,6 +102,19 @@ describe("XenditGateway (real timing-safe token check, real API error-shape chec
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
 
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new XenditGateway({ secretKey: SECRET_KEY });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-305",
+                currency: "IDR",
+                amountMinor: -100000,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it(
         "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
         async () => {

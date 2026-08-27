@@ -107,6 +107,20 @@ describe("PaystackGateway (real HMAC-SHA512 sign/verify, real API error-shape ch
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
 
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new PaystackGateway({ secretKey: SECRET_KEY });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-107",
+                currency: "NGN",
+                amountMinor: -1000,
+                customerEmail: "test@example.com",
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it(
         "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
         async () => {

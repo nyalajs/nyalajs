@@ -5,6 +5,7 @@ import {
     PaymentEvent,
     RefundResult,
 } from "../../gateway.interface";
+import { resolveAmount } from "../../resolve-amount";
 
 export interface MollieGatewayOptions {
     apiKey: string;
@@ -48,7 +49,7 @@ export class MollieGateway implements PaymentGateway {
     }
 
     async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSession> {
-        const amountMinor = this.resolveAmount(options);
+        const amountMinor = resolveAmount(options);
 
         const payment = await this.client.payments.create({
             amount: { currency: options.currency.toUpperCase(), value: this.toMajorUnitString(amountMinor) },
@@ -135,13 +136,5 @@ export class MollieGateway implements PaymentGateway {
 
     private toMajorUnitString(amountMinor: number): string {
         return (amountMinor / 100).toFixed(2);
-    }
-
-    private resolveAmount(options: CreateCheckoutOptions): number {
-        if (options.amountMinor !== undefined) return options.amountMinor;
-        if (options.lineItems) {
-            return options.lineItems.reduce((total, item) => total + item.amountMinor * (item.quantity ?? 1), 0);
-        }
-        throw new Error("[nyala/payments] createCheckout() needs either lineItems or amountMinor.");
     }
 }

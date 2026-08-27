@@ -119,6 +119,19 @@ describe("RazorpayGateway (real HMAC-SHA256 sign/verify, real API error-shape ch
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
 
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new RazorpayGateway({ keyId: KEY_ID, keySecret: KEY_SECRET });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-206",
+                currency: "INR",
+                amountMinor: -1000,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it(
         "createCheckout() genuinely never sends cancelUrl anywhere — Razorpay Payment Links have no cancel-redirect field at all (confirmed against the SDK's own real type definitions)",
         async () => {

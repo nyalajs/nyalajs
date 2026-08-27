@@ -1,5 +1,12 @@
 # @nyalajs/payments
 
+## 0.3.2
+
+### Patch Changes
+
+- Fixed a real input-validation gap found during a security/enterprise-readiness audit: `resolveAmount()` — the logic every one of the 7 gateway adapters used to compute a checkout's total from `amountMinor`/`lineItems` — was duplicated verbatim across all 7 files with **zero validation** beyond "one of the two was given." A negative, zero, or non-integer `amountMinor` (or a negative/zero line-item amount or quantity) would previously reach a real gateway's API completely unchecked. Centralized into one shared, validated `resolveAmount()` that every gateway (including Stripe, whose `validateAmount()` had the same gap) now calls — rejects any non-positive or non-integer amount, at every level (overall total AND each individual line item), before any network call is made. 15 new unit tests plus a dedicated negative-amount regression test added to every gateway's own spec file (never reaches the network). 129 tests total in the package.
+- Also part of the same audit: confirmed (and added a regression test for) the webhook route's DoS protection — an oversized request body is rejected with HTTP 413 by Fastify's own `bodyLimit` before signature verification ever runs, automatically for any route mounted via `mountWebhookRoute()`.
+
 ## 0.3.1
 
 ### Patch Changes

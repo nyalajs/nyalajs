@@ -6,6 +6,7 @@ import {
     PaymentEvent,
     RefundResult,
 } from "../../gateway.interface";
+import { resolveAmount } from "../../resolve-amount";
 
 export interface PaystackGatewayOptions {
     secretKey: string;
@@ -34,7 +35,7 @@ export class PaystackGateway implements PaymentGateway {
     }
 
     async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSession> {
-        const amountMinor = this.resolveAmount(options);
+        const amountMinor = resolveAmount(options);
 
         const response = await this.request("POST", "/transaction/initialize", {
             email: options.customerEmail ?? "no-email-provided@example.com", // Paystack requires an email
@@ -143,14 +144,6 @@ export class PaystackGateway implements PaymentGateway {
         } catch {
             throw new Error(`[nyala/payments] Paystack API returned a non-JSON response (HTTP ${res.status} ${res.statusText}).`);
         }
-    }
-
-    private resolveAmount(options: CreateCheckoutOptions): number {
-        if (options.amountMinor !== undefined) return options.amountMinor;
-        if (options.lineItems) {
-            return options.lineItems.reduce((total, item) => total + item.amountMinor * (item.quantity ?? 1), 0);
-        }
-        throw new Error("[nyala/payments] createCheckout() needs either lineItems or amountMinor.");
     }
 
     private firstHeader(value: string | string[] | undefined): string | undefined {

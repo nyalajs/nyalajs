@@ -5,6 +5,7 @@ import {
     PaymentEvent,
     RefundResult,
 } from "../../gateway.interface";
+import { resolveAmount } from "../../resolve-amount";
 
 export interface StripeGatewayOptions {
     secretKey: string;
@@ -34,7 +35,14 @@ export class StripeGateway implements PaymentGateway {
     }
 
     async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSession> {
-        this.validateAmount(options);
+        // Stripe Checkout wants per-line-item unit_amount fields, not a
+        // single collapsed total the way every other gateway in this
+        // package does — so the computed total itself is discarded here,
+        // but resolveAmount() still runs for its validation (presence,
+        // lineItems/amountMinor agreement, and — the actual reason this
+        // call exists — rejecting a negative/zero/non-integer amount
+        // before it ever reaches Stripe's API).
+        resolveAmount(options);
 
         const lineItems = options.lineItems
             ? options.lineItems.map((item) => ({
@@ -132,20 +140,6 @@ export class StripeGateway implements PaymentGateway {
                 : { status: "pending", gatewayRefundId: refund.id };
         } catch (err) {
             return { status: "failed", reason: err instanceof Error ? err.message : String(err) };
-        }
-    }
-
-    private validateAmount(options: CreateCheckoutOptions): void {
-        if (!options.lineItems && options.amountMinor === undefined) {
-            throw new Error("[nyala/payments] createCheckout() needs either lineItems or amountMinor.");
-        }
-        if (options.lineItems && options.amountMinor !== undefined) {
-            const sum = options.lineItems.reduce((total, item) => total + item.amountMinor * (item.quantity ?? 1), 0);
-            if (sum !== options.amountMinor) {
-                throw new Error(
-                    `[nyala/payments] createCheckout() was given both lineItems (summing to ${sum}) and amountMinor (${options.amountMinor}) that disagree.`
-                );
-            }
         }
     }
 }

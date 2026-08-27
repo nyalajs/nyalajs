@@ -91,6 +91,19 @@ describe("ChapaGateway (real HMAC-SHA256 sign/verify via chapa-nodejs, no networ
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
 
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new ChapaGateway({ secretKey: SECRET_KEY });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-83",
+                currency: "ETB",
+                amountMinor: -1000,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it("createCheckout() sums lineItems into the correct total when amountMinor is omitted (verified via the real API's rejection reaching the amount-dependent step, not an early validation throw)", async () => {
         const gateway = new ChapaGateway({ secretKey: SECRET_KEY });
         // No amountMinor — only lineItems. If resolveAmount() summed them

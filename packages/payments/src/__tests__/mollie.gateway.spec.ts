@@ -90,6 +90,19 @@ describe("MollieGateway (real API-lookup-based verification, no local signature)
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
 
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new MollieGateway({ apiKey: API_KEY, webhookUrl: WEBHOOK_URL });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-63",
+                currency: "EUR",
+                amountMinor: -1000,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
+
     it(
         "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",
         async () => {

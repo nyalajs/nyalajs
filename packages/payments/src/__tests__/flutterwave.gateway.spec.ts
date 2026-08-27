@@ -163,4 +163,17 @@ describe("FlutterwaveGateway (real timing-safe secret-hash check, real API error
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it("throws (never reaches the network) when createCheckout() is given a negative amountMinor", async () => {
+        const gateway = new FlutterwaveGateway({ publicKey: PUBLIC_KEY, secretKey: SECRET_KEY });
+        await expect(
+            gateway.createCheckout({
+                reference: "order-62",
+                currency: "NGN",
+                amountMinor: -1000,
+                successUrl: "https://example.com/ok",
+                cancelUrl: "https://example.com/cancel",
+            })
+        ).rejects.toThrow(/invalid amount/i);
+    });
 });

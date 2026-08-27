@@ -6,6 +6,7 @@ import {
     PaymentEvent,
     RefundResult,
 } from "../../gateway.interface";
+import { resolveAmount } from "../../resolve-amount";
 
 export interface RazorpayGatewayOptions {
     keyId: string;
@@ -44,7 +45,7 @@ export class RazorpayGateway implements PaymentGateway {
     }
 
     async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSession> {
-        const amountMinor = this.resolveAmount(options);
+        const amountMinor = resolveAmount(options);
 
         const paymentLink = await this.client.paymentLink.create({
             amount: amountMinor,
@@ -156,14 +157,6 @@ export class RazorpayGateway implements PaymentGateway {
             return `Razorpay request failed with status ${(err as { statusCode: unknown }).statusCode}`;
         }
         return String(err);
-    }
-
-    private resolveAmount(options: CreateCheckoutOptions): number {
-        if (options.amountMinor !== undefined) return options.amountMinor;
-        if (options.lineItems) {
-            return options.lineItems.reduce((total, item) => total + item.amountMinor * (item.quantity ?? 1), 0);
-        }
-        throw new Error("[nyala/payments] createCheckout() needs either lineItems or amountMinor.");
     }
 
     private firstHeader(value: string | string[] | undefined): string | undefined {

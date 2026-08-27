@@ -114,4 +114,45 @@ describe("mountWebhookRoute (e2e, real Fastify server + real HMAC verification)"
         expect(body.receivedType).toBe("object");
         expect(body.isPlainObject).toBe(true);
     });
+
+    it("an oversized request body is rejected before it ever reaches verifyWebhook() — real DoS-protection boundary, not something this package has to implement itself", async () => {
+        // Fastify enforces `bodyLimit` (default 1MB in @nyalajs/http's
+        // FastifyAdapter — see fastify-adapter.ts) at the framework level,
+        // BEFORE any addContentTypeParser (including this route's
+        // raw-body one) ever runs — a webhook route registered via
+        // mountWebhookRoute() gets this protection automatically, with no
+        // extra code needed here. Explicitly proven with a real oversized
+        // body over real HTTP, not assumed from reading Fastify's source.
+        app = Fastify({ bodyLimit: 1024 }); // deliberately tiny, to keep the test fast — proves the LIMIT is honored, not any specific size
+        const gateway = new StripeGateway({ secretKey: FAKE_SECRET_KEY, webhookSecret: WEBHOOK_SECRET });
+
+        let called = false;
+        await mountWebhookRoute(app, gateway, {
+            path: "/webhooks/stripe",
+            onEvent: () => {
+                called = true;
+            },
+        });
+        await app.listen({ port: 0, host: "127.0.0.1" });
+        const address = app.server.address() as any;
+        const baseUrl = `http://127.0.0.1:${address.port}`;
+
+        const oversizedPayload = JSON.stringify({
+            id: "evt_e2e_oversized",
+            type: "checkout.session.completed",
+            data: { object: { id: "cs_e2e_oversized", client_reference_id: "order-oversized", padding: "x".repeat(10_000) } },
+        });
+        expect(oversizedPayload.length).toBeGreaterThan(1024); // sanity-check the test's own premise
+
+        const res = await fetch(`${baseUrl}/webhooks/stripe`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "stripe-signature": "irrelevant-never-reached" },
+            body: oversizedPayload,
+        });
+
+        // Fastify's own bodyLimit rejection is HTTP 413, distinct from
+        // this package's own 401 (signature verification never even ran).
+        expect(res.status).toBe(413);
+        expect(called).toBe(false);
+    });
 });
