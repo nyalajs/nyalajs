@@ -63,6 +63,9 @@
         "@bull-board/fastify": {
             "@fastify/view": "9.1.0",
             "@fastify/static": "7.0.4"
+        },
+        "flutterwave-node-v3": {
+            "joi": "^17.13.4"
         }
     }
 }
