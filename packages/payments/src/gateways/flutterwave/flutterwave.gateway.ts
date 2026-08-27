@@ -58,7 +58,16 @@ export class FlutterwaveGateway implements PaymentGateway {
                 currency: options.currency.toUpperCase(),
                 redirect_url: options.successUrl,
                 customer: options.customerEmail ? { email: options.customerEmail } : undefined,
-                meta: { ...options.metadata, cancel_url: options.cancelUrl },
+                // Flutterwave's Standard Checkout has exactly ONE redirect
+                // field (redirect_url, above) — no cancel/failure-redirect
+                // concept in this API. options.cancelUrl is passed through
+                // in meta purely for YOUR OWN bookkeeping (round-tripped
+                // back on the webhook event) — Flutterwave never redirects
+                // the customer there itself. Namespaced under `nyala` (not
+                // a bare `cancel_url` key) so this never silently
+                // overwrites a key of the same name you set yourself in
+                // your own `metadata`.
+                meta: { ...options.metadata, nyala: { cancelUrl: options.cancelUrl } },
             }),
         });
 

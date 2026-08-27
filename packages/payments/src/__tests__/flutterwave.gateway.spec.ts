@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { FlutterwaveGateway } from "../gateways/flutterwave/flutterwave.gateway";
 
 // Flutterwave's webhook check is a static shared-secret string comparison
@@ -118,6 +118,36 @@ describe("FlutterwaveGateway (real timing-safe secret-hash check, real API error
             if (result.status === "failed") {
                 expect(result.reason).toMatch(/Invalid authorization key/);
             }
+        },
+        REAL_FLUTTERWAVE_TEST_TIMEOUT
+    );
+
+    it(
+        "createCheckout() passes cancelUrl through under meta.nyala.cancelUrl, WITHOUT overwriting a same-named key the caller set in their own metadata — real outgoing request body inspected via a fetch spy, request still genuinely sent",
+        async () => {
+            const gateway = new FlutterwaveGateway({ publicKey: PUBLIC_KEY, secretKey: SECRET_KEY });
+            const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+            await gateway
+                .createCheckout({
+                    reference: "order-61",
+                    currency: "NGN",
+                    amountMinor: 10000,
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                    metadata: { orderId: "abc123", cancel_url: "https://my-own-app.example.com/never-touch-this" },
+                })
+                .catch(() => {});
+
+            expect(fetchSpy).toHaveBeenCalled();
+            const [, requestInit] = fetchSpy.mock.calls[0];
+            const sentBody = JSON.parse((requestInit as RequestInit).body as string);
+
+            expect(sentBody.meta.orderId).toBe("abc123");
+            expect(sentBody.meta.cancel_url).toBe("https://my-own-app.example.com/never-touch-this");
+            expect(sentBody.meta.nyala.cancelUrl).toBe("https://example.com/cancel");
+
+            fetchSpy.mockRestore();
         },
         REAL_FLUTTERWAVE_TEST_TIMEOUT
     );

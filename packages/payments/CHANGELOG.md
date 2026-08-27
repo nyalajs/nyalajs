@@ -1,5 +1,13 @@
 # @nyalajs/payments
 
+## 0.3.1
+
+### Patch Changes
+
+- Fixed `cancelUrl` silently colliding with a caller's own `metadata.cancel_url` key for `PaystackGateway`/`FlutterwaveGateway` — both stuffed `options.cancelUrl` directly into `metadata.cancel_url`/`meta.cancel_url` (since neither gateway's hosted checkout has a real cancel-redirect field), unconditionally overwriting any same-named key the caller had set in their own `metadata`. Now namespaced under `metadata.nyala.cancelUrl` / `meta.nyala.cancelUrl` so it can never collide.
+- Documented, for the first time, that `cancelUrl` is NOT uniformly honored across all 7 gateways — `CreateCheckoutOptions.cancelUrl`'s doc comment now explains exactly which gateways redirect there for real (Stripe, Mollie, Xendit), which have no cancel-redirect concept and silently ignore it (Chapa, Razorpay), and which pass it through as webhook-event metadata only, never an actual redirect (Paystack, Flutterwave). `RazorpayGateway.createCheckout()` previously dropped `cancelUrl` with zero explanation in the code; added the same kind of comment `ChapaGateway` already had for its identical real API limitation.
+- Verified via real `fetch`/SDK-client spies observing the actual outgoing request bodies (the real network calls still go out and fail against the real APIs as before — this only adds inspection of what's sent, nothing is mocked).
+
 ## 0.3.0
 
 ### Minor Changes

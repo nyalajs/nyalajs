@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import { RazorpayGateway } from "../gateways/razorpay/razorpay.gateway";
 
@@ -118,6 +118,32 @@ describe("RazorpayGateway (real HMAC-SHA256 sign/verify, real API error-shape ch
             })
         ).rejects.toThrow(/lineItems or amountMinor/);
     });
+
+    it(
+        "createCheckout() genuinely never sends cancelUrl anywhere — Razorpay Payment Links have no cancel-redirect field at all (confirmed against the SDK's own real type definitions)",
+        async () => {
+            const gateway = new RazorpayGateway({ keyId: KEY_ID, keySecret: KEY_SECRET });
+            const createSpy = vi.spyOn(gateway.client.paymentLink, "create");
+
+            await gateway
+                .createCheckout({
+                    reference: "order-205",
+                    currency: "INR",
+                    amountMinor: 10000,
+                    customerEmail: "test@example.com",
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                })
+                .catch(() => {});
+
+            expect(createSpy).toHaveBeenCalled();
+            const sentBody = createSpy.mock.calls[0][0];
+            expect(JSON.stringify(sentBody)).not.toContain("example.com/cancel");
+
+            createSpy.mockRestore();
+        },
+        REAL_RAZORPAY_TEST_TIMEOUT
+    );
 
     it(
         "createCheckout() sums lineItems into the correct total when amountMinor is omitted (proven by reaching the real API instead of an early validation throw)",

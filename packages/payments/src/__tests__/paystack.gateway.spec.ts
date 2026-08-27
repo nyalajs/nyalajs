@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import { PaystackGateway } from "../gateways/paystack/paystack.gateway";
 
@@ -134,6 +134,40 @@ describe("PaystackGateway (real HMAC-SHA512 sign/verify, real API error-shape ch
             if (result.status === "failed") {
                 expect(result.reason).toMatch(/Invalid key/);
             }
+        },
+        REAL_PAYSTACK_TEST_TIMEOUT
+    );
+
+    it(
+        "createCheckout() passes cancelUrl through under metadata.nyala.cancelUrl, WITHOUT overwriting a same-named key the caller set in their own metadata — real outgoing request body inspected via a fetch spy, request still genuinely sent",
+        async () => {
+            const gateway = new PaystackGateway({ secretKey: SECRET_KEY });
+            const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+            await gateway
+                .createCheckout({
+                    reference: "order-106",
+                    currency: "NGN",
+                    amountMinor: 5000,
+                    customerEmail: "test@example.com",
+                    successUrl: "https://example.com/ok",
+                    cancelUrl: "https://example.com/cancel",
+                    // Deliberately uses the SAME key name ("cancel_url")
+                    // Paystack's own field is named, to prove nyala's own
+                    // bookkeeping value doesn't silently clobber it.
+                    metadata: { orderId: "abc123", cancel_url: "https://my-own-app.example.com/never-touch-this" },
+                })
+                .catch(() => {}); // real API call with invalid creds — the request itself is what's under test, not the response
+
+            expect(fetchSpy).toHaveBeenCalled();
+            const [, requestInit] = fetchSpy.mock.calls[0];
+            const sentBody = JSON.parse((requestInit as RequestInit).body as string);
+
+            expect(sentBody.metadata.orderId).toBe("abc123");
+            expect(sentBody.metadata.cancel_url).toBe("https://my-own-app.example.com/never-touch-this"); // untouched
+            expect(sentBody.metadata.nyala.cancelUrl).toBe("https://example.com/cancel"); // nyala's value, namespaced separately
+
+            fetchSpy.mockRestore();
         },
         REAL_PAYSTACK_TEST_TIMEOUT
     );

@@ -42,7 +42,15 @@ export class PaystackGateway implements PaymentGateway {
             currency: options.currency.toUpperCase(),
             reference: options.reference,
             callback_url: options.successUrl,
-            metadata: { ...options.metadata, cancel_url: options.cancelUrl },
+            // Paystack's Standard Checkout has exactly ONE redirect field
+            // (callback_url, above) — there is no cancel/failure-redirect
+            // concept in this API. options.cancelUrl is passed through in
+            // metadata purely for YOUR OWN bookkeeping (round-tripped back
+            // on the webhook event) — Paystack never redirects the
+            // customer there itself. Namespaced under `nyala` (not a bare
+            // `cancel_url` key) so this never silently overwrites a key of
+            // the same name you set yourself in your own `metadata`.
+            metadata: { ...options.metadata, nyala: { cancelUrl: options.cancelUrl } },
         });
 
         if (!response.status || !response.data?.authorization_url) {

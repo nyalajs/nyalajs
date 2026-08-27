@@ -56,6 +56,13 @@ export class RazorpayGateway implements PaymentGateway {
             callback_url: options.successUrl,
             callback_method: "get",
             notes: options.metadata,
+            // Razorpay Payment Links have exactly ONE redirect field
+            // (callback_url, above) — confirmed against the SDK's own real
+            // type definitions, no cancel/failure-redirect concept exists
+            // in this API at all. options.cancelUrl is intentionally
+            // unused here, same real limitation as ChapaGateway (see its
+            // createCheckout() comment) — a cancelled/abandoned Payment
+            // Link simply has nowhere else to send the customer.
         });
 
         if (!paymentLink.short_url) {

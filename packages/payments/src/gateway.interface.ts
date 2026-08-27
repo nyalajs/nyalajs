@@ -32,9 +32,29 @@ export interface CreateCheckoutOptions {
     /** Smallest currency unit. Required if lineItems is omitted; must match the lineItems sum if both are given (adapters do NOT silently reconcile a mismatch — they throw). */
     amountMinor?: number;
     customerEmail?: string;
-    /** Where the customer lands after a successful payment. */
+    /** Where the customer lands after a successful payment — every gateway supports a real redirect for this. */
     successUrl: string;
-    /** Where the customer lands if they cancel/back out. */
+    /**
+     * Where the customer lands if they cancel/back out.
+     *
+     * Not every gateway's hosted checkout actually has a separate
+     * cancel/failure redirect — this is the one field in this interface
+     * that ISN'T uniformly honored, since the underlying gateway APIs
+     * genuinely differ here, not because of a limitation in this package:
+     *   - Stripe, Mollie, Xendit: a real, distinct redirect — the customer
+     *     is actually sent to this URL on cancel.
+     *   - Chapa, Razorpay: no cancel-redirect concept exists in the API at
+     *     all — this value is silently unused. Detect cancellation by
+     *     checking the transaction's real status via a webhook or a
+     *     status lookup, not by assuming a redirect happened.
+     *   - Paystack, Flutterwave: also no real cancel-redirect — this value
+     *     is passed through in `metadata` (under a `nyala.cancelUrl` key)
+     *     purely for YOUR OWN bookkeeping, round-tripped back to you on
+     *     the webhook event. The customer is never actually redirected
+     *     there by the gateway itself.
+     * See each gateway class's own createCheckout() comment for the exact
+     * reasoning on that gateway.
+     */
     cancelUrl: string;
     /** Arbitrary metadata round-tripped back on the webhook event (order id, tenant id, etc.) — every gateway supports SOME form of this, adapters normalize the shape. */
     metadata?: Record<string, string>;
