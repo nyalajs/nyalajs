@@ -143,6 +143,14 @@ Every gateway charges through a **hosted checkout redirect** — `createCheckout
 
 Amounts are always **minor units** (cents, kobo, paise, ...) at this layer — `amountMinor: 4999` for $49.99 — regardless of which gateway you're calling; adapters that need major-unit decimal strings (Chapa, Mollie, Xendit) or major-unit numbers do that conversion internally.
 
+`successUrl` is a real redirect on every gateway. `cancelUrl` is NOT — some gateways' hosted checkout genuinely has no cancel/failure-redirect field at all:
+
+| Gateway | `cancelUrl` behavior |
+|---|---|
+| Stripe, Mollie, Xendit | Real, distinct redirect — the customer actually lands there on cancel |
+| Chapa, Razorpay | No cancel-redirect concept in the API — silently unused. Check the transaction's real status via a webhook/status lookup instead of assuming a redirect happened |
+| Paystack, Flutterwave | No real cancel-redirect either — passed through as webhook-event metadata (`event.metadata.nyala.cancelUrl`) purely for your own bookkeeping, never an actual customer redirect |
+
 ## Webhook verification per gateway
 
 Every gateway's `verifyWebhook()` is genuinely different under the hood — worth knowing if you're debugging one:
