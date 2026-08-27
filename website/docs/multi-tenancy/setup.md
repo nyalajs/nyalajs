@@ -260,6 +260,8 @@ From this point on, `TenantMiddleware` handles routing automatically: it resolve
 
 A dedicated tenant's database needs the **same table schema** as your shared database (the same `Model` classes are used against it, `tenant_id` column included — it just only ever holds rows where `tenant_id = 'acme'`) — either run your normal migrations against it directly, or let `TenantMigrationService.migrateToDedicated()` auto-create it for you (see below).
 
+`driver` accepts any of `@nyalajs/database`'s four drivers — `"pg"`/`"postgres"` (Postgres), `"mysql2"` (MySQL), `"better-sqlite3"` (SQLite) — verified end to end against all three real dialects (real separate database files for SQLite, real-server-gated integration suites for Postgres and MySQL). A dedicated tenant's connection can use a different *driver* than your app's main connection (e.g. `"pg"` for the shared DB, `"postgres"` for one dedicated tenant), but not a different *dialect* — `SchemaRegistry` builds tables for one dialect process-wide, so a Postgres shared DB with a MySQL dedicated tenant isn't supported in a single deployment.
+
 ### Connection Pooling and Eviction
 
 `TenantConnectionManager` keeps a real, pooled connection per dedicated tenant — opened lazily on first use, reused on every later request, deduplicated if two requests for a cold tenant race each other. Two knobs matter at scale:

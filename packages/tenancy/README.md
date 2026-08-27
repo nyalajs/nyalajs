@@ -73,6 +73,8 @@ await registry.register({
 
 From here, `TenantMiddleware` handles routing automatically: it resolves the tenant, sees it's dedicated, gets (or lazily opens, then pools/reuses) its connection via `TenantConnectionManager`, and runs the rest of the request inside `@nyalajs/database`'s `ConnectionContext` — every `Model` call in your handler transparently targets `acme`'s own database. No dedicated-mode-specific repository or query code; the same `Model` classes work unmodified for both modes.
 
+`driver` accepts any of `@nyalajs/database`'s four drivers — `"pg"`/`"postgres"` (Postgres), `"mysql2"` (MySQL), `"better-sqlite3"` (SQLite) — a dedicated tenant's own database doesn't have to use the same driver as your app's main/shared connection, only the same **dialect** (`SchemaRegistry` builds tables for one dialect process-wide, so mixing e.g. a Postgres shared DB with a MySQL dedicated tenant isn't supported — pick one dialect for the whole deployment).
+
 ## Migrating a tenant live
 
 ```ts
