@@ -1,10 +1,11 @@
 {
     "name": "@nyalajs/cli",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "bin": {
         "nyala": "./dist/bin/nyala.js"
     },
     "scripts": {
+        "prebuild": "node scripts/copy-templates.js",
         "build": "tsc",
         "dev": "tsc --watch",
         "test": "vitest run"

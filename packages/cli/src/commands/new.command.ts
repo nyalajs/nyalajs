@@ -63,6 +63,14 @@ const EMPTY_TOP_LEVEL_FOLDERS = [
 ];
 
 export class NewCommand {
+  /**
+   * @param baseDir Directory the new project folder is created inside.
+   *   Defaults to `process.cwd()` — the real CLI invocation never passes
+   *   this. Exists so tests can point at a real temp directory without
+   *   `process.chdir()` (unsupported under Vitest's worker-thread pool).
+   */
+  constructor(private readonly baseDir: string = process.cwd()) {}
+
   async execute(name: string | undefined, options: any): Promise<void> {
     let projectName = name;
     let dbDriver = options.database || "postgres";
@@ -134,19 +142,15 @@ export class NewCommand {
     const spinner = ora(`Creating new Nyala application: ${projectName}`).start();
 
     try {
-      const projectPath = path.join(process.cwd(), projectName!);
+      const projectPath = path.join(this.baseDir, projectName!);
 
       if (await fs.pathExists(projectPath)) {
         spinner.fail(`Directory ${projectName} already exists`);
         return;
       }
 
-      // Resolve the chosen template to its folder under the repo's
-      // top-level templates/ dir (four levels up from dist/commands).
       const templateFolder = TEMPLATE_FOLDERS[template];
-      const templatePath = templateFolder
-        ? path.join(__dirname, "../../../../templates", templateFolder)
-        : null;
+      const templatePath = templateFolder ? await this.resolveTemplatePath(templateFolder) : null;
       const templateExists = templatePath ? await fs.pathExists(templatePath) : false;
 
       if (templatePath && templateExists) {
@@ -168,6 +172,41 @@ export class NewCommand {
       spinner.fail("Failed to create application");
       console.error(error);
     }
+  }
+
+  /**
+   * Resolves a template folder name (e.g. "basic-starter") to its real
+   * location on disk. Checked in order:
+   *
+   *   1. `runtime/templates/<folder>` next to this file — where templates
+   *      actually ship for a real `npm install @nyalajs/cli` (see
+   *      `scripts/copy-templates.js`, run as a `prebuild` step so
+   *      `runtime/templates/` is populated before `tsc` even runs, and
+   *      included in the published tarball via `package.json`'s `files`).
+   *   2. `../../../../templates/<folder>` relative to this file — the
+   *      monorepo's own top-level `templates/` directory, used only when
+   *      running `nyala` from inside this repo's own dev checkout (e.g.
+   *      via `npm link`) where `runtime/templates/` was never populated
+   *      because `npm run build` (and thus the prebuild copy step) hasn't
+   *      run for this exact package. A real end user never hits this path.
+   *
+   * Returns null if neither location has this template — the caller then
+   * falls back to the bare/empty scaffold, exactly as if `--template=basic`
+   * had been requested (though ideally this never happens for a real
+   * install now that (1) always succeeds).
+   */
+  private async resolveTemplatePath(templateFolder: string): Promise<string | null> {
+    const bundled = path.join(__dirname, "../../runtime/templates", templateFolder);
+    if (await fs.pathExists(bundled)) {
+      return bundled;
+    }
+
+    const monorepoDev = path.join(__dirname, "../../../../templates", templateFolder);
+    if (await fs.pathExists(monorepoDev)) {
+      return monorepoDev;
+    }
+
+    return null;
   }
 
   /**
@@ -378,9 +417,9 @@ export default [];
         test: "vitest run",
       },
       dependencies: {
-        "@nyalajs/core": "^1.0.0",
-        "@nyalajs/http": "^1.0.0",
-        "@nyalajs/config": "^1.0.0",
+        "@nyalajs/core": "*",
+        "@nyalajs/http": "*",
+        "@nyalajs/config": "*",
         "reflect-metadata": "^0.2.1",
       },
       devDependencies: {

@@ -9,6 +9,23 @@
                 "dist/**"
             ]
         },
+        "@nyalajs/cli#build": {
+            "dependsOn": [
+                "^build"
+            ],
+            "outputs": [
+                "dist/**",
+                "runtime/templates/**"
+            ],
+            "inputs": [
+                "src/**",
+                "scripts/**",
+                "runtime/*.ts",
+                "package.json",
+                "tsconfig.json",
+                "../../templates/**"
+            ]
+        },
         "test": {
             "dependsOn": [
                 "build"

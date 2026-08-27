@@ -1,5 +1,19 @@
 # @nyalajs/cli
 
+## 2.2.1
+
+### Patch Changes
+
+- **Critical fix**: `nyala new --template=mvc/saas/cms/inertia` has never actually worked for any real, published install of this package — confirmed by inspecting the real `npm pack` tarball. Template resolution used `path.join(__dirname, "../../../../templates", folder)`, correct only inside this monorepo's own dev checkout (`packages/cli/dist/commands/` → up 4 → repo root → `templates/`); the published package's `files` field never included the top-level `templates/` directory at all. Every `--template=X` request from a real `npm install @nyalajs/cli` silently fell back to the bare/empty scaffold, with no error or warning that anything had gone wrong.
+
+  Fixed by bundling each starter template's git-tracked files into `packages/cli/runtime/templates/<folder>/` at build time (`scripts/copy-templates.js`, a new `prebuild` step — uses `git ls-files` per template so only real, tracked content ships, not each template's own local `node_modules`/`dist`), with `NewCommand` looking there first and falling back to the monorepo's own `templates/` only for local dev convenience (`npm link` from inside this repo). Verified end to end: packed the CLI with `npm pack`, installed the tarball into a genuinely isolated directory with zero access to this monorepo, and confirmed all 4 real templates (`mvc`/`saas`/`cms`/`inertia`) now correctly produce their real starter content (`auth.controller.ts`, `tenant.model.ts`, admin islands, `resources/js/app.tsx`, respectively) rather than the bare scaffold.
+
+  Also fixed: the bare scaffold's (`--template=basic`) generated `package.json` pinned `@nyalajs/core`/`@nyalajs/http`/`@nyalajs/config` to `^1.0.0` — two major versions behind the real, current `2.x` releases — now `"*"`, matching every real starter template's own convention.
+
+  New regression test suite (`new.command.spec.ts`, 9 tests) exercises every template end-to-end against the actual bundled `runtime/templates/` directory, and asserts no `@nyalajs/*` dependency in a freshly-scaffolded project is ever pinned to a stale `^1.x` range — this exact class of bug can't silently reappear. `NewCommand` also now takes an optional constructor `baseDir` (defaults to `process.cwd()`, unchanged for the real CLI) so these tests don't need `process.chdir()` (unsupported under Vitest's worker-thread pool).
+
+  Also fixed a Turbo cache-correctness gap found while verifying this: `@nyalajs/cli`'s build task had no `inputs` override, so its cache key never included the sibling `templates/` directory — editing a starter template without touching anything under `packages/cli/` could have served a stale cached CLI build missing that change. Added an explicit `@nyalajs/cli#build` task override in `turbo.json`.
+
 ## 2.2.0
 
 ### Minor Changes

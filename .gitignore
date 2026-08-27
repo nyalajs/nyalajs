@@ -7,3 +7,8 @@ dist/
 coverage/
 .nyala/
 .tmp-test/
+# Generated at build time by packages/cli/scripts/copy-templates.js — a
+# build-time copy of the top-level templates/ directory's tracked files,
+# bundled into the published @nyalajs/cli package. Never commit this
+# duplicate; the real source of truth is templates/ itself.
+packages/cli/runtime/templates/
