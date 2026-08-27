@@ -20,16 +20,21 @@ There's no direct adapter for these, and that's deliberate rather than a gap to 
 
 ## Quick start
 
-`createPaymentService()` is the one-call setup path — plain config in, a fully wired service out. No gateway class to import or construct by hand.
+Set your gateway credentials in `.env` using the `PAYMENTS_{PROVIDER}_{FIELD}` convention, then `createPaymentServiceFromEnv()` reads them for you — the only code is which gateways to enable:
+
+```bash
+# .env
+PAYMENTS_STRIPE_SECRET_KEY=sk_live_...
+PAYMENTS_STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENTS_CHAPA_SECRET_KEY=CHASECK_...
+PAYMENTS_CHAPA_WEBHOOK_SECRET=...
+```
 
 ```typescript
-import { createPaymentService } from '@nyalajs/payments';
+import { createPaymentServiceFromEnv } from '@nyalajs/payments';
 
-const payments = createPaymentService({
-  gateways: {
-    stripe: { provider: 'stripe', secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
-    chapa: { provider: 'chapa', secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
-  },
+const payments = createPaymentServiceFromEnv({
+  gateways: { stripe: true, chapa: true },
   default: 'stripe',
 });
 
@@ -47,11 +52,39 @@ await payments.createCheckout({ /* ... */ }, 'chapa');
 redirect(session.checkoutUrl);
 ```
 
-Switching or adding a gateway is a config change — add an entry to `gateways`, nothing else in your app needs to change. Each `provider` value takes exactly that gateway's own constructor options alongside it (`secretKey`, `webhookSecret`, and so on — see each gateway's row in the Coverage table above for which options it needs).
+Enabling a gateway is a one-line change (`chapa: true`) — no env var names to spell out. A missing required variable throws once at startup with the complete list of everything missing across every enabled gateway (not one failure at a time as each gateway is first used):
+
+| Provider | Required env vars | Optional |
+|---|---|---|
+| `stripe` | `PAYMENTS_STRIPE_SECRET_KEY` | `PAYMENTS_STRIPE_WEBHOOK_SECRET` |
+| `chapa` | `PAYMENTS_CHAPA_SECRET_KEY` | `PAYMENTS_CHAPA_WEBHOOK_SECRET` |
+| `paystack` | `PAYMENTS_PAYSTACK_SECRET_KEY` | `PAYMENTS_PAYSTACK_BASE_URL` |
+| `flutterwave` | `PAYMENTS_FLUTTERWAVE_PUBLIC_KEY`, `PAYMENTS_FLUTTERWAVE_SECRET_KEY` | `PAYMENTS_FLUTTERWAVE_WEBHOOK_SECRET_HASH` |
+| `mollie` | `PAYMENTS_MOLLIE_API_KEY`, `PAYMENTS_MOLLIE_WEBHOOK_URL` | — (both required; Mollie has no separate signing secret) |
+| `razorpay` | `PAYMENTS_RAZORPAY_KEY_ID`, `PAYMENTS_RAZORPAY_KEY_SECRET` | `PAYMENTS_RAZORPAY_WEBHOOK_SECRET` |
+| `xendit` | `PAYMENTS_XENDIT_SECRET_KEY` | `PAYMENTS_XENDIT_WEBHOOK_VERIFICATION_TOKEN` |
+
+Use a per-field override if your `.env` already uses different names: `{ stripe: { secretKey: "MY_CUSTOM_VAR_NAME" } }`.
+
+Prefer to spell out config explicitly (reading from a secrets manager, `ConfigService`, or just wanting every field visible)? `createPaymentService()` takes the same shape `fromEnv()` builds internally:
+
+```typescript
+import { createPaymentService } from '@nyalajs/payments';
+
+const payments = createPaymentService({
+  gateways: {
+    stripe: { provider: 'stripe', secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
+    chapa: { provider: 'chapa', secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
+  },
+  default: 'stripe',
+});
+```
+
+Switching or adding a gateway is still just a config change either way. Each `provider` value takes exactly that gateway's own constructor options alongside it (`secretKey`, `webhookSecret`, and so on — see each gateway's row in the table above for which options it needs).
 
 Amounts are always **minor units** (cents, kobo, paise, ...) at this layer regardless of which gateway you call — `amountMinor: 4999` for $49.99. Adapters that need major-unit decimal strings (Chapa, Mollie) or major-unit numbers (Xendit) convert internally.
 
-Need something `createPaymentService()` can't express (a hand-built gateway subclass, for instance)? Construct `PaymentService` directly with real gateway instances instead: `new PaymentService({ stripe: new StripeGateway({...}) }, { default: 'stripe' })`.
+Need something neither helper can express (a hand-built gateway subclass, for instance)? Construct `PaymentService` directly with real gateway instances instead: `new PaymentService({ stripe: new StripeGateway({...}) }, { default: 'stripe' })`.
 
 ## Webhooks
 

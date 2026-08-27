@@ -20,16 +20,21 @@ Multi-region payment gateway abstraction for NyalaJS. One `PaymentGateway` inter
 
 ## Quick start
 
-`createPaymentService()` is the one-call setup path — plain config in, a fully wired service out. No gateway class to import or construct by hand.
+Set your gateway credentials in `.env` using the `PAYMENTS_{PROVIDER}_{FIELD}` convention, then `createPaymentServiceFromEnv()` reads them for you — the only code is which gateways to enable:
+
+```bash
+# .env
+PAYMENTS_STRIPE_SECRET_KEY=sk_live_...
+PAYMENTS_STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENTS_CHAPA_SECRET_KEY=CHASECK_...
+PAYMENTS_CHAPA_WEBHOOK_SECRET=...
+```
 
 ```ts
-import { createPaymentService } from "@nyalajs/payments";
+import { createPaymentServiceFromEnv } from "@nyalajs/payments";
 
-const payments = createPaymentService({
-  gateways: {
-    stripe: { provider: "stripe", secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
-    chapa: { provider: "chapa", secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
-  },
+const payments = createPaymentServiceFromEnv({
+  gateways: { stripe: true, chapa: true },
   default: "stripe",
 });
 
@@ -47,12 +52,33 @@ await payments.createCheckout({ ... }, "chapa");
 redirect(session.checkoutUrl);
 ```
 
-Switching or adding a gateway is a config change — add an entry to `gateways`, nothing else in your app needs to change. Every `provider` value (`"stripe"`, `"chapa"`, `"paystack"`, `"flutterwave"`, `"mollie"`, `"razorpay"`, `"xendit"`) takes exactly that gateway's own constructor options alongside it — your editor's autocomplete narrows the required fields once you set `provider`.
+Enabling a gateway is a one-line change (`chapa: true`) — no env var names to spell out, no gateway class to import. If a required variable is missing, it throws once at startup with the complete list of everything missing across every enabled gateway, not one failure at a time as each gateway is first used. See [`env-vars`](#every-provider-and-its-env-vars) below for the full list, and use a per-field override (`{ stripe: { secretKey: "MY_CUSTOM_VAR_NAME" } }`) if your `.env` already uses different names.
+
+<details>
+<summary>Passing config explicitly instead of reading <code>.env</code> (advanced)</summary>
+
+`createPaymentService()` takes the same shape `fromEnv()` builds internally — use it directly if you're reading credentials from somewhere other than environment variables (a secrets manager, `ConfigService`, ...), or just prefer to see every field spelled out:
+
+```ts
+import { createPaymentService } from "@nyalajs/payments";
+
+const payments = createPaymentService({
+  gateways: {
+    stripe: { provider: "stripe", secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET },
+    chapa: { provider: "chapa", secretKey: process.env.CHAPA_SECRET_KEY!, webhookSecret: process.env.CHAPA_WEBHOOK_SECRET },
+  },
+  default: "stripe",
+});
+```
+
+Every `provider` value (`"stripe"`, `"chapa"`, `"paystack"`, `"flutterwave"`, `"mollie"`, `"razorpay"`, `"xendit"`) takes exactly that gateway's own constructor options alongside it — your editor's autocomplete narrows the required fields once you set `provider`.
+
+</details>
 
 <details>
 <summary>Constructing gateways directly instead (advanced)</summary>
 
-If you need something `createPaymentService()` can't express — a hand-built gateway subclass, for instance — construct `PaymentService` yourself:
+If you need something neither helper can express — a hand-built gateway subclass, for instance — construct `PaymentService` yourself:
 
 ```ts
 import { PaymentService, StripeGateway, ChapaGateway } from "@nyalajs/payments";
@@ -67,6 +93,20 @@ const service = new PaymentService(
 ```
 
 </details>
+
+### Every provider and its env vars
+
+| Provider | Required | Optional |
+|---|---|---|
+| `stripe` | `PAYMENTS_STRIPE_SECRET_KEY` | `PAYMENTS_STRIPE_WEBHOOK_SECRET` |
+| `chapa` | `PAYMENTS_CHAPA_SECRET_KEY` | `PAYMENTS_CHAPA_WEBHOOK_SECRET` |
+| `paystack` | `PAYMENTS_PAYSTACK_SECRET_KEY` | `PAYMENTS_PAYSTACK_BASE_URL` |
+| `flutterwave` | `PAYMENTS_FLUTTERWAVE_PUBLIC_KEY`, `PAYMENTS_FLUTTERWAVE_SECRET_KEY` | `PAYMENTS_FLUTTERWAVE_WEBHOOK_SECRET_HASH` |
+| `mollie` | `PAYMENTS_MOLLIE_API_KEY`, `PAYMENTS_MOLLIE_WEBHOOK_URL` | — (both required; Mollie has no separate signing secret, `webhookUrl` is what makes the live-lookup verification reachable) |
+| `razorpay` | `PAYMENTS_RAZORPAY_KEY_ID`, `PAYMENTS_RAZORPAY_KEY_SECRET` | `PAYMENTS_RAZORPAY_WEBHOOK_SECRET` |
+| `xendit` | `PAYMENTS_XENDIT_SECRET_KEY` | `PAYMENTS_XENDIT_WEBHOOK_VERIFICATION_TOKEN` |
+
+Optional fields left unset are simply omitted from that gateway's config (e.g. `verifyWebhook()` isn't usable until you set one) — only missing REQUIRED fields cause `createPaymentServiceFromEnv()` to throw.
 
 ## Webhooks
 
