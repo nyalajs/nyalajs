@@ -4,3 +4,7 @@ export * from "./resolvers/header-resolver";
 export * from "./resolvers/jwt-resolver";
 export * from "./middleware/tenant.middleware";
 export * from "./repository/tenant-repository";
+export * from "./registry/tenant-record.model";
+export * from "./registry/tenant-registry.service";
+export * from "./connection/tenant-connection-manager";
+export * from "./migration/tenant-migration.service";

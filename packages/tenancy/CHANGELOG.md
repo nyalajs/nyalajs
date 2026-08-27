@@ -1,5 +1,18 @@
 # @nyalajs/tenancy
 
+## 2.1.0
+
+### Minor Changes
+
+- Add dedicated-database-per-tenant support, live migration between shared and dedicated isolation, and a real tenant registry — the "shared DB with row-level isolation" model this package already had is now one of two supported isolation modes, switchable per tenant at runtime with no redeploy.
+
+  - New `TenantRecord` (a `@nyalajs/database` `Model`, lives in the shared/system database) + `TenantRegistry` — the source of truth for which tenants exist, whether each is `"shared"` or `"dedicated"`, and (for dedicated tenants) their own connection string. Backed by a short-TTL in-process cache that's invalidated immediately on every write, so a migration's cutover is visible on the very next request.
+  - New `TenantConnectionManager` — a real, pooled registry of live dedicated-tenant connections: lazily opens one on first use (reusing `@nyalajs/database`'s new `openConnection()`), reuses it for every later request from that tenant, deduplicates concurrent cold-open races, evicts by LRU under a configurable connection cap, and sweeps idle connections on a timer.
+  - `TenantMiddleware` now optionally takes a `TenantRegistry` + `TenantConnectionManager` (both `@Optional()` — fully backward compatible with existing wiring that doesn't pass them). When present, it looks up the resolved tenant's isolation mode after resolving the tenant id: a `"dedicated"` tenant's connection is fetched/opened and the rest of the request runs inside `@nyalajs/database`'s `ConnectionContext.run()`, so every `Model` call in the handler transparently targets that tenant's own database — no repository/handler code has to know or care which mode a given tenant is in. A `"shared"` tenant (or no registry configured) behaves exactly as before.
+  - New `TenantMigrationService` — moves one tenant's data between shared and dedicated storage live: `migrateToDedicated()` provisions the target schema (auto-`CREATE TABLE` from the same Model definitions, or skip and bring your own pre-migrated target), copies every listed table's rows in batches (tenant-scoped reads, tenant-scoped upsert writes — reuses `Model`/`TenantContext`'s existing scoping machinery rather than hand-building `WHERE`/stamping logic), verifies row counts match on both sides, and only then flips the tenant's registry entry — the atomic cutover. `migrateToShared()` reverses it. Source data is never deleted by this service. A tenant migrated back a second time (or one whose prior source rows were never cleaned up) upserts on id collision rather than throwing a duplicate-key error, with the side being migrated FROM treated as authoritative.
+  - A dedicated tenant's database uses the exact same `Model` classes/schema as the shared database — `tenant_id` column included — so `Model` itself stays completely unaware of isolation mode; nothing about how you write a Model or a repository changes based on how a given tenant happens to be isolated today.
+  - Verified against real, unmocked infrastructure throughout: real separate SQLite database files standing in for "shared" and "dedicated" (including a genuine concurrency test proving `AsyncLocalStorage`-based routing, not a shared mutable flag, is what keeps two tenants' connections from crossing), plus a real-Postgres-gated integration suite (`POSTGRES_TEST_URL`, same convention as `@nyalajs/database`'s own driver tests) exercising the identical flow against two real Postgres databases.
+
 ## 2.0.1
 
 ### Patch Changes

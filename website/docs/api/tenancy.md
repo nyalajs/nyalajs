@@ -116,6 +116,80 @@ class Plan extends Model {
 
 `TenantRepository<Plan>` (or `TenantRepository<Tenant>`, for managing tenants themselves) works the same way as any other `TenantRepository` subclass — there's no separate constructor flag to opt out, because the model's own shape already determines whether `Model` enforces scoping.
 
+## `TenantRecord` / `TenantRegistry`
+
+`TenantRecord` is a real `Model` (table `nyala_tenants`, lives in your shared/system database, never itself tenant-scoped) tracking each tenant's `isolationMode` (`"shared" | "dedicated"`), `connectionString`/`driver` (dedicated only), and `migrationStatus`. `TenantRegistry` is the CRUD/lookup service over it, with a short-TTL in-process cache (invalidated immediately on every write):
+
+```typescript
+import { TenantRegistry } from '@nyalajs/tenancy';
+
+const registry = new TenantRegistry(30_000); // cache TTL in ms, default 30s
+
+await registry.register({ id: 'acme', name: 'Acme Corp' }); // isolationMode defaults to "shared"
+const record = await registry.find('acme');        // null if unregistered
+const record2 = await registry.findOrThrow('acme'); // throws a clear error if unregistered
+
+await registry.setIsolation('acme', {
+  isolationMode: 'dedicated',
+  connectionString: process.env.ACME_DATABASE_URL!,
+  driver: 'pg',
+});
+await registry.setMigrationStatus('acme', 'copying_data');
+```
+
+## `TenantConnectionManager`
+
+Owns the live, pooled connections for dedicated tenants — lazily opens one on first use (via `@nyalajs/database`'s `openConnection()`), reuses it on every later call, deduplicates concurrent cold-open races for the same tenant, evicts by LRU under a connection cap, and sweeps idle connections on a timer:
+
+```typescript
+import { TenantConnectionManager } from '@nyalajs/tenancy';
+
+const connections = new TenantConnectionManager({
+  idleTtlMs: 10 * 60 * 1000,  // default
+  maxOpenConnections: 100,     // default
+  maxConnectionsPerTenant: 5,  // default
+});
+
+const record = await registry.findOrThrow('acme'); // must have isolationMode: "dedicated"
+const db = await connections.getConnection(record); // opens once, pooled/reused after
+
+connections.startIdleSweep(); // starts the periodic idle-close timer — no-op until called
+connections.size();           // how many dedicated connections are currently open
+await connections.evict('acme'); // close and forget one tenant's connection
+await connections.closeAll();    // shutdown — closes everything
+```
+
+`getConnection()` throws if the record's `isolationMode` isn't `"dedicated"` or it has no `connectionString` — a defensive backstop, not the primary check (that's `TenantMiddleware` consulting `TenantRegistry` first).
+
+## `TenantMigrationService`
+
+Moves one tenant's data between shared and dedicated storage live — see [Setup](../multi-tenancy/setup#migrating-a-tenant-live) for the full walkthrough of what each step does and how to track progress:
+
+```typescript
+import { TenantMigrationService } from '@nyalajs/tenancy';
+
+const migrations = new TenantMigrationService(registry, connections); // connections is optional
+
+await migrations.migrateToDedicated({
+  tenantId: 'acme',
+  connectionString: process.env.ACME_DATABASE_URL!,
+  driver: 'pg',            // default "pg"
+  models: [User, Order],   // every tenant-scoped Model to move — required, no auto-discovery
+  batchSize: 500,           // default
+  autoCreateSchema: true,   // default — auto-creates the target's tables from the Model definitions
+  onProgress: (table, rowsCopiedSoFar) => {},
+});
+// -> { tenantId, tablesCopied: string[], rowsCopied: number }
+
+await migrations.migrateToShared({
+  tenantId: 'acme',
+  models: [User, Order],
+  closeSourceConnection: true, // default — evicts the pooled dedicated connection after cutover
+});
+```
+
+Both throw before touching anything if the tenant is already in the target mode, or if row-count verification fails after copying (in which case the cutover never happens and `migrationStatus` is set to `"failed"`).
+
 ## Cross-Tenant Enforcement
 
 There's no built-in "switch tenant" API and no `OnTenantCreate()`/`OnTenantDelete()` event decorators. The isolation guarantee is intentionally narrow: any `Model` that declares a `tenantId` column is always scoped to `TenantContext.get()`, and fails closed (throws) rather than returning unscoped data when no tenant is active — see [Data Isolation](../multi-tenancy/isolation) for the exact mechanism. There's no supported way to bypass this on a tenant-scoped model from inside a request; genuine cross-tenant work (an admin panel, a background job iterating every tenant) should run each tenant's portion inside its own `TenantContext.run()` scope instead of trying to disable scoping.

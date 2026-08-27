@@ -166,6 +166,166 @@ export default {
 
 You'd then read `config.get("tenancy.required")` inside the `useValue`/`useFactory` for `TENANT_REQUIRED` shown above.
 
+## Dedicated Database Tenants
+
+Everything above wires up **shared** mode (row-level `tenant_id` isolation) — the default, and all most tenants ever need. A subset of tenants (an enterprise plan, a compliance-driven customer) can instead get their own dedicated database, switchable live, with three more pieces:
+
+### 1. Register the Registry and Connection Manager as Providers
+
+```typescript
+// bootstrap/app.module.ts
+import { Module } from "@nyalajs/core";
+import {
+  TenantMiddleware,
+  SubdomainTenantResolver,
+  HeaderTenantResolver,
+  TenantRegistry,
+  TenantConnectionManager,
+  TenantMigrationService,
+} from "@nyalajs/tenancy";
+
+@Module({
+  providers: [
+    {
+      provide: "TENANT_RESOLVERS",
+      useFactory: () => [new SubdomainTenantResolver(), new HeaderTenantResolver()],
+    },
+    { provide: "TENANT_REQUIRED", useValue: true },
+
+    // These two are what make TenantMiddleware dedicated-mode-aware — pass
+    // them as the 3rd/4th constructor args and it does the rest itself.
+    { provide: TenantRegistry, useFactory: () => new TenantRegistry() },
+    { provide: TenantConnectionManager, useFactory: () => new TenantConnectionManager({ maxOpenConnections: 100 }) },
+    {
+      provide: TenantMiddleware,
+      useFactory: (resolvers: any, required: boolean, registry: TenantRegistry, connections: TenantConnectionManager) =>
+        new TenantMiddleware(resolvers, required, registry, connections),
+      inject: ["TENANT_RESOLVERS", "TENANT_REQUIRED", TenantRegistry, TenantConnectionManager],
+    },
+
+    // For migrating tenants between modes at runtime — see below.
+    TenantMigrationService,
+  ],
+})
+export class AppModule {}
+```
+
+`TenantMiddleware`'s registry/connection-manager arguments are both `@Optional()` — omit them (register `TenantMiddleware` as a plain provider, like in the shared-only setup above) and it behaves exactly as it always has, with zero code changes required for apps that don't need dedicated tenants at all.
+
+### 2. Create the Tenant Registry Table
+
+`TenantRegistry` is backed by a real `Model` (`TenantRecord`, table `nyala_tenants`) in your app's normal/shared database — it needs a migration like any other table:
+
+```typescript
+// database/migrations/xxxx_create_nyala_tenants.ts
+// Generated via `nyala generate migration create_nyala_tenants` — same
+// up(db)/down(db) shape as every other migration this framework's CLI produces.
+import { sql } from "drizzle-orm";
+
+export async function up(db: any): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE nyala_tenants (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      "isolationMode" text NOT NULL,
+      "connectionString" text,
+      driver text,
+      "migrationStatus" text NOT NULL,
+      "createdAt" timestamp NOT NULL,
+      "updatedAt" timestamp NOT NULL
+    )
+  `);
+}
+
+export async function down(db: any): Promise<void> {
+  await db.execute(sql`DROP TABLE nyala_tenants`);
+}
+```
+
+Column names are camelCase (matching every property on `TenantRecord`, since it declares no `@Column({ name: ... })` overrides) — not snake_case, unlike most of this framework's own conventions for tenant-owned tables. Get this wrong and every `TenantRegistry` call fails with a "no such column" error from the driver.
+
+### 3. Register a Tenant as Dedicated
+
+```typescript
+await tenantRegistry.register({
+  id: "acme",
+  name: "Acme Corp",
+  isolationMode: "dedicated",
+  connectionString: process.env.ACME_DATABASE_URL!, // must already exist and be reachable
+  driver: "pg",
+});
+```
+
+From this point on, `TenantMiddleware` handles routing automatically: it resolves the tenant id (from whichever `TenantResolver` matched), looks it up via `TenantRegistry`, sees `isolationMode: "dedicated"`, gets (or lazily opens, then pools) its connection via `TenantConnectionManager`, and runs the rest of the request inside `@nyalajs/database`'s `ConnectionContext.run()` — every `Model.all()`/`find()`/`create()`/`query()` call your handler makes for the rest of this request transparently targets `acme`'s own database. No repository/handler code changes based on which mode a tenant is in.
+
+A dedicated tenant's database needs the **same table schema** as your shared database (the same `Model` classes are used against it, `tenant_id` column included — it just only ever holds rows where `tenant_id = 'acme'`) — either run your normal migrations against it directly, or let `TenantMigrationService.migrateToDedicated()` auto-create it for you (see below).
+
+### Connection Pooling and Eviction
+
+`TenantConnectionManager` keeps a real, pooled connection per dedicated tenant — opened lazily on first use, reused on every later request, deduplicated if two requests for a cold tenant race each other. Two knobs matter at scale:
+
+```typescript
+new TenantConnectionManager({
+  idleTtlMs: 10 * 60 * 1000,   // close a tenant's connection after 10 min unused (default)
+  maxOpenConnections: 100,      // hard cap; least-recently-used is evicted to make room, never refused (default)
+  maxConnectionsPerTenant: 5,   // pool size PER dedicated tenant (default) — smaller than the shared pool's default 10, since this multiplies by tenant count
+});
+```
+
+Call `connectionManager.startIdleSweep()` once at bootstrap to actually enforce `idleTtlMs` (it's a no-op until started), and `connectionManager.closeAll()` during graceful shutdown.
+
+## Migrating a Tenant Live
+
+`TenantMigrationService` moves one tenant's data between shared and dedicated storage without downtime or a redeploy — the actual mechanism behind "upgrade a tenant to a dedicated database" / "downgrade back to shared" as a live operation, not a manual ops runbook.
+
+```typescript
+import { Injectable } from "@nyalajs/core";
+import { TenantMigrationService } from "@nyalajs/tenancy";
+import { User, Order, Invoice } from "../app/models";
+
+@Injectable()
+export class TenantOpsService {
+  constructor(private readonly migrations: TenantMigrationService) {}
+
+  async upgradeToDedicated(tenantId: string, connectionString: string) {
+    return this.migrations.migrateToDedicated({
+      tenantId,
+      connectionString,
+      driver: "pg",
+      models: [User, Order, Invoice], // every tenant-scoped Model to move — there's no global model registry to auto-discover this list from
+      batchSize: 500,                 // rows copied per batch, per table (default)
+      onProgress: (table, count) => console.log(`${table}: ${count} rows copied so far`),
+    });
+  }
+
+  async downgradeToShared(tenantId: string) {
+    return this.migrations.migrateToShared({
+      tenantId,
+      models: [User, Order, Invoice],
+    });
+  }
+}
+```
+
+### What Actually Happens, In Order
+
+1. **Provisioning** (`migrateToDedicated` only) — the target database's tables are created from your Model definitions if they don't already exist (`autoCreateSchema: true`, the default). Set `autoCreateSchema: false` if you've already migrated the target yourself and only want the row-copy + cutover.
+2. **Copying** — every listed table's rows for this one tenant are read in batches (tenant-scoped, via `TenantContext` + `Model.query()` — the exact same filtering `Model` always does, not hand-written `WHERE` clauses) and upserted on the other side. An existing row with the same id (e.g. from a tenant migrated back and forth more than once) is overwritten, not duplicated or treated as an error — the side being migrated *from* is authoritative.
+3. **Verifying** — row counts are compared on both sides for every table. A mismatch throws immediately, `migrationStatus` is set to `"failed"`, and — critically — **the cutover never happens**: the tenant stays on its current (working) connection, so a bad migration never routes live traffic to an incomplete dataset.
+4. **Cutover** — only after verification passes, `TenantRegistry.setIsolation()` flips `isolationMode`/`connectionString` atomically. This is genuinely the moment live traffic starts routing to the new location — everything before it is safely retryable/abandonable.
+
+The source side is **never deleted** by this service, in either direction — verify the target yourself before cleaning up old rows.
+
+### Tracking Progress and Failures
+
+```typescript
+const record = await tenantRegistry.find(tenantId);
+record.migrationStatus;
+// "none" | "provisioning_target" | "copying_data" | "verifying" | "cutover_pending" | "failed"
+```
+
+`"none"` is the steady state on both sides of a completed migration (or before one has ever run) — a tenant stuck on anything else means a migration is in progress or died partway through; check your application logs for the thrown error, fix the underlying issue (usually target-database connectivity or a schema mismatch), and re-run the same `migrateToDedicated()`/`migrateToShared()` call. Because rows are upserted rather than blindly re-inserted, re-running after a partial failure is safe.
+
 ## 7. Environment Variables (SaaS Template Convention)
 
 The SaaS starter template ships these in `.env.example` — again, this is an app-level convention for driving the provider factories above, not something `@nyalajs/tenancy` parses itself:

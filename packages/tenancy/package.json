@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/tenancy",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -22,9 +22,13 @@
         "@nyalajs/security": "*"
     },
     "devDependencies": {
+        "better-sqlite3": "^9.4.0",
+        "pg": "^8.11.3",
         "typescript": "^5.3.3",
         "vitest": "^1.0.4",
-        "@types/node": "^20.10.6"
+        "@types/better-sqlite3": "^7.6.8",
+        "@types/node": "^20.10.6",
+        "@types/pg": "^8.10.9"
     },
     "files": [
         "dist",
