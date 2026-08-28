@@ -1,196 +1,86 @@
 import { Injectable, TenantContext } from "@nyalajs/core";
-import { eq, and, SQL } from "drizzle-orm";
-import { PgTable } from "drizzle-orm/pg-core";
-import { db } from "../../database/connection";
+import { Model } from "@nyalajs/database";
 
 /**
  * Tenant-Aware Base Repository
  *
- * Automatically filters queries by tenant_id for multi-tenant isolation.
- * The current tenant comes from TenantContext (request-scoped, set by
- * TenantMiddleware — see config/middleware.ts) rather than a field on this
- * repository: this class is a DI singleton, so storing the tenant on `this`
- * would leak one request's tenant into concurrent requests. Fails closed:
- * a tenant-aware repository queried with no active tenant throws instead of
- * silently returning every tenant's rows.
+ * Thin wrapper around a @nyalajs/database Model class. Tenant scoping is
+ * enforced by Model itself (TenantContext-based, mandatory for any table
+ * with a `tenantId` column — see Model.requireTenantScope()/stampTenant());
+ * this class exists to give every repository a familiar, stable method
+ * surface (`findAll`/`findById`/`create`/`update`/`delete`/...) so service
+ * code never has to know whether it's really talking to Model underneath.
+ *
+ * Using a real Model class (not a raw Drizzle table, as this repository
+ * layer used to wrap) is what makes @nyalajs/tenancy's dedicated-per-tenant
+ * database support actually work end-to-end for this app: TenantMiddleware
+ * routes a "dedicated" tenant's request through ConnectionContext, which
+ * Model reads transparently — and TenantMigrationService (the shared<->
+ * dedicated data-copy engine) only ever operates on Model classes, not raw
+ * Drizzle tables, so a repository NOT wrapping a Model couldn't be migrated
+ * at all.
+ *
+ * `isTenantAware=false` here just means "don't pass options.tenantId
+ * mismatches" — it's informational for subclasses; the REAL enforcement
+ * (whether a table is scoped at all) is entirely driven by whether the
+ * Model's own table has a `tenantId` column, not by this flag. A
+ * non-tenant-scoped Model (no tenantId property) works identically whether
+ * this is true or false.
  *
  * @example
  * export class UserRepository extends BaseRepository<User> {
  *     constructor() {
- *         super(users, true); // Enable tenant awareness
+ *         super(User);
  *     }
  * }
  */
 @Injectable()
-export abstract class BaseRepository<T> {
-    constructor(
-        protected readonly table: PgTable,
-        protected readonly isTenantAware: boolean = true
-    ) { }
+export abstract class BaseRepository<T extends Model> {
+    constructor(protected readonly modelClass: new () => T) {}
 
-    /**
-     * The active tenant filter, or undefined if this repository isn't
-     * tenant-aware. Throws if it IS tenant-aware but no tenant is active —
-     * the same fail-closed policy @nyalajs/database's Model enforces.
-     */
-    protected requireTenantFilter(): SQL | undefined {
-        if (!this.isTenantAware) return undefined;
-
-        const tenantId = TenantContext.get();
-        if (!tenantId) {
-            throw new Error(
-                "Tenant context required: this repository is tenant-aware but no tenant is active for the " +
-                "current request. Ensure TenantMiddleware runs before this repository is used, or construct " +
-                "with isTenantAware=false for tenant-management operations (e.g. TenantRepository itself)."
-            );
-        }
-
-        return eq((this.table as any).tenantId, tenantId);
+    /** Find all records (tenant-scoped by Model automatically, when the table has a tenantId column). */
+    async findAll(options?: { limit?: number; offset?: number }): Promise<T[]> {
+        let query = (this.modelClass as any).query();
+        if (options?.limit !== undefined) query = query.limit(options.limit);
+        if (options?.offset !== undefined) query = query.offset(options.offset);
+        return query.get();
     }
 
-    /** Current tenant ID, or undefined for a non-tenant-aware repository. */
-    protected getTenantId(): string | undefined {
-        return this.isTenantAware ? TenantContext.get() : undefined;
-    }
-
-    /**
-     * Add tenant filter to where clause.
-     */
-    protected withTenantFilter(where?: SQL): SQL {
-        const tenantFilter = this.requireTenantFilter();
-        if (!tenantFilter) return where || (undefined as any);
-        return where ? (and(tenantFilter, where) as SQL) : tenantFilter;
-    }
-
-    /**
-     * Find all records (tenant-scoped)
-     */
-    async findAll(options?: {
-        limit?: number;
-        offset?: number;
-        where?: SQL;
-    }): Promise<T[]> {
-        let query = db.select().from(this.table);
-
-        const whereClause = this.withTenantFilter(options?.where);
-        if (whereClause) {
-            query = query.where(whereClause) as any;
-        }
-
-        if (options?.limit) {
-            query = query.limit(options.limit) as any;
-        }
-
-        if (options?.offset) {
-            query = query.offset(options.offset) as any;
-        }
-
-        return query as Promise<T[]>;
-    }
-
-    /**
-     * Find record by ID (tenant-scoped)
-     */
+    /** Find record by ID (tenant-scoped). */
     async findById(id: string): Promise<T | null> {
-        const tenantFilter = this.requireTenantFilter();
-        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
-
-        const results = await db
-            .select()
-            .from(this.table)
-            .where(where as SQL)
-            .limit(1);
-
-        return (results[0] as T) || null;
+        return (this.modelClass as any).find(id);
     }
 
-    /**
-     * Find one record (tenant-scoped)
-     */
-    async findOne(where: SQL): Promise<T | null> {
-        const results = await db
-            .select()
-            .from(this.table)
-            .where(this.withTenantFilter(where))
-            .limit(1);
-
-        return (results[0] as T) || null;
-    }
-
-    /**
-     * Create a new record (auto-adds tenant_id)
-     */
+    /** Create a new record (Model auto-stamps tenantId from TenantContext when the table is tenant-scoped). */
     async create(data: Partial<T>): Promise<T> {
-        // requireTenantFilter(), not getTenantId(): a tenant-aware repository
-        // must fail closed on writes exactly like it does on reads — silently
-        // writing a row with tenantId=undefined would defeat isolation instead
-        // of enforcing it.
-        this.requireTenantFilter();
-        const tenantId = this.getTenantId();
-
-        const recordData = this.isTenantAware
-            ? ({ ...data, tenantId } as any)
-            : data;
-
-        const results = await db
-            .insert(this.table)
-            .values(recordData)
-            .returning();
-
-        return results[0] as T;
+        return (this.modelClass as any).create(data);
     }
 
-    /**
-     * Update record by ID (tenant-scoped)
-     */
+    /** Update record by ID (tenant-scoped read, then save — matches Model's own fetch-then-save shape). Returns null if no matching row was found (including "found, but in a different tenant"). */
     async update(id: string, data: Partial<T>): Promise<T | null> {
-        const tenantFilter = this.requireTenantFilter();
-        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
-
-        const results = await db
-            .update(this.table)
-            .set({ ...data, updatedAt: new Date() } as any)
-            .where(where as SQL)
-            .returning();
-
-        return (results[0] as T) || null;
+        const existing = await (this.modelClass as any).find(id);
+        if (!existing) return null;
+        Object.assign(existing, data);
+        await existing.save();
+        return existing;
     }
 
-    /**
-     * Delete record by ID (tenant-scoped)
-     */
+    /** Delete record by ID (tenant-scoped). Returns false if no matching row was found. */
     async delete(id: string): Promise<boolean> {
-        const tenantFilter = this.requireTenantFilter();
-        const where = tenantFilter ? and(eq((this.table as any).id, id), tenantFilter) : eq((this.table as any).id, id);
-
-        const result = await db
-            .delete(this.table)
-            .where(where as SQL)
-            .returning();
-
-        return result.length > 0;
+        const existing = await (this.modelClass as any).find(id);
+        if (!existing) return false;
+        await existing.delete();
+        return true;
     }
 
-    /**
-     * Count records (tenant-scoped)
-     */
-    async count(where?: SQL): Promise<number> {
-        let query = db.select().from(this.table);
-
-        const whereClause = this.withTenantFilter(where);
-        if (whereClause) {
-            query = query.where(whereClause) as any;
-        }
-
-        const results = await query;
-        return results.length;
+    /** Count records (tenant-scoped). */
+    async count(): Promise<number> {
+        const rows = await (this.modelClass as any).query().get();
+        return rows.length;
     }
 
-    /**
-     * Check if record exists (tenant-scoped)
-     */
-    async exists(where: SQL): Promise<boolean> {
-        const count = await this.count(where);
-        return count > 0;
+    /** Current tenant id, or undefined if none is active — for subclasses that need to reason about it directly rather than relying on Model's implicit scoping. */
+    protected getTenantId(): string | undefined {
+        return TenantContext.get();
     }
 }

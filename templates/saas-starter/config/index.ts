@@ -12,6 +12,7 @@ import securityConfig from "./security";
 import sessionConfig from "./session";
 import pluginsConfig from "./plugins";
 import middlewareConfig from "./middleware";
+import paymentsConfig from "./payments";
 
 export const namespaces: Record<string, Record<string, any>> = {
   app: appConfig,
@@ -28,6 +29,7 @@ export const namespaces: Record<string, Record<string, any>> = {
   session: sessionConfig,
   plugins: pluginsConfig,
   middleware: middlewareConfig,
+  payments: paymentsConfig,
 };
 
 export default namespaces;

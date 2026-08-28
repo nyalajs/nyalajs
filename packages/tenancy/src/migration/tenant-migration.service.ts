@@ -237,7 +237,64 @@ export class TenantMigrationService {
         const sqlType = this.sqlTypeFor(col, dialect);
         const notNull = col.notNull ? " NOT NULL" : "";
         const primary = col.primary ? " PRIMARY KEY" : "";
-        return `${name} ${sqlType}${primary}${notNull}`;
+        const defaultClause = this.defaultClauseFor(col, dialect);
+        return `${name} ${sqlType}${primary}${notNull}${defaultClause}`;
+    }
+
+    /**
+     * A PRIMARY KEY string column with no application-supplied default gets
+     * `DEFAULT gen_random_uuid()` on Postgres — Model never generates ids
+     * client-side (confirmed by Model.insertAndReturn()'s own MySQL-specific
+     * fallback, which exists precisely because MySQL has no such default to
+     * lean on), so every real migration this framework's own starter
+     * templates ship gives their UUID primary key a DB-level
+     * `DEFAULT gen_random_uuid()`. Without matching that here, `INSERT ...
+     * VALUES (DEFAULT, ...)` — what Model.create() emits whenever the
+     * caller didn't supply an id — fails outright against an
+     * auto-provisioned target with a `NOT NULL PRIMARY KEY` column but no
+     * default to satisfy it. Confirmed against a real migration: an
+     * auto-provisioned target table without this let every table with an
+     * empty source (so ensureSchema() had to create it fresh, never copied
+     * an existing row's real id) reject every subsequent write.
+     *
+     * MySQL and SQLite are left alone — MySQL's own Model.insertAndReturn()
+     * path already has a documented $returningId()-based strategy for ids
+     * it doesn't generate itself, and SQLite's UUID generation isn't a
+     * built-in SQL function the way Postgres's gen_random_uuid() is, so
+     * there's no single-clause equivalent to add here safely.
+     */
+    private defaultClauseFor(col: any, dialect: "postgres" | "mysql" | "sqlite"): string {
+        if (dialect !== "postgres") return "";
+
+        const isUuidLikeString = ["PgVarchar", "PgText"].includes(col.columnType ?? "");
+        if (col.primary && isUuidLikeString) {
+            return " DEFAULT gen_random_uuid()";
+        }
+
+        // Same reasoning as the primary-key UUID default above, for
+        // timestamp columns: this framework's own convention (every
+        // migration its starter templates ship) is `created_at TIMESTAMP
+        // NOT NULL DEFAULT NOW()` — and just like ids, Model never sets a
+        // createdAt/updatedAt value client-side unless the app explicitly
+        // does, so Model.create() emits `DEFAULT` for that column whenever
+        // the caller didn't supply one. Confirmed against a real
+        // migration: a table auto-provisioned without this rejected every
+        // write with "null value in column ... violates not-null
+        // constraint" the instant a caller (correctly, by this
+        // framework's own convention) relied on the DB to stamp the
+        // timestamp. Column-NAME based, not a real "is this a
+        // created/updated timestamp" signal from SchemaRegistry (which
+        // doesn't track that) — matches createdAt/updatedAt specifically
+        // rather than every NOT NULL timestamp, since a timestamp that's
+        // actually meant to be caller-supplied (e.g. expiresAt) must NOT
+        // silently get a NOW() default.
+        const isTimestamp = col.columnType === "PgTimestamp";
+        const isCreatedOrUpdatedColumn = /^(created_at|updated_at)$/i.test(col.name ?? "");
+        if (isTimestamp && isCreatedOrUpdatedColumn) {
+            return " DEFAULT NOW()";
+        }
+
+        return "";
     }
 
     /**

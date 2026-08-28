@@ -1,6 +1,6 @@
 {
     "name": "@nyalajs/payments",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "description": "Multi-region payment gateway abstraction for NyalaJS — Stripe, Chapa, Paystack, Flutterwave, Mollie, Razorpay, Xendit behind one provider-agnostic PaymentGateway interface, with normalized webhook verification and hosted checkout.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

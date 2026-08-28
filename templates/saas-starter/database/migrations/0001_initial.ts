@@ -1,5 +1,4 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, varchar, timestamp, text, boolean } from "drizzle-orm/pg-core";
 
 /**
  * Initial migration - Create core tables for multi-tenant SaaS
@@ -8,6 +7,13 @@ import { pgTable, uuid, varchar, timestamp, text, boolean } from "drizzle-orm/pg
  * - tenants: Multi-tenant support
  * - users: User accounts with tenant association
  * - audit_logs: Audit trail for compliance
+ * - refresh_tokens: JWT refresh token storage
+ *
+ * Column names here match `app/models/tenant.model.ts` and
+ * `app/models/user.model.ts`'s Drizzle definitions exactly (both use
+ * snake_case physical column names via `varchar("tenant_id", ...)` etc.,
+ * consistent with this template's own convention) — keep the two in sync
+ * if you add a column to either.
  */
 
 export async function up(db: any) {
@@ -16,11 +22,13 @@ export async function up(db: any) {
         CREATE TABLE IF NOT EXISTS tenants (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             name VARCHAR(255) NOT NULL,
-            slug VARCHAR(255) NOT NULL UNIQUE,
-            status VARCHAR(50) DEFAULT 'active',
-            metadata JSONB DEFAULT '{}',
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
+            slug VARCHAR(100) NOT NULL UNIQUE,
+            domain VARCHAR(255) UNIQUE,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            plan VARCHAR(50) DEFAULT 'free',
+            settings TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
     `);
 
@@ -33,14 +41,28 @@ export async function up(db: any) {
     await db.execute(sql`
         CREATE TABLE IF NOT EXISTS users (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            tenant_id UUID NOT NULL REFERENCES tena      );
+            tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL DEFAULT 'member',
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            email_verified_at TIMESTAMP,
+            last_login_at TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
     `);
 
     // Create indexes on users table
     await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-        CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email);
+    `);
+    await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email);
     `);
 
     // Create audit_logs table
@@ -55,16 +77,24 @@ export async function up(db: any) {
             metadata JSONB DEFAULT '{}',
             ip_address VARCHAR(45),
             user_agent TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
     `);
 
     // Create indexes on audit_logs for efficient queries
     await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_id ON audit_logs(tenant_id);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
     `);
 
@@ -75,15 +105,19 @@ export async function up(db: any) {
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             token VARCHAR(500) NOT NULL UNIQUE,
             expires_at TIMESTAMP NOT NULL,
-            revoked BOOLEAN DEFAULT false,
-            created_at TIMESTAMP DEFAULT NOW()
+            revoked BOOLEAN NOT NULL DEFAULT false,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
     `);
 
     // Create indexes on refresh_tokens
     await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+    `);
+    await db.execute(sql`
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
     `);
 
