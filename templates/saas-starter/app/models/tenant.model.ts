@@ -1,23 +1,54 @@
-import { pgTable, uuid, varchar, timestamp, boolean, text } from "drizzle-orm/pg-core";
-import { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import { Model, Table, Primary, StringColumn, BooleanColumn, TimestampColumn } from "@nyalajs/database";
 
 /**
- * Tenants table schema
+ * Tenants — a @nyalajs/database Model (not raw Drizzle), so it participates
+ * in @nyalajs/tenancy's dedicated-per-tenant-database migration/routing
+ * (ConnectionContext/TenantMigrationService both operate on Model classes
+ * only — see TenantMigrationService's own doc comment). This table itself
+ * has NO tenant_id column (a tenant can't be scoped to itself), matching
+ * TenantRepository's existing `isTenantAware=false` behavior.
  *
- * Multi-tenant isolation at the database level.
- * Each tenant represents a separate organization/customer.
+ * Column names use `dbName` overrides to match the snake_case columns
+ * `database/migrations/0001_initial.ts` actually creates, and `nullable`
+ * overrides to match which columns are genuinely optional there (defaults
+ * to NOT NULL otherwise — see StringColumn's own doc comment on why this
+ * matters beyond just reads: TenantMigrationService's schema
+ * auto-provisioning builds real DDL from this flag). Keep both in sync
+ * with that migration if you add a column.
  */
-export const tenants = pgTable("tenants", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    name: varchar("name", { length: 255 }).notNull(),
-    slug: varchar("slug", { length: 100 }).notNull().unique(),
-    domain: varchar("domain", { length: 255 }).unique(),
-    isActive: boolean("is_active").default(true).notNull(),
-    plan: varchar("plan", { length: 50 }).default("free"),
-    settings: text("settings"), // JSON string
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+@Table("tenants")
+export class Tenant extends Model {
+    @Primary()
+    @StringColumn(255)
+    id!: string;
 
-export type Tenant = InferSelectModel<typeof tenants>;
-export type NewTenant = InferInsertModel<typeof tenants>;
+    @StringColumn(255)
+    name!: string;
+
+    @StringColumn(100)
+    slug!: string;
+
+    @StringColumn(255, { nullable: true })
+    domain?: string | null;
+
+    @BooleanColumn({ dbName: "is_active" })
+    isActive!: boolean;
+
+    @StringColumn(50, { nullable: true })
+    plan?: string | null;
+
+    /**
+     * JSON string (TEXT column, not jsonb) — matches the migration exactly;
+     * parse/stringify at the call site. `length: 0` (not the default 255)
+     * is what makes SchemaRegistry.buildColumn() emit TEXT instead of
+     * VARCHAR(255) — see its `def.length ? pgVarchar(...) : pgText(...)`.
+     */
+    @StringColumn(0, { nullable: true })
+    settings?: string | null;
+
+    @TimestampColumn({ dbName: "created_at" })
+    createdAt!: Date;
+
+    @TimestampColumn({ dbName: "updated_at" })
+    updatedAt!: Date;
+}

@@ -107,19 +107,60 @@ export class NyalaApplication {
             (this.httpAdapter as any).registerWebSocketGateways(this.kernel);
         }
 
-        // Auto-register global middleware from ConfigService if available
+        // Auto-register global middleware from ConfigService's "middleware"
+        // namespace (config/middleware.ts's `{ global: [...] }` shape) if
+        // available. ConfigService is looked up by the STRING token
+        // "ConfigService" for historical reasons, but the documented/normal
+        // way to register it (as this framework's own starter templates
+        // do: `{ provide: ConfigService, useFactory: ... }`) uses the
+        // CLASS itself as the token — resolve() only matches the exact
+        // token it was registered under, so the string lookup below fails
+        // for any app wired that way. @nyalajs/core can't import
+        // @nyalajs/config's class directly (config depends on core, not the
+        // other way around — that would be a circular package dependency),
+        // so the fallback below finds it by scanning registered provider
+        // tokens for one named "ConfigService" instead — no cross-package
+        // import needed. Critically, only "no ConfigService registered at
+        // all" is treated as the normal/quiet case; every other failure (a
+        // middleware class itself failing to construct, for instance)
+        // warns instead of silently doing nothing. This used to catch and
+        // discard ALL errors unconditionally, which meant `config/
+        // middleware.ts`'s global middleware (TenantMiddleware in every
+        // multi-tenant starter template) silently never ran on any request
+        // — reproduced against a real running app where TenantContext was
+        // never set despite TenantMiddleware being correctly listed there.
+        let configService: any;
         try {
-            const configService = this.kernel.getContainer().resolve<any>("ConfigService");
-            if (configService) {
+            configService = this.kernel.getContainer().resolve<any>("ConfigService");
+        } catch {
+            const classToken = [...this.kernel.getContainer().getProviders().keys()].find(
+                (token) => typeof token === "function" && (token as Function).name === "ConfigService"
+            );
+            if (classToken) {
+                try {
+                    configService = this.kernel.getContainer().resolve<any>(classToken);
+                } catch {
+                    configService = undefined;
+                }
+            }
+        }
+
+        if (configService) {
+            try {
                 const middlewareConfig = configService.getNamespace("middleware") || {};
                 const globalMiddleware = middlewareConfig.global || [];
                 for (const mwClass of globalMiddleware) {
                     const mwInstance = this.kernel.getContainer().resolve(mwClass);
                     this.use(mwInstance as any);
                 }
+            } catch (e) {
+                const message = e instanceof Error ? e.message : String(e);
+                console.warn(
+                    `[nyala] Warning: found a ConfigService but failed to auto-register global middleware from its ` +
+                    `"middleware" namespace (${message}). Global middleware (e.g. TenantMiddleware) will NOT run on ` +
+                    `any request until this is fixed.`
+                );
             }
-        } catch (e) {
-            // ConfigService not bound or middleware namespace missing, skip
         }
     }
 

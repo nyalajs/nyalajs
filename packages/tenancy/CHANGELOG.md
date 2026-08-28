@@ -1,5 +1,20 @@
 # @nyalajs/tenancy
 
+## 2.1.1
+
+### Patch Changes
+
+- Fix `TenantMigrationService`'s auto-provisioned target-database schema (used when migrating a tenant to a dedicated database) to include `DEFAULT gen_random_uuid()` on UUID-shaped primary keys and `DEFAULT NOW()` on `created_at`/`updated_at` columns, matching the column defaults every real migration in this framework's own starter templates already relies on. Without this, `Model.create()` calls that rely on the database to supply these values (the normal, documented pattern — `Model` never generates ids or timestamps client-side) failed outright against a freshly auto-provisioned target with a real Postgres `NOT NULL` violation.
+
+  Also documents (via `@nyalajs/database`'s companion changeset) that the shared-database token tables a real app typically keeps outside tenant scoping (refresh tokens, verification tokens, etc.) need their foreign keys to `users(id)` dropped once dedicated-per-tenant databases are in use — a user's row may no longer live in the same physical database as those tables, making a same-database foreign key structurally invalid. This is an application-level migration concern, not a framework change; see `templates/saas-starter`'s own migration for a worked example.
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @nyalajs/core@2.3.2
+  - @nyalajs/database@2.2.1
+  - @nyalajs/http@2.3.1
+
 ## 2.1.0
 
 ### Minor Changes

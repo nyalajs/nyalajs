@@ -1,4 +1,4 @@
-import { Controller, Get, Injectable, Version } from "@nyalajs/core";
+import { Controller, Get, Injectable, Version, Inject } from "@nyalajs/core";
 import { HealthCheckService, MetricsCollector } from "@nyalajs/observability";
 
 @Injectable()
@@ -7,7 +7,8 @@ import { HealthCheckService, MetricsCollector } from "@nyalajs/observability";
 export class HealthController {
     constructor(
         private readonly healthCheck: HealthCheckService,
-        private readonly metrics: MetricsCollector
+        private readonly metrics: MetricsCollector,
+        @Inject("RESPONSE") private readonly response: any
     ) { }
 
     @Get("/live")
@@ -15,9 +16,21 @@ export class HealthController {
         return await this.healthCheck.checkLiveness();
     }
 
+    /**
+     * Deliberately sets a real 503 (not 200) when any indicator is down —
+     * most orchestrators (Kubernetes readiness probes, ALB/NLB target group
+     * health checks) key routing decisions off the HTTP status code, not
+     * the JSON body. Returning 200 unconditionally here would mean an
+     * instance that can't reach Postgres keeps receiving live traffic,
+     * defeating the entire point of a readiness probe.
+     */
     @Get("/ready")
     async readiness() {
-        return await this.healthCheck.checkReadiness();
+        const result = await this.healthCheck.checkReadiness();
+        if (result.status === "down") {
+            this.response.status(503);
+        }
+        return result;
     }
 }
 

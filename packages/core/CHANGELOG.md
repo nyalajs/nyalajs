@@ -1,5 +1,13 @@
 # @nyalajs/core
 
+## 2.3.2
+
+### Patch Changes
+
+- Fix a severe bug where `RouteResolver` silently dropped a controller's routes (no error, no log) whenever the controller — or anything in its dependency graph — needed a request-scoped provider that isn't available at eager singleton-resolution time. This is expected and correct for request-scoped controllers/services, but the old code treated any resolution failure as fatal and simply discarded the routes with zero output. Now it warns loudly instead, and the routes are still registered normally either way (real resolution happens correctly per-request regardless of this eager sanity-check's outcome).
+
+  Also fixes `NyalaApplication.bindRoutes()`'s auto-registration of `config/middleware.ts`'s global middleware list: it looked up `ConfigService` by the string token `"ConfigService"`, but the documented registration pattern uses the class itself as the token, so the lookup always failed and every app's global middleware (e.g. `@nyalajs/tenancy`'s `TenantMiddleware`) silently never ran on any request. Fixed with a fallback lookup by provider-token name, and loud warnings instead of silent failure on any other registration error.
+
 ## 2.3.1
 
 ### Patch Changes
