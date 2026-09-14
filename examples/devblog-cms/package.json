@@ -27,7 +27,7 @@
         "@nyalajs/observability": "*",
         "@nyalajs/storage": "*",
         "reflect-metadata": "^0.2.1",
-        "drizzle-orm": "^0.29.0",
+        "drizzle-orm": "^0.45.2",
         "postgres": "^3.4.3",
         "zod": "^3.22.4",
         "bcrypt": "^5.1.1",
