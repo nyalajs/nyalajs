@@ -248,6 +248,32 @@ export class UsersService {
 - **[Examples](./examples)** - Sample applications
 - **[Changelog](./CHANGELOG.md)** - Version history and updates
 
+## Local Development
+
+Working on the framework itself (not a scaffolded app)? Clone this repo and:
+
+```bash
+# Start Postgres + MySQL, matching what CI uses for the driver
+# integration tests in packages/database
+docker compose up -d
+
+# Install, build, and run the full test suite
+npm ci
+npm run build
+npm test
+```
+
+Some tests need infrastructure beyond Postgres/MySQL and skip
+themselves cleanly when it isn't present (Redis, MinIO, Kafka, NATS).
+Copy [`.env.example`](./.env.example) to `.env` and point it at local
+instances to run those too. Useful scripts:
+
+```bash
+npm run typecheck      # tsc --noEmit across every package
+npm run test:coverage  # merged coverage report, 70% floor on packages/**
+npm run lint
+```
+
 ## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.

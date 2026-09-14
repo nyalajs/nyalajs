@@ -68,14 +68,23 @@ describe("S3Disk", () => {
         });
     });
 
-    // Real S3-compatible backend (MinIO), not a mock — proves put/get/stream/
-    // putStream/exists/delete actually work against a real service, not
-    // just that the SDK calls were shaped correctly.
-    describe("against a real S3-compatible backend (MinIO)", () => {
+    /**
+     * Real, unmocked exercise of S3Disk against a live S3-compatible server —
+     * proves put/get/stream/putStream/exists/delete actually work over the
+     * wire, not just that the SDK calls were shaped correctly.
+     *
+     * Requires a live S3-compatible server (e.g. MinIO). Skipped unless
+     * S3_TEST_ENDPOINT is set — run locally with e.g.:
+     *   docker run --rm -p 9100:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio server /data
+     *   S3_TEST_ENDPOINT="http://127.0.0.1:9100" npx vitest run s3-disk
+     */
+    const S3_TEST_ENDPOINT = process.env.S3_TEST_ENDPOINT;
+
+    describe.skipIf(!S3_TEST_ENDPOINT)("against a real S3-compatible backend (MinIO)", () => {
         const disk = new S3Disk({
             region: "us-east-1",
             bucket: "nyala-test-bucket",
-            endpoint: "http://127.0.0.1:9100",
+            endpoint: S3_TEST_ENDPOINT,
             forcePathStyle: true,
             credentials: { accessKeyId: "minioadmin", secretAccessKey: "minioadmin" },
         });

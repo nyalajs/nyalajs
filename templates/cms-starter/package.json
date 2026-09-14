@@ -1,11 +1,12 @@
 {
     "name": "nyala-cms-starter",
     "version": "1.0.0",
-    "description": "Full-stack website starter for Nyala Framework \u2014 admin dashboard, CMS, and public site in one app",
+    "description": "Full-stack website starter for Nyala Framework — admin dashboard, CMS, and public site in one app",
     "private": true,
     "scripts": {
         "dev": "nyala dev",
         "build": "nyala build",
+        "typecheck": "tsc --noEmit",
         "start": "node dist/bootstrap/main.js",
         "test": "vitest run --passWithNoTests",
         "db:migrate": "nyala db:migrate",

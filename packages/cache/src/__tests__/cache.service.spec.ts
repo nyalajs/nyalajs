@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { CacheService } from "../cache.service";
 
 describe("CacheService (in-memory, no Redis configured)", () => {
@@ -65,6 +65,16 @@ describe("CacheService (in-memory, no Redis configured)", () => {
     });
 
     describe("connect() with a url but ioredis not installed", () => {
+        beforeAll(() => {
+            vi.doMock("ioredis", () => {
+                throw new Error("Cannot find module 'ioredis'");
+            });
+        });
+
+        afterAll(() => {
+            vi.doUnmock("ioredis");
+        });
+
         it("falls back to the in-memory store instead of throwing", async () => {
             const svc = new CacheService();
             await expect(svc.connect({ url: "redis://localhost:6379" })).resolves.not.toThrow();

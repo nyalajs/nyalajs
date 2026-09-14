@@ -1,0 +1,53 @@
+# Local development infrastructure for the Nyala monorepo itself: the same
+# Postgres/MySQL services .github/workflows/ci.yml runs, with matching
+# credentials/database names, so the driver integration tests that
+# self-skip without them
+# (packages/database/src/__tests__/{postgres,mysql}-integration.spec.ts)
+# can run locally the same way they do in CI.
+#
+# Usage:
+#   docker compose up -d
+#   POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5432/nyala_test \
+#   MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/nyala_test \
+#     npm test
+#
+# This is infrastructure only — it does not build or run the app itself.
+# See Dockerfile for building the monorepo/CLI, or a scaffolded app's own
+# docker-compose.yml (e.g. templates/saas-starter/docker-compose.yml) for
+# running a real application.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: nyala_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - nyala_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: nyala_test
+    ports:
+      - "3306:3306"
+    volumes:
+      - nyala_mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nyala_pgdata:
+  nyala_mysqldata:

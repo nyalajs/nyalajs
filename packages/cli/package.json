@@ -7,6 +7,7 @@
     "scripts": {
         "prebuild": "node scripts/copy-templates.js",
         "build": "tsc",
+        "typecheck": "tsc --noEmit",
         "postbuild": "chmod +x dist/bin/nyala.js",
         "dev": "tsc --watch",
         "test": "vitest run"

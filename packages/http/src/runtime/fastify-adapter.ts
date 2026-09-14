@@ -1,15 +1,19 @@
 import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { Container, Kernel, getParamMetadata, ParamType, TenantContext, LogContext, getCatchTypes } from "@nyalajs/core";
+import { Container, Kernel, TenantContext, LogContext, getCatchTypes } from "@nyalajs/core";
 import { RequestContext } from "../context/request-context";
 import { ExecutionContext } from "../context/execution-context";
 import { RouteRegistry } from "../routing/route-registry";
-import { ExceptionHandler, ErrorViewRenderer, UnprocessableEntityException } from "../errors/exception-handler";
+import { ExceptionHandler, ErrorViewRenderer } from "../errors/exception-handler";
 import { Middleware } from "../middleware/middleware.interface";
 import { isRenderable } from "../response/renderable.interface";
-import { isStreamable, StreamableResponse } from "../response/streamable.interface";
+import { isStreamable } from "../response/streamable.interface";
 import { randomUUID } from "crypto";
-import { GatewayResolver } from "../websocket/runtime/gateway-resolver";
-import { registerWebSocketGateways } from "../websocket/runtime/websocket-adapter";
+import { setupSwagger } from "./setup/swagger-setup";
+import { setupSecurityDefaults } from "./setup/security-setup";
+import { setupWebSocketGateways } from "./setup/websocket-setup";
+import { buildRouteSchema } from "./setup/route-schema";
+import { resolveHandlerParams, validateRequest } from "./setup/param-resolution";
+import { sendStream } from "./setup/response-streaming";
 
 export interface FastifyAdapterOptions {
     cors?: boolean;
@@ -87,7 +91,7 @@ export class FastifyAdapter {
             this.resolveGatewaysReady = resolve;
         });
 
-        this.setupSecurityDefaults(options);
+        setupSecurityDefaults(this.app, options);
 
         // Parse application/x-www-form-urlencoded bodies into request.body —
         // Fastify only parses JSON out of the box, so a plain HTML
@@ -106,7 +110,7 @@ export class FastifyAdapter {
         });
 
         if (options.swagger !== false) {
-            this.setupSwagger();
+            setupSwagger(this.app);
         }
 
         if (options.staticDir) {
@@ -117,33 +121,7 @@ export class FastifyAdapter {
         }
 
         if (options.websocket) {
-            this.app.register(require("@fastify/websocket"));
-
-            // Gateway routes MUST be added as ordinary routes before the
-            // instance is ready()/listen()-ed — Fastify permanently locks
-            // route registration once ready() resolves (FST_ERR_INSTANCE_ALREADY_LISTENING),
-            // so "await app.ready() then app.get(...)" is not legal, only
-            // "app.get(...) then await app.ready()" is. But they also can't
-            // be added HERE directly: @fastify/websocket's onRoute hook
-            // (which makes {websocket:true} routes actually work) only
-            // attaches once that plugin's own async registration has run,
-            // and plain top-level app.get() calls in this constructor are
-            // not guaranteed to run after it.
-            //
-            // The fix is a nested app.register(): Fastify's plugin queue
-            // guarantees any nested register() body starts only after the
-            // plugin registered immediately before it (here, @fastify/websocket)
-            // has finished — the standard way @fastify/websocket's own docs
-            // show routes being added. `kernel` isn't known yet at
-            // construction time (this constructor only receives a Container),
-            // so this callback awaits `this.gatewaysReady`, resolved later by
-            // registerWebSocketGateways(kernel) — which itself must be called
-            // before app.ready()/listen(), not after.
-            this.app.register(async (instance) => {
-                const kernel = await this.gatewaysReady;
-                const resolver = new GatewayResolver(kernel.getContainer(), kernel.getModuleGraph());
-                registerWebSocketGateways(instance, kernel.getContainer(), resolver);
-            });
+            setupWebSocketGateways(this.app, this.gatewaysReady);
         }
     }
 
@@ -164,186 +142,6 @@ export class FastifyAdapter {
     registerWebSocketGateways(kernel: Kernel): void {
         if (!this.websocketEnabled) return;
         this.resolveGatewaysReady(kernel);
-    }
-
-    private setupSwagger(): void {
-        this.app.register(require("@fastify/swagger"), {
-            openapi: {
-                info: {
-                    title: "NyalaJS API",
-                    description: "Auto-generated API documentation",
-                    version: "1.0.0",
-                },
-                servers: [
-                    {
-                        url: "http://localhost:3000",
-                    },
-                ],
-                components: {
-                    securitySchemes: {
-                        bearerAuth: {
-                            type: "http",
-                            scheme: "bearer",
-                            bearerFormat: "JWT",
-                        },
-                    },
-                },
-            },
-        });
-
-        this.app.register(require("@fastify/swagger-ui"), {
-            routePrefix: "/docs",
-            uiConfig: {
-                docExpansion: "list",
-                deepLinking: false,
-            },
-        });
-    }
-
-    private setupSecurityDefaults(options: FastifyAdapterOptions): void {
-        if (options.compress !== false) {
-            // Enable gzip/deflate/brotli compression for all responses
-            this.app.register(require("@fastify/compress"), {
-                global: true,
-                encodings: ["gzip", "deflate", "br"],
-                threshold: 1024, // Only compress responses > 1KB
-            });
-        }
-
-        // Register session support if requested (true by default unless explicitly disabled)
-        if (options.session !== false) {
-            const secret = process.env.SESSION_SECRET;
-            const salt = process.env.SESSION_SALT;
-
-            if (!secret || secret.length < 32) {
-                throw new Error(
-                    "SESSION_SECRET is required (min 32 chars) when sessions are enabled. " +
-                    "Generate one with: openssl rand -base64 32\n" +
-                    "Set session: false in FastifyAdapterOptions to disable sessions instead."
-                );
-            }
-
-            if (!salt || salt.length !== 16) {
-                throw new Error(
-                    "SESSION_SALT is required and must be exactly 16 characters when sessions are enabled. " +
-                    "Generate one with: openssl rand -base64 12 | cut -c1-16\n" +
-                    "Set session: false in FastifyAdapterOptions to disable sessions instead."
-                );
-            }
-
-            this.app.register(require("@fastify/secure-session"), {
-                secret,
-                salt,
-                cookie: {
-                    path: "/",
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "lax",
-                }
-            });
-        }
-
-        if (options.helmet !== false) {
-            this.app.register(require("@fastify/helmet"), {
-                contentSecurityPolicy: {
-                    directives: {
-                        defaultSrc: ["'self'"],
-                        styleSrc: ["'self'", "'unsafe-inline'"],
-                        scriptSrc: ["'self'"],
-                        imgSrc: ["'self'", "data:", "https:"],
-                    },
-                },
-                crossOriginEmbedderPolicy: false,
-            });
-        }
-
-        if (options.cors !== false) {
-            const corsOrigin = options.corsOrigin ?? false;
-            this.app.register(require("@fastify/cors"), {
-                origin: corsOrigin,
-                credentials: corsOrigin !== false,
-            });
-        }
-
-        if (options.rateLimit !== false) {
-            const rateLimitConfig: Record<string, any> = {
-                max: Number(process.env.RATE_LIMIT_MAX) || 100,
-                timeWindow: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000,
-                ban: 2, // Ban after 2x max requests
-            };
-
-            // Use Redis as the store when REDIS_URL is configured
-            const redisUrl = process.env.REDIS_URL || process.env.REDIS_HOST;
-            if (redisUrl) {
-                try {
-                    // eslint-disable-next-line @typescript-eslint/no-var-requires
-                    const Redis = require("ioredis");
-                    rateLimitConfig.redis = new Redis(
-                        process.env.REDIS_URL
-                            ? process.env.REDIS_URL
-                            : {
-                                  host: process.env.REDIS_HOST || "localhost",
-                                  port: Number(process.env.REDIS_PORT) || 6379,
-                                  password: process.env.REDIS_PASSWORD,
-                              }
-                    );
-                } catch {
-                    // ioredis not installed — silently fall back to in-memory
-                }
-            }
-
-            this.app.register(require("@fastify/rate-limit"), rateLimitConfig);
-        }
-
-        if (options.csrf !== false) {
-            if (options.session !== false) {
-                // @fastify/secure-session bundles its own @fastify/cookie
-                // internally — registering the standalone plugin too (the
-                // old unconditional path) throws FST_ERR_DEC_ALREADY_PRESENT
-                // ("serializeCookie" decorated twice). Point CSRF at the
-                // session plugin directly instead; it supports this natively.
-                this.app.register(require("@fastify/csrf-protection"), {
-                    sessionPlugin: "@fastify/secure-session",
-                });
-            } else {
-                this.app.register(require("@fastify/cookie"));
-                this.app.register(require("@fastify/csrf-protection"));
-            }
-        }
-    }
-
-    private buildRouteSchema(route: any): any {
-        const schema: any = {};
-        
-        // Operation metadata
-        const operationMeta = Reflect.getMetadata("nyala:swagger:operation", route.controller.prototype[route.handlerName]);
-        if (operationMeta) {
-            Object.assign(schema, operationMeta);
-        }
-
-        // Responses metadata
-        const responsesMeta = Reflect.getMetadata("nyala:swagger:responses", route.controller.prototype[route.handlerName]);
-        if (responsesMeta && responsesMeta.length > 0) {
-            schema.response = {};
-            for (const resp of responsesMeta) {
-                schema.response[resp.status] = {
-                    description: resp.description,
-                    type: resp.type || "object",
-                };
-            }
-        }
-
-        // Validation metadata (map Zod to JSON Schema)
-        const validationRules = Reflect.getMetadata("nyala:validation", route.controller.prototype, route.handlerName);
-        if (validationRules) {
-            for (const rule of validationRules) {
-                // Simplistic mapping: if it's a zod schema, it might have a description or we just leave it generic.
-                // A full integration would use zod-to-json-schema here.
-                schema[rule.target] = { type: "object", additionalProperties: true };
-            }
-        }
-
-        return schema;
     }
 
     registerRoutes(registry: RouteRegistry): void {
@@ -368,7 +166,7 @@ export class FastifyAdapter {
                 continue;
             }
 
-            const schema = this.buildRouteSchema(route);
+            const schema = buildRouteSchema(route);
 
             // Deliberately NOT an async handler, and handleRequest()'s
             // promise is deliberately not returned/awaited here — a real
@@ -517,10 +315,10 @@ export class FastifyAdapter {
                 const controller = requestContainer.resolve(route.controller) as any;
 
                 // 1. Validate request (using nyala:validation metadata if present)
-                this.validateRequest(route.controller.prototype, route.handlerName, request);
+                validateRequest(route.controller.prototype, route.handlerName, request);
 
                 // 2. Resolve arguments
-                const args = this.resolveHandlerParams(route, request, reply);
+                const args = resolveHandlerParams(route, request, reply);
 
                 // 3. Execute
                 return await controller[route.handlerName](...args);
@@ -554,7 +352,7 @@ export class FastifyAdapter {
                 // instant piping *starts*, with a near-zero duration and no
                 // real statusCode yet. Log on the stream's actual end/close
                 // instead, and stop there so it isn't logged twice.
-                this.sendStream(reply, result, request, context, startTime);
+                sendStream(reply, result, request, context, startTime);
                 return;
             } else if (isRenderable(result)) {
                 const body = await result.render();
@@ -594,83 +392,6 @@ export class FastifyAdapter {
     }
 
     /**
-     * Pipes a StreamableResponse (an SseStream, or any raw Readable a
-     * handler returns) to the client. Sets headers up front — once any data
-     * is written, headers can no longer change, so status/content-type/
-     * custom headers must all be applied before the stream starts flowing.
-     *
-     * Logs "Request completed" when the stream actually ends, not when
-     * `reply.send()` returns (which happens the instant piping *starts* —
-     * see the caller). Also listens for the client disconnecting mid-stream
-     * (`request.raw` "close") and destroys the stream so a handler pushing
-     * into an abandoned SseStream doesn't leak — a long-poll/SSE connection
-     * with no client on the other end otherwise runs forever.
-     */
-    private sendStream(
-        reply: FastifyReply,
-        streamable: StreamableResponse,
-        request: FastifyRequest,
-        context: RequestContext,
-        startTime: number
-    ): void {
-        reply.status(streamable.statusCode ?? 200);
-        reply.type(streamable.contentType ?? "application/octet-stream");
-        for (const [key, value] of Object.entries(streamable.headers ?? {})) {
-            reply.header(key, value);
-        }
-
-        // reply.raw's "close" fires whenever the underlying connection ends
-        // — a normal, fully-sent response closes its connection too, not
-        // just a client hanging up mid-stream — so only actually destroy
-        // the source stream if the response was NOT cleanly finished when
-        // this fired. Otherwise a long-lived SSE stream that outlives the
-        // client (browser closed, network dropped) would keep running
-        // forever with nothing pushing data anywhere.
-        const onClientDisconnect = () => {
-            if (!reply.raw.writableEnded && !streamable.stream.destroyed) {
-                streamable.stream.destroy();
-            }
-        };
-        reply.raw.once("close", onClientDisconnect);
-
-        let logged = false;
-        const logCompletion = () => {
-            if (logged) return; // "end" and "close" can both fire for the same stream
-            logged = true;
-            reply.raw.removeListener("close", onClientDisconnect);
-            console.log(
-                JSON.stringify({
-                    level: "info",
-                    message: "Request completed",
-                    requestId: context.requestId,
-                    traceId: context.traceId,
-                    method: request.method,
-                    path: request.url,
-                    statusCode: reply.statusCode,
-                    duration: Date.now() - startTime,
-                    streamed: true,
-                    timestamp: new Date().toISOString(),
-                })
-            );
-        };
-
-        streamable.stream.once("end", logCompletion);
-        streamable.stream.once("close", logCompletion);
-        streamable.stream.once("error", (error: Error) => {
-            console.error(
-                JSON.stringify({
-                    level: "error",
-                    message: "Stream error",
-                    requestId: context.requestId,
-                    error: error.message,
-                })
-            );
-        });
-
-        reply.send(streamable.stream);
-    }
-
-    /**
      * @UseFilters()-declared filters, tried in the order given. The first
      * filter whose @Catch() types match (via `instanceof`, or unconditional
      * if @Catch() was given no arguments) handles the error and short-
@@ -697,158 +418,6 @@ export class FastifyAdapter {
         }
 
         return false;
-    }
-
-    /**
-     * Resolve handler arguments by reading @Body/@Param/@Query/@Headers/@Req/@Res
-     * metadata.  Falls back to (body, params, query) positionally if no metadata
-     * is declared (backwards-compatible with existing handlers).
-     */
-    private resolveHandlerParams(route: any, request: FastifyRequest, reply: FastifyReply): any[] {
-        // Param decorators (@Body/@Param/@Query/@Req/@Res/...) store their
-        // metadata on the controller *class* (see param.ts's
-        // createParamDecorator — `target.constructor`), same convention as
-        // route/guard/interceptor metadata — not on `.prototype`, which is
-        // a different object and would always come back empty.
-        const paramMeta = getParamMetadata(route.controller, route.handlerName);
-
-        if (!paramMeta || paramMeta.length === 0) {
-            // Legacy fallback: positional body, params, query
-            return [(request as any).body, (request as any).params, (request as any).query];
-        }
-
-        const sorted = [...paramMeta].sort((a, b) => a.index - b.index);
-        const args: any[] = [];
-
-        for (const meta of sorted) {
-            switch (meta.type) {
-                case ParamType.BODY:
-                    args[meta.index] = meta.data
-                        ? (request as any).body?.[meta.data]
-                        : (request as any).body;
-                    break;
-                case ParamType.PARAM:
-                    args[meta.index] = meta.data
-                        ? (request as any).params?.[meta.data]
-                        : (request as any).params;
-                    break;
-                case ParamType.QUERY:
-                    args[meta.index] = meta.data
-                        ? (request as any).query?.[meta.data]
-                        : (request as any).query;
-                    break;
-                case ParamType.HEADERS:
-                    args[meta.index] = meta.data
-                        ? request.headers[meta.data.toLowerCase()]
-                        : request.headers;
-                    break;
-                case ParamType.REQUEST:
-                    args[meta.index] = request;
-                    break;
-                case ParamType.RESPONSE:
-                    args[meta.index] = reply;
-                    break;
-                case ParamType.UPLOADED_FILE:
-                    if (meta.data && (request as any).body) {
-                        const field = (request as any).body[meta.data];
-                        // fastify-multipart with attachFieldsToBody sometimes makes it an array
-                        args[meta.index] = Array.isArray(field) ? field[0] : field;
-                    } else {
-                        args[meta.index] = undefined;
-                    }
-                    break;
-                case ParamType.UPLOADED_FILES:
-                    if (meta.data && (request as any).body) {
-                        const field = (request as any).body[meta.data];
-                        args[meta.index] = Array.isArray(field) ? field : [field].filter(Boolean);
-                    } else {
-                        // Return all file fields from body
-                        const files = Object.values((request as any).body || {})
-                            .flat()
-                            .filter((part: any) => part && part.type === 'file');
-                        args[meta.index] = files;
-                    }
-                    break;
-                case ParamType.COOKIE:
-                    // Requires @fastify/cookie to be registered
-                    args[meta.index] = meta.data
-                        ? (request as any).cookies?.[meta.data]
-                        : (request as any).cookies ?? {};
-                    break;
-                case ParamType.IP:
-                    args[meta.index] = request.ip;
-                    break;
-                case ParamType.HOST:
-                    args[meta.index] = request.headers?.host ?? null;
-                    break;
-                default:
-                    args[meta.index] = undefined;
-            }
-        }
-
-        return args;
-    }
-
-    /**
-     * Reads nyala:validation metadata and executes Zod schemas against the request.
-     * Throws UnprocessableEntityException if validation fails.
-     */
-    private validateRequest(controllerPrototype: any, handlerName: string, request: FastifyRequest): void {
-        const rules = Reflect.getMetadata("nyala:validation", controllerPrototype, handlerName) || [];
-        
-        // Auto-discover Zod schemas from parameter types (DTOs with static schema)
-        const paramTypes = Reflect.getMetadata("design:paramtypes", controllerPrototype, handlerName) || [];
-        // Param decorator metadata lives on the class, not the prototype — see the comment in resolveHandlerParams().
-        const paramMeta = getParamMetadata(controllerPrototype.constructor, handlerName) || [];
-        
-        for (const meta of paramMeta) {
-            const paramType = paramTypes[meta.index];
-            if (paramType && paramType.schema && typeof paramType.schema.parse === "function") {
-                // If it's a body param, auto-validate body
-                if (meta.type === ParamType.BODY && !rules.find((r: any) => r.target === "body")) {
-                    rules.push({ target: "body", schema: paramType.schema });
-                }
-                // If it's a query param, auto-validate query
-                else if (meta.type === ParamType.QUERY && !rules.find((r: any) => r.target === "query")) {
-                    rules.push({ target: "query", schema: paramType.schema });
-                }
-            }
-        }
-
-        if (!rules || rules.length === 0) return;
-
-        for (const rule of rules) {
-            let dataToValidate;
-            switch (rule.target) {
-                case "body":   dataToValidate = request.body; break;
-                case "query":  dataToValidate = request.query; break;
-                case "params": dataToValidate = request.params; break;
-            }
-
-            try {
-                // Execute Zod schema (we use duck-typing to avoid a hard dependency on zod here)
-                if (rule.schema && typeof rule.schema.parse === "function") {
-                    const parsed = rule.schema.parse(dataToValidate);
-                    
-                    // Reassign the stripped/transformed data back to the request
-                    switch (rule.target) {
-                        case "body":   request.body = parsed; break;
-                        case "query":  request.query = parsed; break;
-                        case "params": request.params = parsed; break;
-                    }
-                }
-            } catch (error: any) {
-                // If it's a ZodError, format it
-                if (error.issues && Array.isArray(error.issues)) {
-                    const details = error.issues.map((err: any) => ({
-                        path: err.path.join("."),
-                        message: err.message,
-                    }));
-                    throw new UnprocessableEntityException("Validation failed", details);
-                }
-                throw error;
-            }
-        }
     }
 
     /**

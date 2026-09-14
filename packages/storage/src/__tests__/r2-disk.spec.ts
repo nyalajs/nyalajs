@@ -56,39 +56,52 @@ describe("R2Disk", () => {
     // forcePathStyle true, a custom endpoint. This proves the R2 config
     // shape R2Disk produces genuinely works against a real S3-compatible
     // backend, without needing real Cloudflare credentials in CI.
-    describe("the R2-shaped S3 config it constructs, verified against a real S3-compatible backend (MinIO)", () => {
-        const disk = new S3Disk({
-            region: "auto",
-            bucket: "nyala-r2-test-bucket",
-            endpoint: "http://127.0.0.1:9110",
-            forcePathStyle: true,
-            credentials: { accessKeyId: "minioadmin", secretAccessKey: "minioadmin" },
-        });
+    /**
+     * Requires a live S3-compatible server (e.g. MinIO). Skipped unless
+     * R2_TEST_ENDPOINT is set — run locally with e.g.:
+     *   docker run --rm -p 9110:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio server /data
+     *   R2_TEST_ENDPOINT="http://127.0.0.1:9110" npx vitest run r2-disk
+     */
+    const R2_TEST_ENDPOINT = process.env.R2_TEST_ENDPOINT;
 
-        it("writes and reads back a file with region:auto + forcePathStyle:true", async () => {
-            await disk.put("greeting.txt", "hello via r2-shaped config");
-            expect((await disk.get("greeting.txt")).toString()).toBe("hello via r2-shaped config");
-        });
+    describe.skipIf(!R2_TEST_ENDPOINT)(
+        "the R2-shaped S3 config it constructs, verified against a real S3-compatible backend (MinIO)",
+        () => {
+            const disk = new S3Disk({
+                region: "auto",
+                bucket: "nyala-r2-test-bucket",
+                endpoint: R2_TEST_ENDPOINT,
+                forcePathStyle: true,
+                credentials: { accessKeyId: "minioadmin", secretAccessKey: "minioadmin" },
+            });
 
-        it("streams a file read back incrementally", async () => {
-            await disk.put("streamed.txt", "r2 streaming content");
-            const readable = await disk.stream("streamed.txt");
-            expect(await readAll(readable)).toBe("r2 streaming content");
-        });
+            it("writes and reads back a file with region:auto + forcePathStyle:true", async () => {
+                await disk.put("greeting.txt", "hello via r2-shaped config");
+                expect((await disk.get("greeting.txt")).toString()).toBe(
+                    "hello via r2-shaped config"
+                );
+            });
 
-        it("putStream() uploads via multipart with region:auto + forcePathStyle:true", async () => {
-            const source = Readable.from(["r2-", "part-", "upload"]);
-            await disk.putStream("r2-upload.txt", source);
-            expect((await disk.get("r2-upload.txt")).toString()).toBe("r2-part-upload");
-        });
+            it("streams a file read back incrementally", async () => {
+                await disk.put("streamed.txt", "r2 streaming content");
+                const readable = await disk.stream("streamed.txt");
+                expect(await readAll(readable)).toBe("r2 streaming content");
+            });
 
-        it("exists()/delete() work with the R2-shaped config", async () => {
-            await disk.put("to-delete.txt", "y");
-            expect(await disk.exists("to-delete.txt")).toBe(true);
-            await disk.delete("to-delete.txt");
-            expect(await disk.exists("to-delete.txt")).toBe(false);
-        });
-    });
+            it("putStream() uploads via multipart with region:auto + forcePathStyle:true", async () => {
+                const source = Readable.from(["r2-", "part-", "upload"]);
+                await disk.putStream("r2-upload.txt", source);
+                expect((await disk.get("r2-upload.txt")).toString()).toBe("r2-part-upload");
+            });
+
+            it("exists()/delete() work with the R2-shaped config", async () => {
+                await disk.put("to-delete.txt", "y");
+                expect(await disk.exists("to-delete.txt")).toBe(true);
+                await disk.delete("to-delete.txt");
+                expect(await disk.exists("to-delete.txt")).toBe(false);
+            });
+        }
+    );
 
     describe("endpoint construction", () => {
         it("derives the account-scoped R2 endpoint from accountId (verified via url()'s error path needing no network)", () => {

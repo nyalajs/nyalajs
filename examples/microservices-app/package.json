@@ -6,7 +6,8 @@
         "dev:users": "ts-node src/users-service/main.ts",
         "dev:notifications": "ts-node src/notifications-service/main.ts",
         "dev:gateway": "ts-node src/gateway/main.ts",
-        "build": "tsc"
+        "build": "tsc",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@nyalajs/core": "*",

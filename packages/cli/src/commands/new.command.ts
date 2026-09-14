@@ -2,8 +2,34 @@ import * as fs from "fs-extra";
 import * as path from "path";
 import chalk from "chalk";
 import ora from "ora";
-import inquirer from "inquirer";
+import type { PromptModule } from "inquirer";
 import { printWelcomeBanner } from "../utils/banner";
+
+/**
+ * Loads inquirer lazily, and via a genuine dynamic `import()` rather than
+ * a static `import inquirer from "inquirer"` — inquirer@9+ ships pure ESM,
+ * and this file is loaded (via ../bin/nyala.ts) on *every* `nyala`
+ * invocation, not just `nyala new`. A static import compiles under this
+ * package's `module: "commonjs"` tsconfig to a top-level `require("inquirer")`,
+ * which throws ERR_REQUIRE_ESM on any Node version without require(esm)
+ * support (Node 18/20 — exactly this package's declared `engines.node`
+ * and CI's test matrix), breaking every command, not just this one.
+ *
+ * A plain `await import("inquirer")` doesn't fix this either: TypeScript
+ * still lowers it to a synchronous `require()` under `module: "commonjs"`
+ * (wrapped in a no-op `Promise.resolve().then()`), hitting the exact same
+ * crash. Routing the specifier through `new Function(...)` hides it from
+ * TypeScript's static-import rewriting, so the emitted code is a real
+ * runtime ESM `import()` — supported on every Node version this package
+ * targets — and only runs when an interactive prompt is actually needed.
+ */
+async function loadInquirer(): Promise<{ prompt: PromptModule }> {
+  const dynamicImport = new Function("specifier", "return import(specifier)") as (
+    specifier: string
+  ) => Promise<{ default: { prompt: PromptModule } }>;
+  const { default: inquirer } = await dynamicImport("inquirer");
+  return inquirer;
+}
 
 /**
  * Application-level folder structure, per docs/requirements.md §3.1.
@@ -133,6 +159,7 @@ export class NewCommand {
     }
 
     if (prompts.length > 0) {
+      const inquirer = await loadInquirer();
       const answers = await inquirer.prompt(prompts);
       projectName = projectName || answers.projectName;
       template = template || answers.template;

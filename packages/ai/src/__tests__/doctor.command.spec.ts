@@ -226,9 +226,15 @@ describe("guardProvidersRegisteredCheck — against the real templates, all fixe
         expect(result.status).toBe("pass");
     });
 
-    it("passes against templates/saas-starter (AuthGuard + RolesGuard both registered)", async () => {
+    it("warns (not fails) against templates/saas-starter: AuthGuard/RolesGuard are registered as literal class names and satisfied, but DBRolesGuard is only registered via `...permissionsProviders(...)` — a spread of a factory call's return value, which this regex-based check can't see into (by design, per its own docstring: conservative, warn not fail, on anything it can't statically verify)", async () => {
         const result = await guardProvidersRegisteredCheck.run(SAAS_STARTER_PATH);
-        expect(result.status).toBe("pass");
+        expect(result.status).toBe("warn");
+        expect(result.message).toContain("1 class(es)");
+        expect(result.message).toContain("DBRolesGuard");
+        // AuthGuard/RolesGuard genuinely are literal providers — only the
+        // spread-registered DBRolesGuard should be reported as unverifiable.
+        expect(result.message).not.toMatch(/\bAuthGuard \(/);
+        expect(result.message).not.toMatch(/(?<!DB)\bRolesGuard \(/);
     });
 
     it("passes against templates/inertia-starter (SessionAuthGuard registered)", async () => {

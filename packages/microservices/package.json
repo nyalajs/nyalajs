@@ -13,6 +13,7 @@
     },
     "scripts": {
         "build": "tsc && npm run copy-assets",
+        "typecheck": "tsc --noEmit",
         "copy-assets": "mkdir -p dist/transports/grpc && cp src/transports/grpc/nyala-rpc.proto dist/transports/grpc/nyala-rpc.proto",
         "clean": "rm -rf dist",
         "test": "vitest run"

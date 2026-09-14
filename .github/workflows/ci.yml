@@ -62,11 +62,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Run tests
         run: npm test
 
       - name: Run linter
         run: npm run lint
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
   coverage:
     runs-on: ubuntu-latest
