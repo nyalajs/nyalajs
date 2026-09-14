@@ -34,7 +34,7 @@
         "clsx": "^2.1.1",
         "dotenv": "^16.4.1",
         "drizzle-orm": "^0.45.2",
-        "lucide-react": "^0.395.0",
+        "lucide-react": "^1.45.0",
         "marked": "^12.0.0",
         "mysql2": "^3.23.3",
         "react": "^18.3.1",
