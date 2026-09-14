@@ -32,6 +32,8 @@
         "build": "turbo run build --filter='./packages/*' && npm install && turbo run build",
         "build:manual": "./scripts/build-all.sh",
         "test": "turbo run test",
+        "test:coverage": "vitest run --coverage",
+        "typecheck": "turbo run typecheck",
         "lint": "turbo run lint",
         "dev": "turbo run dev",
         "clean": "turbo run clean && rm -rf node_modules",
