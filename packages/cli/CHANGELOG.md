@@ -1,5 +1,11 @@
 # @nyalajs/cli
 
+## 2.2.2
+
+### Patch Changes
+
+- Fix the built `nyala` binary (`dist/bin/nyala.js`) not being executable. `tsc` doesn't set the executable bit on its emitted output, and since `dist/` doesn't exist until this package's own build runs, npm has nothing to `chmod` when it creates the `node_modules/.bin/nyala` symlink at install time — the very first `npm install`/`npm ci` a real consumer runs. Any app depending on `@nyalajs/cli` and invoking `nyala` from an npm script (`"build": "nyala build"`, the pattern every starter template in this repo uses) failed with `sh: ...: Permission denied` until something else happened to chmod the file. Fixed with a `postbuild` script that chmods it immediately after `tsc` runs, so the bit is always set the moment the file exists.
+
 ## 2.2.1
 
 ### Patch Changes

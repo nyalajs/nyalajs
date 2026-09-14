@@ -1,5 +1,19 @@
 # @nyalajs/database
 
+## 2.2.1
+
+### Patch Changes
+
+- Add `dbName`/`nullable` overrides to every column convenience decorator (`StringColumn`, `IntColumn`, `TimestampColumn`, `BooleanColumn`), plus a new `JsonColumn` decorator. Previously these always used the JS property name verbatim as the DB column name and always emitted `NOT NULL` — silently wrong against any real snake_case migration (a decorated `isActive` property produced SQL for a column literally named `isActive`, not `is_active`) or any genuinely-nullable column. Confirmed via a real Postgres insert: a `Model` built without these overrides against a real snake_case table failed with `column "isActive" of relation "..." does not exist`.
+
+  ```ts
+  @StringColumn(255, { dbName: "is_active", nullable: true })
+  isActive?: boolean | null;
+  ```
+
+- Updated dependencies
+  - @nyalajs/core@2.3.2
+
 ## 2.2.0
 
 ### Minor Changes

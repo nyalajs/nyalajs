@@ -12,6 +12,12 @@ export interface MailConfig {
     from?: string;
     /** If true, uses nodemailer's test account (Ethereal) — perfect for development. */
     preview?: boolean;
+    /** Milliseconds to wait for the initial TCP connection before giving up. Default 10000. */
+    connectionTimeoutMs?: number;
+    /** Milliseconds to wait for the SMTP greeting after connecting. Default 10000. */
+    greetingTimeoutMs?: number;
+    /** Milliseconds of socket inactivity before giving up mid-send. Default 20000. */
+    socketTimeoutMs?: number;
 }
 
 @Injectable()
@@ -20,6 +26,20 @@ export class MailService {
     private defaultFrom: string = "no-reply@example.com";
 
     async connect(config: MailConfig = {}): Promise<void> {
+        // Without these, a slow/unresponsive SMTP server (the real provider
+        // having an outage, or even the Ethereal test server in dev) leaves
+        // transporter.sendMail() pending indefinitely — and since send() is
+        // typically awaited from a user-facing request (e.g. signup sending
+        // a verification email), that hangs the ENTIRE HTTP request with no
+        // way for the caller to time out except closing the connection
+        // itself. Reproduced against a real app: a registration request
+        // never completed and the process had to be killed to recover.
+        const timeouts = {
+            connectionTimeout: config.connectionTimeoutMs ?? 10_000,
+            greetingTimeout: config.greetingTimeoutMs ?? 10_000,
+            socketTimeout: config.socketTimeoutMs ?? 20_000,
+        };
+
         if (config.preview) {
             // Use Ethereal for development preview emails
             const testAccount = await nodemailer.createTestAccount();
@@ -31,6 +51,7 @@ export class MailService {
                     user: testAccount.user,
                     pass: testAccount.pass,
                 },
+                ...timeouts,
             });
             console.log(
                 `[nyala/mail] Preview mode enabled. Test inbox: ${testAccount.web}`
@@ -47,6 +68,7 @@ export class MailService {
                               pass: config.pass ?? process.env.MAIL_PASS!,
                           }
                         : undefined,
+                ...timeouts,
             });
         }
 

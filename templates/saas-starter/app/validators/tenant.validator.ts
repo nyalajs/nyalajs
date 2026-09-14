@@ -21,3 +21,8 @@ export const UpdateTenantValidator = z.object({
     plan: z.enum(["free", "starter", "pro", "enterprise"]).optional(),
     isActive: z.boolean().optional(),
 });
+
+/** connectionString is deliberately not validated as a real postgres:// URL beyond a minimum length — TenantMigrationService itself surfaces a clear error the moment it tries (and fails) to actually connect, which is a more trustworthy check than a regex here could ever be. */
+export const MigrateToDedicatedValidator = z.object({
+    connectionString: z.string().min(10, "connectionString looks too short to be a real database connection string."),
+});

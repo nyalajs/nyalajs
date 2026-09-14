@@ -23,8 +23,9 @@
         "format": "prettier --write \"{app,bootstrap,config,database,routes}/**/*.ts\"",
         "format:check": "prettier --check \"{app,bootstrap,config,database,routes}/**/*.ts\"",
         "docker:build": "docker build -t nyala-saas .",
-        "docker:up": "docker-compose up -d",
-        "docker:down": "docker-compose down"
+        "docker:up": "docker compose up -d postgres",
+        "docker:down": "docker compose down",
+        "docker:migrate": "docker build --target migrate -t nyala-saas-migrate . && docker run --rm --env-file .env --network host nyala-saas-migrate"
     },
     "dependencies": {
         "@nyalajs/core": "*",

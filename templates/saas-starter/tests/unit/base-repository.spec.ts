@@ -1,29 +1,26 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { TenantContext } from "@nyalajs/core";
+import { Model, SchemaRegistry } from "@nyalajs/database";
 import { FakeDb } from "./fake-db";
 
-// BaseRepository imports `db` from database/connection, which opens a real
-// postgres connection at import time. Mock the module so this runs against
-// the in-memory FakeDb instead — no live Postgres required.
+// UserRepository's methods go through User (a @nyalajs/database Model),
+// whose Model.connection() reads Model.db as its fallback (no
+// ConnectionContext/TransactionContext active in these tests) — pointing
+// that at an in-memory FakeDb exercises BaseRepository's real tenant-scoping
+// logic (delegated to Model itself) without a live Postgres connection.
 const fakeDb = new FakeDb();
-vi.mock("../../database/connection", () => ({
-    db: {
-        select: (...args: any[]) => fakeDb.select(...(args as [])),
-        insert: (...args: any[]) => fakeDb.insert(...(args as [any])),
-        update: (...args: any[]) => fakeDb.update(...(args as [any])),
-        delete: (...args: any[]) => fakeDb.delete(...(args as [any])),
-    },
-}));
+Model.setDatabase(fakeDb as any);
 
 import { UserRepository } from "../../app/repositories/user.repository";
-import { users } from "../../app/models/user.model";
+import { User } from "../../app/models/user.model";
 
 describe("BaseRepository — tenant isolation (via UserRepository)", () => {
     let repo: UserRepository;
 
     beforeEach(() => {
-        fakeDb.seed(users, []);
+        const table = SchemaRegistry.getTable(User);
+        fakeDb.seed(table, []);
         repo = new UserRepository();
     });
 

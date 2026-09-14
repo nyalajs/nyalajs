@@ -1,104 +1,124 @@
 import { Injectable } from "@nyalajs/core";
+import { ConflictException, NotFoundException } from "@nyalajs/http";
 import { Logger } from "@nyalajs/observability";
-import * as bcrypt from "bcrypt";
+import { UserRepository } from "../repositories/user.repository";
+import { hashPassword } from "../helpers/password.helper";
+import type { User, PublicUser } from "../models/user.model";
 
-interface CreateUserDto {
+export interface CreateUserDto {
     email: string;
     name: string;
     password: string;
     role?: string;
 }
 
-interface UpdateUserDto {
+export interface UpdateUserDto {
     name?: string;
     email?: string;
     role?: string;
 }
 
-interface PaginationOptions {
+export interface PaginationOptions {
     page: number;
     limit: number;
 }
 
 @Injectable()
 export class UsersService {
-    constructor(private logger: Logger) { }
+    constructor(
+        private readonly logger: Logger,
+        private readonly userRepository: UserRepository
+    ) {}
 
-    async findAll(options: PaginationOptions) {
+    /** Every user in the CURRENT tenant (TenantContext-scoped via UserRepository), paginated. */
+    async findAll(options: PaginationOptions): Promise<{ data: PublicUser[]; pagination: PaginationOptions & { total: number; totalPages: number } }> {
         this.logger.info("Finding all users", options);
 
-        // TODO: Implement with tenant-aware repository
+        const offset = (options.page - 1) * options.limit;
+        const [rows, total] = await Promise.all([
+            this.userRepository.findAll({ limit: options.limit, offset }),
+            this.userRepository.count(),
+        ]);
+
         return {
-            data: [
-                {
-                    id: "user-1",
-                    email: "user1@example.com",
-                    name: "User One",
-                    role: "user",
-                    createdAt: new Date(),
-                },
-                {
-                    id: "user-2",
-                    email: "user2@example.com",
-                    name: "User Two",
-                    role: "admin",
-                    createdAt: new Date(),
-                },
-            ],
+            data: rows.map(this.sanitize),
             pagination: {
                 page: options.page,
                 limit: options.limit,
-                total: 2,
-                totalPages: 1,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / options.limit)),
             },
         };
     }
 
-    async findOne(id: string) {
+    async findOne(id: string): Promise<PublicUser> {
         this.logger.info("Finding user", { id });
 
-        // TODO: Implement repository lookup
-        return {
-            id,
-            email: "user@example.com",
-            name: "Test User",
-            role: "user",
-            createdAt: new Date(),
-        };
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new NotFoundException("User not found");
+        }
+        return this.sanitize(user);
     }
 
-    async create(dto: CreateUserDto) {
+    async create(dto: CreateUserDto): Promise<PublicUser> {
         this.logger.info("Creating user", { email: dto.email });
 
-        // TODO: Check if email exists and create in database
-        await bcrypt.hash(dto.password, 10);
+        const existing = await this.userRepository.findByEmail(dto.email.toLowerCase());
+        if (existing) {
+            throw new ConflictException("A user with this email already exists in this workspace.");
+        }
 
-        return {
-            id: `user-${Date.now()}`,
-            email: dto.email,
+        const passwordHash = await hashPassword(dto.password);
+        const user = await this.userRepository.create({
+            email: dto.email.toLowerCase(),
             name: dto.name,
-            role: dto.role || "user",
-            createdAt: new Date(),
-        };
+            password: passwordHash,
+            role: dto.role ?? "member",
+            isActive: true,
+        } as any);
+
+        return this.sanitize(user);
     }
 
-    async update(id: string, dto: UpdateUserDto) {
+    async update(id: string, dto: UpdateUserDto): Promise<PublicUser> {
         this.logger.info("Updating user", { id });
 
-        // TODO: Implement repository update
-        return {
-            id,
-            email: dto.email || "user@example.com",
-            name: dto.name || "Updated User",
-            role: dto.role || "user",
-            updatedAt: new Date(),
-        };
+        const existing = await this.userRepository.findById(id);
+        if (!existing) {
+            throw new NotFoundException("User not found");
+        }
+
+        if (dto.email && dto.email.toLowerCase() !== existing.email) {
+            const emailTaken = await this.userRepository.findByEmail(dto.email.toLowerCase());
+            if (emailTaken) {
+                throw new ConflictException("A user with this email already exists in this workspace.");
+            }
+        }
+
+        const updated = await this.userRepository.update(id, {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.email !== undefined && { email: dto.email.toLowerCase() }),
+            ...(dto.role !== undefined && { role: dto.role }),
+        } as Partial<User>);
+
+        return this.sanitize(updated!);
     }
 
-    async delete(id: string) {
+    async delete(id: string): Promise<{ message: string }> {
         this.logger.info("Deleting user", { id });
 
-        // TODO: Implement repository deletion
+        const existing = await this.userRepository.findById(id);
+        if (!existing) {
+            throw new NotFoundException("User not found");
+        }
+
+        await this.userRepository.deactivate(id);
         return { message: `User ${id} deleted successfully` };
+    }
+
+    private sanitize(user: User): PublicUser {
+        const { password, ...sanitized } = user;
+        return sanitized;
     }
 }

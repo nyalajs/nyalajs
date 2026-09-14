@@ -1,5 +1,18 @@
 # @nyalajs/http
 
+## 2.3.1
+
+### Patch Changes
+
+- Fix a severe bug in `FastifyAdapter`'s global middleware pipeline: the last middleware's own `next()` call resolved (and the whole `runMiddleware()` call returned) as soon as the middleware array was exhausted, instead of continuing into the actual guards/handler execution. This meant the real request handler always ran **after** the middleware pipeline had already fully unwound — completely outside any `AsyncLocalStorage`-based scope a middleware had entered around its own `next()` call.
+
+  Concretely, this broke `@nyalajs/tenancy`'s `TenantMiddleware`: its `ConnectionContext.run(dedicatedDb, next)` call (used to route a migrated tenant's traffic to its own dedicated database) had no effect on the actual route handler, so reads/writes silently kept hitting the default shared connection regardless of routing decisions being otherwise correct — with no error at all to indicate anything was wrong.
+
+  `runMiddleware()` now accepts an `onComplete` terminal callback that runs as the true end of the chain once every middleware has called `next()`; `FastifyAdapter.handleRequestInScope()` passes its guards + handler execution + response logic as that callback instead of running it as a separate `await` after the middleware pipeline. Any middleware using `AsyncLocalStorage`-based context propagation around its own `next()` call now correctly has that context active for the rest of the request, including the real handler.
+
+- Updated dependencies
+  - @nyalajs/core@2.3.2
+
 ## 2.3.0
 
 ### Minor Changes

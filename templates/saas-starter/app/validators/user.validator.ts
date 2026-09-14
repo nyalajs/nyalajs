@@ -3,7 +3,11 @@ import { z } from "zod";
 /**
  * User Validators
  *
- * Zod schemas for validating user-related requests.
+ * Zod schemas for validating user-related requests. Role names
+ * (owner/admin/member) match the convention @nyalajs/permissions roles are
+ * seeded with for every tenant — see AuthService.register() (creates the
+ * "owner" role) and TeamService.acceptInvite() (creates whatever role the
+ * invite specified, "admin" or "member").
  */
 
 export const CreateUserValidator = z.object({
@@ -15,28 +19,13 @@ export const CreateUserValidator = z.object({
         .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
         .regex(/[a-z]/, "Password must contain at least one lowercase letter")
         .regex(/[0-9]/, "Password must contain at least one number"),
-    role: z.enum(["user", "admin", "superadmin"]).optional().default("user"),
-    isActive: z.boolean().optional().default(true),
+    role: z.enum(["admin", "member"]).optional().default("member"),
 });
 
 export const UpdateUserValidator = z.object({
     name: z.string().min(2).max(255).optional(),
     email: z.string().email().max(255).optional(),
-    password: z
-        .string()
-        .min(8)
-        .regex(/[A-Z]/)
-        .regex(/[a-z]/)
-        .regex(/[0-9]/)
-        .optional(),
-    role: z.enum(["user", "admin", "superadmin"]).optional(),
-    isActive: z.boolean().optional(),
-});
-
-export const LoginValidator = z.object({
-    email: z.string().email("Invalid email format"),
-    password: z.string().min(1, "Password is required"),
-    tenantSlug: z.string().optional(),
+    role: z.enum(["admin", "member"]).optional(),
 });
 
 export const PaginationValidator = z.object({

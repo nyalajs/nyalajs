@@ -1,5 +1,15 @@
 # @nyalajs/payments
 
+## 0.3.3
+
+### Patch Changes
+
+- Fix `mountWebhookRoute()` crashing with `FST_ERR_CTP_ALREADY_PRESENT` when the app's Fastify instance already has a global body parser for `application/json` or `application/x-www-form-urlencoded` registered via a plugin that bypasses normal Fastify encapsulation (`@fastify/formbody`, which `@nyalajs/http`'s `FastifyAdapter` registers by default, is exactly this case). `mountWebhookRoute()` now removes any existing parser for these content types within its own nested scope before adding the raw-buffer parser webhook signature verification needs, instead of assuming none exists — confirmed against a real Fastify instance with `@fastify/formbody` registered that this previously crashed the whole app at boot.
+- Updated dependencies
+- Updated dependencies
+  - @nyalajs/core@2.3.2
+  - @nyalajs/http@2.3.1
+
 ## 0.3.2
 
 ### Patch Changes

@@ -1,0 +1,47 @@
+# Local development stack — real Postgres, matching what production expects.
+# `npm run docker:up` brings this up; the app itself still runs on the host
+# (via `npm run dev`) unless you also build/run the `app` profile below.
+#
+# This is NOT a production deployment manifest — it has no secrets
+# management, no TLS termination, no replication/backups. For production,
+# point DATABASE_URL at a real managed Postgres instance instead (RDS,
+# Supabase, Neon, Cloud SQL, etc.) and deploy the app image built by the
+# Dockerfile behind your own orchestrator.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-nyala_saas}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - nyala_saas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-nyala_saas}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: run the app itself in Docker too, alongside Postgres. Not
+  # started by default — `docker compose up app` (or add it to `docker:up`)
+  # once you've filled in a real .env for it to load.
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-nyala_saas}
+    profiles:
+      - app
+
+volumes:
+  nyala_saas_pgdata:

@@ -476,9 +476,22 @@ export class FastifyAdapter {
             route,
         };
 
-        try {
-            // ── Global middleware pipeline ────────────────────────────────────
-            await this.runMiddleware(this.globalMiddleware, request, reply);
+        // Guards + handler + response now run as the middleware chain's own
+        // terminal continuation (runMiddleware()'s `onComplete`), not as a
+        // separate `await` after it — see runMiddleware()'s doc comment for
+        // why: a middleware that wraps its own `next()` call in an
+        // AsyncLocalStorage scope (ConnectionContext.run(), TenantMiddleware's
+        // real use case) needs the actual request handling to run INSIDE
+        // that call for the scope to still be active once a DB write
+        // happens, not after the whole middleware pipeline has already
+        // unwound.
+        const runGuardsAndHandler = async (): Promise<void> => {
+            // A middleware that sent a reply itself (e.g. rate-limiting,
+            // an auth check implemented as middleware rather than a Guard)
+            // and THEN still called next() — same defensive check the code
+            // here used to run right after runMiddleware() returned, kept
+            // for the same reason: sending again would throw/warn "reply
+            // already sent".
             if (reply.sent) return;
 
             // ── Guards ───────────────────────────────────────────────────────
@@ -502,13 +515,13 @@ export class FastifyAdapter {
             // ── Handler execution (with interceptors) ────────────────────────
             const executeHandler = async () => {
                 const controller = requestContainer.resolve(route.controller) as any;
-                
+
                 // 1. Validate request (using nyala:validation metadata if present)
                 this.validateRequest(route.controller.prototype, route.handlerName, request);
 
                 // 2. Resolve arguments
                 const args = this.resolveHandlerParams(route, request, reply);
-                
+
                 // 3. Execute
                 return await controller[route.handlerName](...args);
             };
@@ -568,6 +581,10 @@ export class FastifyAdapter {
                     timestamp: new Date().toISOString(),
                 })
             );
+        };
+
+        try {
+            await this.runMiddleware(this.globalMiddleware, request, reply, runGuardsAndHandler);
         } catch (error) {
             const handled = await this.tryExceptionFilters(route, error as Error, executionContext, reply, requestContainer);
             if (!handled) {
@@ -834,10 +851,36 @@ export class FastifyAdapter {
         }
     }
 
-    private async runMiddleware(middleware: Middleware[], request: any, reply: any): Promise<void> {
+    /**
+     * Runs `middleware` in order, then `onComplete` as the TRUE end of the
+     * chain — the last middleware's own `await next()` call resolves only
+     * once `onComplete` itself has finished, not before it.
+     *
+     * This matters far beyond "middleware runs before the handler": any
+     * middleware using AsyncLocalStorage-based context propagation around
+     * its own `next()` call (@nyalajs/tenancy's TenantMiddleware wrapping
+     * `ConnectionContext.run(dedicatedDb, next)` is the real, concrete
+     * case) needs the ACTUAL route handler to execute INSIDE that `next()`
+     * call for the context to still be active when the handler runs.
+     * Previously, `next()` for the last middleware just `return`ed
+     * immediately (nothing left in the middleware array), so
+     * `runMiddleware()` as a whole resolved BEFORE the guards/handler even
+     * started — meaning they always ran completely outside any
+     * AsyncLocalStorage scope a middleware had entered. Reproduced against
+     * a real request: a tenant migrated to a dedicated database via
+     * TenantMigrationService kept having its WRITES land on the shared
+     * database anyway, because Model.connection() saw ConnectionContext as
+     * empty by the time the write actually happened — the request handler
+     * was, in effect, never really "inside" TenantMiddleware's `next()`
+     * call at all.
+     */
+    private async runMiddleware(middleware: Middleware[], request: any, reply: any, onComplete?: () => Promise<void>): Promise<void> {
         let index = 0;
         const next = async (): Promise<void> => {
-            if (index >= middleware.length) return;
+            if (index >= middleware.length) {
+                if (onComplete) await onComplete();
+                return;
+            }
             const mw = middleware[index++];
             await mw.use(request, reply, next);
         };
