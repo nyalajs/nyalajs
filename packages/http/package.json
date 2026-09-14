@@ -17,7 +17,7 @@
         "dev": "tsc --watch"
     },
     "dependencies": {
-        "@fastify/compress": "^6.5.0",
+        "@fastify/compress": "^9.2.0",
         "@fastify/cookie": "^9.4.0",
         "@fastify/cors": "^8.5.0",
         "@fastify/csrf-protection": "^6.4.1",
