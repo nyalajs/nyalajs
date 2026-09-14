@@ -26,7 +26,7 @@
         "better-sqlite3": "^9.4.0",
         "mysql2": "^3.9.1",
         "pg": "^8.11.3",
-        "typescript": "^5.3.3",
+        "typescript": "^7.0.2",
         "vitest": "^1.0.4",
         "@types/better-sqlite3": "^7.6.8",
         "@types/node": "^20.10.6",

@@ -45,7 +45,7 @@
         "fastify": "^4.29.1",
         "graphql": "^16.9.0",
         "graphql-yoga": "^5.10.6",
-        "typescript": "^5.3.3",
+        "typescript": "^7.0.2",
         "vitest": "^1.0.4"
     },
     "files": [
