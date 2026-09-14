@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "nyala dev",
         "build": "nyala build",
+        "typecheck": "tsc --noEmit",
         "start": "node dist/bootstrap/main.js",
         "test": "vitest run --passWithNoTests",
         "test:watch": "vitest",

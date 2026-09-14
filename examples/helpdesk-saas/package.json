@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "tsc-watch --preserveWatchOutput --onSuccess \"node dist/bootstrap/main.js\"",
         "build": "tsc",
+        "typecheck": "tsc --noEmit",
         "start": "node dist/bootstrap/main.js",
         "test": "vitest run --passWithNoTests",
         "test:unit": "vitest run tests/unit",
