@@ -8,7 +8,18 @@ import { NyalaMicroserviceApplication } from "../microservice-application";
 import { ClientProxyFactory } from "../client/client-proxy.factory";
 import { ClientProxy } from "../client/client-proxy";
 
-const REDIS_PORT = Number(process.env.NYALA_TEST_REDIS_PORT ?? 6399);
+/**
+ * Real, unmocked exercise of the Redis transport end to end against a live
+ * Redis server.
+ *
+ * Requires a live Redis server. Skipped unless NYALA_TEST_REDIS_PORT is set
+ * (CI has no Redis service configured for this suite, so it never runs
+ * there) — run locally with e.g.:
+ *   docker run --rm -p 6399:6379 redis:7-alpine
+ *   NYALA_TEST_REDIS_PORT=6399 npx vitest run redis-microservice.e2e
+ */
+const NYALA_TEST_REDIS_PORT = process.env.NYALA_TEST_REDIS_PORT;
+const REDIS_PORT = Number(NYALA_TEST_REDIS_PORT);
 
 @Injectable()
 class MathService {
@@ -55,7 +66,7 @@ function uniqueChannelPrefix(): string {
     return `nyala:test:${Date.now()}:${Math.floor(Math.random() * 1e6)}`;
 }
 
-describe("Redis microservice (e2e)", () => {
+describe.skipIf(!NYALA_TEST_REDIS_PORT)("Redis microservice (e2e)", () => {
     let app: NyalaMicroserviceApplication | undefined;
     let client: ClientProxy | undefined;
 

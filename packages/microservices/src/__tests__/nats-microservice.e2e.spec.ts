@@ -8,7 +8,18 @@ import { NyalaMicroserviceApplication } from "../microservice-application";
 import { ClientProxyFactory } from "../client/client-proxy.factory";
 import { ClientProxy } from "../client/client-proxy";
 
-const NATS_SERVERS = process.env.NYALA_TEST_NATS_SERVERS ?? "127.0.0.1:4222";
+/**
+ * Real, unmocked exercise of the NATS transport end to end against a live
+ * NATS server.
+ *
+ * Requires a live NATS server. Skipped unless NYALA_TEST_NATS_SERVERS is set
+ * (CI has no NATS service configured for this suite, so it never runs
+ * there) — run locally with e.g.:
+ *   docker run --rm -p 4222:4222 nats:2-alpine
+ *   NYALA_TEST_NATS_SERVERS="127.0.0.1:4222" npx vitest run nats-microservice.e2e
+ */
+const NYALA_TEST_NATS_SERVERS = process.env.NYALA_TEST_NATS_SERVERS;
+const NATS_SERVERS = NYALA_TEST_NATS_SERVERS ?? "";
 
 @Injectable()
 class MathService {
@@ -53,7 +64,7 @@ function uniqueSubjectPrefix(): string {
     return `nyala.test.${Date.now()}.${Math.floor(Math.random() * 1e6)}`;
 }
 
-describe("NATS microservice (e2e)", () => {
+describe.skipIf(!NYALA_TEST_NATS_SERVERS)("NATS microservice (e2e)", () => {
     let app: NyalaMicroserviceApplication | undefined;
     let client: ClientProxy | undefined;
 

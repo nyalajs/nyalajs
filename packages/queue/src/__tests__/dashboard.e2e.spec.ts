@@ -4,13 +4,19 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import { QueueService } from "../queue.service";
 import { mountQueueDashboard } from "../dashboard/dashboard";
 
-// Requires a real Redis instance. Matches the rest of this repo's testing
-// philosophy: verify against real infrastructure, not mocks. Point at the
-// scratch Redis container started for this work (see session notes) — CI/dev
-// can override via QUEUE_TEST_REDIS_URL.
-const REDIS_URL = process.env.QUEUE_TEST_REDIS_URL ?? "redis://127.0.0.1:6390";
+/**
+ * Real, unmocked exercise of the queue dashboard against a live Redis —
+ * matches the rest of this repo's testing philosophy: verify against real
+ * infrastructure, not mocks.
+ *
+ * Requires a live Redis server. Skipped unless QUEUE_TEST_REDIS_URL is set
+ * — run locally with e.g.:
+ *   docker run --rm -p 6390:6379 redis:7-alpine
+ *   QUEUE_TEST_REDIS_URL="redis://127.0.0.1:6390" npx vitest run dashboard.e2e
+ */
+const REDIS_URL = process.env.QUEUE_TEST_REDIS_URL;
 
-describe("mountQueueDashboard (e2e, real Redis + real Fastify)", () => {
+describe.skipIf(!REDIS_URL)("mountQueueDashboard (e2e, real Redis + real Fastify)", () => {
     let app: FastifyInstance;
     let queueService: QueueService;
 
@@ -30,7 +36,7 @@ describe("mountQueueDashboard (e2e, real Redis + real Fastify)", () => {
     });
 
     it("mounts the dashboard API and serves real queue/job data from BullMQ", async () => {
-        await queueService.connect({ url: REDIS_URL });
+        await queueService.connect({ url: REDIS_URL! });
 
         const queueName = `dash-test-${Date.now()}`;
         const received: unknown[] = [];
@@ -66,7 +72,7 @@ describe("mountQueueDashboard (e2e, real Redis + real Fastify)", () => {
     });
 
     it("refresh() picks up a queue created after the dashboard was mounted", async () => {
-        await queueService.connect({ url: REDIS_URL });
+        await queueService.connect({ url: REDIS_URL! });
 
         const firstQueue = `dash-first-${Date.now()}`;
         await queueService.process(firstQueue, async () => undefined);
@@ -94,7 +100,7 @@ describe("mountQueueDashboard (e2e, real Redis + real Fastify)", () => {
     });
 
     it("real dispatched job data round-trips through the dashboard job list", async () => {
-        await queueService.connect({ url: REDIS_URL });
+        await queueService.connect({ url: REDIS_URL! });
 
         const queueName = `dash-jobdata-${Date.now()}`;
         // Don't register a processor — leave the job sitting in "waiting" so

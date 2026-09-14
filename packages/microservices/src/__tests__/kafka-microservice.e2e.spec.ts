@@ -8,7 +8,18 @@ import { NyalaMicroserviceApplication } from "../microservice-application";
 import { ClientProxyFactory } from "../client/client-proxy.factory";
 import { ClientProxy } from "../client/client-proxy";
 
-const KAFKA_BROKERS = (process.env.NYALA_TEST_KAFKA_BROKERS ?? "127.0.0.1:9092").split(",");
+/**
+ * Real, unmocked exercise of the Kafka transport end to end against a live
+ * Kafka broker.
+ *
+ * Requires a live Kafka broker. Skipped unless NYALA_TEST_KAFKA_BROKERS is
+ * set (CI has no Kafka service configured for this suite, so it never runs
+ * there) — run locally with e.g.:
+ *   docker run --rm -p 9092:9092 apache/kafka:3.7.0
+ *   NYALA_TEST_KAFKA_BROKERS="127.0.0.1:9092" npx vitest run kafka-microservice.e2e
+ */
+const NYALA_TEST_KAFKA_BROKERS = process.env.NYALA_TEST_KAFKA_BROKERS;
+const KAFKA_BROKERS = (NYALA_TEST_KAFKA_BROKERS ?? "").split(",");
 
 @Injectable()
 class MathService {
@@ -53,7 +64,7 @@ function uniqueId(): string {
     return `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
-describe("Kafka microservice (e2e)", () => {
+describe.skipIf(!NYALA_TEST_KAFKA_BROKERS)("Kafka microservice (e2e)", () => {
     let app: NyalaMicroserviceApplication | undefined;
     let client: ClientProxy | undefined;
 
